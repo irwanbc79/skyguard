@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyGuard - Mobile Price Reference</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen">
+    <!-- Header -->
+    <header class="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">SkyGuard Intelligence</h1>
+                        <p class="text-xs text-blue-300">Mobile Price Reference - BC Kualanamu</p>
+                    </div>
+                </div>
+                <div class="text-right text-sm text-gray-400">
+                    <div id="datetime"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Latest Prices Card -->
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6 border border-white/20">
+            <h2 class="text-lg font-semibold text-white mb-4"><i class="fas fa-clock text-cyan-400 mr-2"></i>Data Harga Terbaru</h2>
+            <div id="latest-cards" class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <!-- Cards loaded by JS -->
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6 border border-white/20">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="searchInput" placeholder="Cari tipe handphone... (cth: iPhone 16 Pro)" 
+                        class="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                </div>
+                <select id="brandFilter" class="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                    <option value="">Semua Brand</option>
+                </select>
+                <button onclick="searchDevices()" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white rounded-xl font-semibold hover:opacity-90 transition">
+                    <i class="fas fa-search mr-2"></i>Cari
+                </button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-white"><i class="fas fa-list text-cyan-400 mr-2"></i>Hasil Pencarian</h2>
+                <span id="resultCount" class="text-sm text-gray-400"></span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-white/5">
+                        <tr class="text-left text-gray-300 text-sm">
+                            <th class="px-4 py-3">Brand</th>
+                            <th class="px-4 py-3">Model</th>
+                            <th class="px-4 py-3">Kapasitas</th>
+                            <th class="px-4 py-3 text-right">Harga (USD)</th>
+                            <th class="px-4 py-3 text-right">Pajak (IDR)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody" class="text-white"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-gray-500 text-sm">
+        &copy; 2026 SkyGuard Intelligence - Bea Cukai Kualanamu
+    </footer>
+
+    <script>
+        const API = '/api';
+        
+        // Update datetime
+        function updateTime() {
+            document.getElementById('datetime').textContent = new Date().toLocaleString('id-ID');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Load brands
+        async function loadBrands() {
+            const res = await fetch(`${API}/devices/brands`);
+            const { data } = await res.json();
+            const select = document.getElementById('brandFilter');
+            data.forEach(b => select.innerHTML += `<option value="${b}">${b}</option>`);
+        }
+
+        // Load latest
+        async function loadLatest() {
+            const res = await fetch(`${API}/devices/latest`);
+            const { data } = await res.json();
+            const container = document.getElementById('latest-cards');
+            container.innerHTML = data.slice(0,5).map(d => `
+                <div class="bg-gradient-to-br from-blue-600/30 to-cyan-600/30 rounded-xl p-4 card-hover transition cursor-pointer" onclick="searchByModel('${d.model}')">
+                    <div class="text-xs text-cyan-300 mb-1">${d.brand}</div>
+                    <div class="font-bold text-white text-sm">${d.model}</div>
+                    <div class="text-xs text-gray-300">${d.capacity}</div>
+                    <div class="text-lg font-bold text-cyan-400 mt-2">$${d.price_usd.toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        // Search
+        async function searchDevices() {
+            const q = document.getElementById('searchInput').value;
+            const brand = document.getElementById('brandFilter').value;
+            const params = new URLSearchParams();
+            if (q) params.append('q', q);
+            if (brand) params.append('brand', brand);
+            
+            const res = await fetch(`${API}/devices/search?${params}`);
+            const { data, count } = await res.json();
+            
+            document.getElementById('resultCount').textContent = `${count} hasil ditemukan`;
+            document.getElementById('resultsBody').innerHTML = data.map(d => `
+                <tr class="border-t border-white/10 hover:bg-white/5">
+                    <td class="px-4 py-3"><span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">${d.brand}</span></td>
+                    <td class="px-4 py-3 font-medium">${d.model}</td>
+                    <td class="px-4 py-3 text-gray-300">${d.capacity}</td>
+                    <td class="px-4 py-3 text-right font-mono text-cyan-400">$${d.price_usd.toLocaleString()}</td>
+                    <td class="px-4 py-3 text-right font-mono ${d.tax_idr > 0 ? 'text-yellow-400' : 'text-gray-500'}">${d.tax_idr > 0 ? 'Rp ' + d.tax_idr.toLocaleString() : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function searchByModel(model) {
+            document.getElementById('searchInput').value = model;
+            searchDevices();
+        }
+
+        // Enter key search
+        document.getElementById('searchInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') searchDevices();
+        });
+
+        // Init
+        loadBrands();
+        loadLatest();
+        searchDevices();
+    </script>
+</body>
+</html>
