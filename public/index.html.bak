@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        select option { background: #1a3a5c; color: white; }
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         * { font-family: 'Inter', sans-serif; }
         .gradient-bg { background: linear-gradient(135deg, #0c1929 0%, #1a3a5c 50%, #0d2137 100%); }
@@ -132,7 +131,7 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6">
         <!-- HOME Content -->
-            <div id="content-home" class="content-section fade-in" style="display:block;">
+            <div id="home-content" class="tab-content">
               <!-- Header Section -->
               <div class="text-center mb-8">
                 <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl mb-4 shadow-lg">
@@ -222,13 +221,12 @@
                   <i class="fas fa-suitcase-rolling text-cyan-400"></i> Ketentuan Barang Bawaan Penumpang
                 </h3>
                 <p class="text-gray-400 text-sm mb-4">Berdasarkan PMK Nomor 34 Tahun 2025 (berlaku sejak 6 Juni 2025)</p>
-                <p class="text-yellow-400 text-xs mb-4 bg-yellow-900/30 p-2 rounded"><i class="fas fa-info-circle mr-1"></i><strong>Catatan:</strong> PPN masih menggunakan tarif 11% sesuai implementasi CEISA saat ini. Tarif PPN 12% sesuai PMK 34/2025 akan diterapkan setelah sistem CEISA diperbarui.</p>
                 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div class="bg-slate-700/50 rounded-lg p-4 text-center">
                     <i class="fas fa-gift text-green-400 text-2xl mb-2"></i>
                     <p class="text-2xl font-bold text-white">USD 500</p>
-                    <p class="text-gray-400 text-sm">Pembebasan/Orang</p>
+                    <p class="text-gray-400 text-sm">Bebas Bea/Orang</p>
                   </div>
                   <div class="bg-slate-700/50 rounded-lg p-4 text-center">
                     <i class="fas fa-percentage text-blue-400 text-2xl mb-2"></i>
@@ -237,7 +235,7 @@
                   </div>
                   <div class="bg-slate-700/50 rounded-lg p-4 text-center">
                     <i class="fas fa-receipt text-purple-400 text-2xl mb-2"></i>
-                    <p class="text-2xl font-bold text-white">11%</p>
+                    <p class="text-2xl font-bold text-white">12%</p>
                     <p class="text-gray-400 text-sm">PPN</p>
                   </div>
                   <div class="bg-slate-700/50 rounded-lg p-4 text-center">
@@ -253,7 +251,7 @@
                   <div class="text-gray-300 space-y-1 font-mono text-sm">
                     <p>Nilai Pabean = (FOB - USD 500) × Kurs</p>
                     <p>Bea Masuk = 10% × Nilai Pabean</p>
-                    <p>PPN = 11% × (Nilai Pabean + Bea Masuk)</p>
+                    <p>PPN = 12% × (Nilai Pabean + Bea Masuk)</p>
                     <p class="text-yellow-400 font-bold">Total Pajak = Bea Masuk + PPN</p>
                   </div>
                 </div>
@@ -446,20 +444,14 @@
             home: { subMenus: [], color: '#60a5fa' },
             imei: { 
                 subMenus: [
-                    { id: 'harga', label: 'Cek Harga', icon: 'fa-search' },
                     { id: 'kurs', label: 'Kurs Pajak', icon: 'fa-dollar-sign' },
+                    { id: 'harga', label: 'Cek Harga', icon: 'fa-search' },
                     { id: 'kalkulator', label: 'Kalkulator', icon: 'fa-calculator' },
                     { id: 'input', label: 'Input Data', icon: 'fa-plus-circle' }
                 ],
                 color: '#22c55e'
             },
-            penumpang: {
-                subMenus: [
-                    { id: 'lookup', label: 'Cari Penumpang', icon: 'fa-search' },
-                    { id: 'alerts', label: 'Alert Profiling', icon: 'fa-exclamation-triangle' },
-                    { id: 'riwayat', label: 'Riwayat', icon: 'fa-history' },
-                    { id: 'stats', label: 'Statistik', icon: 'fa-chart-bar' }
-                ], 
+            penumpang: { 
                 subMenus: [
                     { id: 'pembebasan', label: 'Kalkulator Pembebasan', icon: 'fa-calculator' },
                     { id: 'deklarasi', label: 'Customs Declaration', icon: 'fa-file-alt' },
@@ -562,16 +554,6 @@
         function loadSubContent(menu, subId) {
             if (menu === 'imei') {
                 const container = document.getElementById('content-imei');
-                
-                // Handle Penumpang sub menus
-                if (currentMainMenu === 'penumpang') {
-                    document.querySelectorAll('#penumpang-sub-content .sub-content').forEach(el => el.classList.add('hidden'));
-                    const subEl = document.getElementById('penumpang-' + subId);
-                    if (subEl) subEl.classList.remove('hidden');
-                    
-                    if (subId === 'alerts') loadAlerts();
-                    if (subId === 'stats') loadPassengerStats();
-                }
                 
                 if (subId === 'kurs') {
                     container.innerHTML = getKursContent();
@@ -745,7 +727,7 @@
                         <div class="grid md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2">Brand</label>
-                                <select style="background: #1a3a5c; color: white;" id="inputBrand" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
+                                <select id="inputBrand" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
                                     <option value="Apple">Apple</option>
                                     <option value="Samsung">Samsung</option>
                                     <option value="Xiaomi">Xiaomi</option>
@@ -762,7 +744,7 @@
                         <div class="grid md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2">Kapasitas</label>
-                                <select style="background: #1a3a5c; color: white;" id="inputCapacity" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
+                                <select id="inputCapacity" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
                                     <option value="64GB">64GB</option>
                                     <option value="128GB">128GB</option>
                                     <option value="256GB">256GB</option>
@@ -812,58 +794,44 @@
             } catch(e) { console.error(e); }
         }
 
-        function renderAllDevices(filter = null, selectedBrand = null) {
+        function renderAllDevices(filter = null) {
             const container = document.getElementById('allDevicesContainer');
             if (!container || !allDevicesData) return;
 
-            const brands = Object.keys(allDevicesData);
-            const activeBrand = selectedBrand || brands[0] || 'Apple';
+            let html = '';
+            Object.keys(allDevicesData).forEach(brand => {
+                let devices = allDevicesData[brand];
+                if (filter) {
+                    devices = devices.filter(d => d.model.toLowerCase().includes(filter.toLowerCase()) || d.brand.toLowerCase().includes(filter.toLowerCase()));
+                }
+                if (devices.length === 0) return;
 
-            // Render brand tabs
-            let tabsHtml = '<div class="flex flex-wrap gap-2 mb-6 pb-4 border-b border-white/10">';
-            brands.forEach(brand => {
-                const isActive = brand === activeBrand;
-                const count = allDevicesData[brand]?.length || 0;
-                tabsHtml += `
-                    <button onclick="renderAllDevices(null, '${brand}')" 
-                        class="flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isActive ? 'bg-blue-600 text-white' : 'bg-white/5 hover:bg-white/10 text-gray-300'}">
-                        <img src="${getBrandLogo(brand)}" alt="${brand}" class="w-5 h-5 object-contain">
-                        <span class="font-medium">${brand}</span>
-                        <span class="text-xs opacity-70">(${count})</span>
-                    </button>
-                `;
-            });
-            tabsHtml += '</div>';
-
-            // Render devices for selected brand
-            let devices = allDevicesData[activeBrand] || [];
-            if (filter) {
-                devices = devices.filter(d => d.model.toLowerCase().includes(filter.toLowerCase()));
-            }
-
-            let devicesHtml = '';
-            if (devices.length > 0) {
-                devicesHtml = `
-                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        ${devices.map(d => `
-                            <div class="device-card rounded-xl p-4 cursor-pointer" onclick="selectDeviceFromList('${d.brand}', '${d.model}', '${d.capacity}', ${d.price_usd})">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div><p class="font-semibold text-white">${d.model}</p><p class="text-xs text-gray-400">${d.capacity}</p></div>
-                                    <div class="text-right text-xs"><p class="text-gray-500">${d.updated_at ? new Date(d.updated_at).toLocaleDateString('id-ID') : '-'}</p><p class="text-blue-400">${d.updated_by || '-'}</p></div>
+                const brandClass = brand.toLowerCase() === 'apple' ? 'brand-apple' : brand.toLowerCase() === 'samsung' ? 'brand-samsung' : 'brand-other';
+                html += `
+                    <div class="brand-section ${brandClass} mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fas fa-mobile-alt text-2xl"></i>
+                            <h3 class="text-xl font-bold">${brand}</h3>
+                            <span class="bg-white/10 text-xs px-2 py-1 rounded-full">${devices.length} devices</span>
+                        </div>
+                        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            ${devices.map(d => `
+                                <div class="device-card rounded-xl p-4 cursor-pointer" onclick="selectDeviceFromList('${d.brand}', '${d.model}', '${d.capacity}', ${d.price_usd})">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div><p class="font-semibold text-white">${d.model}</p><p class="text-xs text-gray-400">${d.capacity}</p></div>
+                                    </div>
+                                    <div class="flex justify-between items-end">
+                                        <p class="text-xl font-bold text-green-400">$${d.price_usd.toLocaleString()}</p>
+                                        <button class="text-blue-400 hover:text-blue-300 text-xs"><i class="fas fa-calculator mr-1"></i>Hitung</button>
+                                    </div>
                                 </div>
-                                <div class="flex justify-between items-end">
-                                    <p class="text-xl font-bold text-green-400">${d.price_usd.toLocaleString()}</p>
-                                    <button class="text-blue-400 hover:text-blue-300 text-xs"><i class="fas fa-calculator mr-1"></i>Hitung</button>
-                                </div>
-                            </div>
-                        `).join('')}
+                            `).join('')}
+                        </div>
                     </div>
                 `;
-            } else {
-                devicesHtml = '<div class="text-center py-12 text-gray-400"><i class="fas fa-search text-5xl mb-4 opacity-30"></i><p>Tidak ditemukan hasil</p></div>';
-            }
+            });
 
-            container.innerHTML = tabsHtml + devicesHtml;
+            container.innerHTML = html || '<div class="text-center py-12 text-gray-400"><i class="fas fa-search text-5xl mb-4 opacity-30"></i><p>Tidak ditemukan hasil</p></div>';
         }
 
         function searchDevices() {
@@ -872,8 +840,8 @@
         }
 
         function selectDeviceFromList(brand, model, capacity, price) {
-            setSubMenu('kalkulator');
             setDevice(1, { brand, model, capacity, price_usd: price });
+            setSubMenu('kalkulator');
         }
 
         // ==================== CALCULATOR FUNCTIONS ====================
@@ -955,7 +923,7 @@
                 html += `</div>
                     <div class="space-y-3">
                         <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Total FOB</span><span class="font-bold text-lg">$${totalFob.toLocaleString()}</span></div>
-                        <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Pembebasan</span><span class="font-semibold text-green-400">- $${p.pembebasan_usd}</span></div>
+                        <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Bebas Bea</span><span class="font-semibold text-green-400">- $${p.bebas_bea_usd}</span></div>
                         <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Kena Pajak</span><span class="font-semibold">$${p.kena_pajak_usd.toLocaleString()}</span></div>
                         <div class="border-t border-white/10 my-2"></div>
                         <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Nilai Pabean</span><span class="font-semibold">Rp ${p.nilai_pabean_idr.toLocaleString('id-ID')}</span></div>
@@ -991,7 +959,7 @@
             tbody.innerHTML = allKursData.currencies.map((c, i) => `
                 <tr class="kurs-row border-b border-white/5">
                     <td class="py-4 pl-4 text-gray-500">${String(i + 1).padStart(2, '0')}</td>
-                    <td class="py-4"><div class="flex items-center gap-3"><img src="${c.flag}" alt="${c.code}" class="w-8 h-6 object-cover rounded shadow"><div><p class="font-semibold">${c.name} (${c.code})</p><p class="text-xs text-gray-500">Official Tax Rate</p></div></div></td>
+                    <td class="py-4"><div class="flex items-center gap-3"><span class="text-2xl">${c.flag}</span><div><p class="font-semibold">${c.name} (${c.code})</p><p class="text-xs text-gray-500">Official Tax Rate</p></div></div></td>
                     <td class="py-4 text-center"><span class="bg-blue-500/20 text-blue-300 text-xs px-2 py-1 rounded">${c.code}</span></td>
                     <td class="py-4 text-right pr-4"><span class="text-lg font-bold ${c.code === 'USD' ? 'text-green-400' : 'text-white'}"><span class="text-gray-500 text-sm">Rp</span> ${c.rate.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</span></td>
                 </tr>
@@ -1056,143 +1024,6 @@
                 }
             });
         });
-
-        
-        function getBrandLogo(brand) {
-            const logos = {
-                'Apple': 'https://cdn.simpleicons.org/apple/white',
-                'Samsung': 'https://cdn.simpleicons.org/samsung/white',
-                'Xiaomi': 'https://cdn.simpleicons.org/xiaomi/white',
-                'OPPO': 'https://cdn.simpleicons.org/oppo/white',
-                'Vivo': 'https://cdn.simpleicons.org/vivo/white',
-                'Huawei': 'https://cdn.simpleicons.org/huawei/white',
-                'Google': 'https://cdn.simpleicons.org/google/white',
-                'OnePlus': 'https://cdn.simpleicons.org/oneplus/white',
-                'Realme': 'https://cdn.simpleicons.org/realme/white',
-                'Sony': 'https://cdn.simpleicons.org/sony/white',
-                'Nokia': 'https://cdn.simpleicons.org/nokia/white',
-                'Motorola': 'https://cdn.simpleicons.org/motorola/white',
-                'Asus': 'https://cdn.simpleicons.org/asus/white',
-                'LG': 'https://cdn.simpleicons.org/lg/white'
-            };
-            return logos[brand] || 'https://cdn.simpleicons.org/android/white';
-        }
-
-        
-        // ==================== PENUMPANG FUNCTIONS ====================
-        async function lookupPassenger() {
-            const passport = document.getElementById('passportInput')?.value?.trim();
-            if (!passport) { showToast('Masukkan nomor paspor', 'error'); return; }
-            
-            showToast('Mencari data penumpang...');
-            try {
-                const res = await fetch('/api/passengers/lookup/' + encodeURIComponent(passport));
-                const data = await res.json();
-                
-                const container = document.getElementById('passengerResult');
-                if (!data.data || !data.data.passenger) {
-                    container.innerHTML = '<div class="glass-card-solid rounded-xl p-6 text-center"><i class="fas fa-user-slash text-4xl text-gray-500 mb-3"></i><p class="text-gray-400">Penumpang dengan paspor <strong>' + passport + '</strong> tidak ditemukan</p></div>';
-                    container.classList.remove('hidden');
-                    return;
-                }
-                
-                const p = data.data.passenger;
-                const txns = data.data.transactions || [];
-                const flags = data.data.flags || [];
-                
-                let flagsHtml = flags.map(f => '<span class="px-2 py-1 rounded text-xs bg-' + f.color + '-500/30 text-' + f.color + '-300">' + f.label + '</span>').join(' ');
-                
-                let txnHtml = txns.length ? txns.map(t => 
-                    '<div class="result-row p-3 rounded-lg"><div class="flex justify-between"><div><p class="font-semibold">' + (t.hkt1 || '-') + '</p><p class="text-xs text-gray-400">' + (t.hkt2 ? 'HKT2: ' + t.hkt2 : '') + '</p></div><div class="text-right"><p class="text-sm">' + new Date(t.tanggal_dokumen).toLocaleDateString('id-ID') + '</p><p class="text-xs ' + (t.status_penelitian === 'PEMBEBASAN' ? 'text-green-400' : 'text-yellow-400') + '">' + (t.status_penelitian || t.status) + '</p></div></div></div>'
-                ).join('') : '<p class="text-gray-400 text-center py-4">Tidak ada riwayat transaksi</p>';
-                
-                container.innerHTML = 
-                    '<div class="glass-card-solid rounded-xl p-6 mb-4">' +
-                    '<div class="flex justify-between items-start mb-4"><div><h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fas fa-passport text-yellow-400"></i> ' + p.passport + '</h3><div class="flex gap-2 mt-2">' + flagsHtml + '</div></div><div class="text-right"><p class="text-2xl font-bold text-blue-400">' + p.total_arrivals + '</p><p class="text-xs text-gray-400">Total Kedatangan</p></div></div>' +
-                    '<div class="grid grid-cols-3 gap-4 mb-4">' +
-                    '<div class="bg-white/5 rounded-lg p-3 text-center"><p class="text-lg font-bold text-green-400">' + p.total_devices + '</p><p class="text-xs text-gray-400">Total IMEI</p></div>' +
-                    '<div class="bg-white/5 rounded-lg p-3 text-center"><p class="text-sm font-bold text-white">' + (p.first_arrival ? new Date(p.first_arrival).toLocaleDateString('id-ID') : '-') + '</p><p class="text-xs text-gray-400">Pertama</p></div>' +
-                    '<div class="bg-white/5 rounded-lg p-3 text-center"><p class="text-sm font-bold text-white">' + (p.last_arrival ? new Date(p.last_arrival).toLocaleDateString('id-ID') : '-') + '</p><p class="text-xs text-gray-400">Terakhir</p></div>' +
-                    '</div></div>' +
-                    '<div class="glass-card-solid rounded-xl p-6"><h4 class="font-bold mb-4"><i class="fas fa-history text-blue-400 mr-2"></i>Riwayat HKT</h4><div class="space-y-2 max-h-64 overflow-y-auto">' + txnHtml + '</div></div>';
-                
-                container.classList.remove('hidden');
-            } catch (err) {
-                showToast('Error: ' + err.message, 'error');
-            }
-        }
-        
-        async function loadAlerts() {
-            try {
-                const res = await fetch('/api/passengers/alerts');
-                const data = await res.json();
-                const container = document.getElementById('alertsList');
-                
-                if (!data.data || data.data.length === 0) {
-                    container.innerHTML = '<p class="text-gray-400 text-center py-8">Tidak ada alert</p>';
-                    return;
-                }
-                
-                container.innerHTML = data.data.map(p => {
-                    const flags = [];
-                    if (p.total_arrivals >= 3) flags.push('<span class="px-2 py-1 rounded text-xs bg-blue-500/30 text-blue-300">Frequent</span>');
-                    if (p.total_devices >= 4) flags.push('<span class="px-2 py-1 rounded text-xs bg-red-500/30 text-red-300">IMEI Collector</span>');
-                    
-                    return '<div class="result-row p-4 rounded-xl cursor-pointer" onclick="document.getElementById(\'passportInput\').value=\'' + p.passport + '\'; setSubMenu(\'lookup\'); lookupPassenger();">' +
-                        '<div class="flex justify-between items-center">' +
-                        '<div><p class="font-bold text-white">' + p.passport + '</p><div class="flex gap-2 mt-1">' + flags.join('') + '</div></div>' +
-                        '<div class="text-right"><p class="text-lg font-bold text-yellow-400">' + p.total_devices + ' <span class="text-xs text-gray-400">IMEI</span></p><p class="text-xs text-gray-400">' + p.total_arrivals + ' kedatangan</p></div>' +
-                        '</div></div>';
-                }).join('');
-            } catch (err) {
-                showToast('Error loading alerts', 'error');
-            }
-        }
-        
-        async function searchTransactions() {
-            const q = document.getElementById('searchTransInput')?.value?.trim();
-            if (!q) return;
-            
-            try {
-                const res = await fetch('/api/passengers/transactions?q=' + encodeURIComponent(q));
-                const data = await res.json();
-                const container = document.getElementById('transactionsList');
-                
-                if (!data.data || data.data.length === 0) {
-                    container.innerHTML = '<p class="text-gray-400 text-center py-8">Tidak ditemukan</p>';
-                    return;
-                }
-                
-                container.innerHTML = data.data.map(t => 
-                    '<div class="result-row p-3 rounded-lg"><div class="flex justify-between"><div><p class="font-semibold text-white">' + t.passport + '</p><p class="text-sm text-cyan-400">' + (t.hkt1 || '-') + '</p><p class="text-xs text-gray-400">' + t.nama_petugas + '</p></div><div class="text-right"><p class="text-sm">' + new Date(t.tanggal_dokumen).toLocaleDateString('id-ID') + '</p><p class="text-xs ' + (t.status_penelitian === 'PEMBEBASAN' ? 'text-green-400' : 'text-yellow-400') + '">' + (t.status_penelitian || '-') + '</p></div></div></div>'
-                ).join('');
-            } catch (err) {
-                showToast('Error searching', 'error');
-            }
-        }
-        
-        async function loadPassengerStats() {
-            try {
-                const res = await fetch('/api/passengers/stats');
-                const data = await res.json();
-                const s = data.data;
-                
-                document.getElementById('statPassengers').textContent = s.total_passengers.toLocaleString();
-                document.getElementById('statTransactions').textContent = s.total_transactions.toLocaleString();
-                document.getElementById('statFrequent').textContent = s.frequent_travelers.toLocaleString();
-                document.getElementById('statCollectors').textContent = s.imei_collectors.toLocaleString();
-                
-                document.getElementById('topDevicesList').innerHTML = s.top_devices.map((d, i) => 
-                    '<div class="flex justify-between py-2 border-b border-white/5"><span class="text-gray-300">' + (i+1) + '. ' + d._id + '</span><span class="text-cyan-400 font-bold">' + d.count + '</span></div>'
-                ).join('') || '<p class="text-gray-500">Tidak ada data</p>';
-                
-                document.getElementById('topOfficersList').innerHTML = s.top_officers.map((o, i) => 
-                    '<div class="flex justify-between py-2 border-b border-white/5"><span class="text-gray-300">' + (i+1) + '. ' + (o._id.nama || o._id.nip) + '</span><span class="text-purple-400 font-bold">' + o.count + '</span></div>'
-                ).join('') || '<p class="text-gray-500">Tidak ada data</p>';
-            } catch (err) {
-                console.error(err);
-            }
-        }
 
         // ==================== INIT ====================
         loadAllKurs();

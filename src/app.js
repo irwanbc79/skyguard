@@ -13,15 +13,29 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Routes
-app.use('/api/devices', require('./routes/devices'));
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+const deviceRoutes = require('./routes/devices');
+const kursRoutes = require('./routes/kurs');
+const passengerRoutes = require('./routes/passenger');
 
-// Serve index.html for root
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
+app.use('/api/devices', deviceRoutes);
+app.use('/api/passengers', require('./routes/passengers'));
+app.use('/api/kurs', kursRoutes);
+app.use('/api/passenger', passengerRoutes);
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date() });
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('MongoDB connected');
-    app.listen(process.env.PORT, '0.0.0.0', () => console.log(`Server running on port ${process.env.PORT}`));
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   })
   .catch(err => console.error('MongoDB error:', err));

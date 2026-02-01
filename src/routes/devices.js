@@ -1,10 +1,13 @@
-const router = require('express').Router();
-const ctrl = require('../controllers/deviceController');
+const express = require('express');
+const router = express.Router();
+const controller = require('../controllers/deviceController');
 
-router.get('/search', ctrl.search);
-router.get('/brands', ctrl.getBrands);
-router.get('/latest', ctrl.getLatest);
-router.get('/:id', ctrl.getById);
-router.post('/price', ctrl.addPrice);
+router.get('/all', controller.getAll);
+router.get('/search', controller.search);
+router.get('/brands', controller.getBrands);
+router.get('/latest', controller.getLatest);
+router.get('/:id', controller.getById);
+router.post('/', controller.createDevice);
+router.post('/price', controller.addPrice);
 
 module.exports = router;

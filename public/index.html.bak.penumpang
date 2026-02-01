@@ -453,13 +453,7 @@
                 ],
                 color: '#22c55e'
             },
-            penumpang: {
-                subMenus: [
-                    { id: 'lookup', label: 'Cari Penumpang', icon: 'fa-search' },
-                    { id: 'alerts', label: 'Alert Profiling', icon: 'fa-exclamation-triangle' },
-                    { id: 'riwayat', label: 'Riwayat', icon: 'fa-history' },
-                    { id: 'stats', label: 'Statistik', icon: 'fa-chart-bar' }
-                ], 
+            penumpang: { 
                 subMenus: [
                     { id: 'pembebasan', label: 'Kalkulator Pembebasan', icon: 'fa-calculator' },
                     { id: 'deklarasi', label: 'Customs Declaration', icon: 'fa-file-alt' },
@@ -562,16 +556,6 @@
         function loadSubContent(menu, subId) {
             if (menu === 'imei') {
                 const container = document.getElementById('content-imei');
-                
-                // Handle Penumpang sub menus
-                if (currentMainMenu === 'penumpang') {
-                    document.querySelectorAll('#penumpang-sub-content .sub-content').forEach(el => el.classList.add('hidden'));
-                    const subEl = document.getElementById('penumpang-' + subId);
-                    if (subEl) subEl.classList.remove('hidden');
-                    
-                    if (subId === 'alerts') loadAlerts();
-                    if (subId === 'stats') loadPassengerStats();
-                }
                 
                 if (subId === 'kurs') {
                     container.innerHTML = getKursContent();
@@ -1076,122 +1060,6 @@
                 'LG': 'https://cdn.simpleicons.org/lg/white'
             };
             return logos[brand] || 'https://cdn.simpleicons.org/android/white';
-        }
-
-        
-        // ==================== PENUMPANG FUNCTIONS ====================
-        async function lookupPassenger() {
-            const passport = document.getElementById('passportInput')?.value?.trim();
-            if (!passport) { showToast('Masukkan nomor paspor', 'error'); return; }
-            
-            showToast('Mencari data penumpang...');
-            try {
-                const res = await fetch('/api/passengers/lookup/' + encodeURIComponent(passport));
-                const data = await res.json();
-                
-                const container = document.getElementById('passengerResult');
-                if (!data.data || !data.data.passenger) {
-                    container.innerHTML = '<div class="glass-card-solid rounded-xl p-6 text-center"><i class="fas fa-user-slash text-4xl text-gray-500 mb-3"></i><p class="text-gray-400">Penumpang dengan paspor <strong>' + passport + '</strong> tidak ditemukan</p></div>';
-                    container.classList.remove('hidden');
-                    return;
-                }
-                
-                const p = data.data.passenger;
-                const txns = data.data.transactions || [];
-                const flags = data.data.flags || [];
-                
-                let flagsHtml = flags.map(f => '<span class="px-2 py-1 rounded text-xs bg-' + f.color + '-500/30 text-' + f.color + '-300">' + f.label + '</span>').join(' ');
-                
-                let txnHtml = txns.length ? txns.map(t => 
-                    '<div class="result-row p-3 rounded-lg"><div class="flex justify-between"><div><p class="font-semibold">' + (t.hkt1 || '-') + '</p><p class="text-xs text-gray-400">' + (t.hkt2 ? 'HKT2: ' + t.hkt2 : '') + '</p></div><div class="text-right"><p class="text-sm">' + new Date(t.tanggal_dokumen).toLocaleDateString('id-ID') + '</p><p class="text-xs ' + (t.status_penelitian === 'PEMBEBASAN' ? 'text-green-400' : 'text-yellow-400') + '">' + (t.status_penelitian || t.status) + '</p></div></div></div>'
-                ).join('') : '<p class="text-gray-400 text-center py-4">Tidak ada riwayat transaksi</p>';
-                
-                container.innerHTML = 
-                    '<div class="glass-card-solid rounded-xl p-6 mb-4">' +
-                    '<div class="flex justify-between items-start mb-4"><div><h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fas fa-passport text-yellow-400"></i> ' + p.passport + '</h3><div class="flex gap-2 mt-2">' + flagsHtml + '</div></div><div class="text-right"><p class="text-2xl font-bold text-blue-400">' + p.total_arrivals + '</p><p class="text-xs text-gray-400">Total Kedatangan</p></div></div>' +
-                    '<div class="grid grid-cols-3 gap-4 mb-4">' +
-                    '<div class="bg-white/5 rounded-lg p-3 text-center"><p class="text-lg font-bold text-green-400">' + p.total_devices + '</p><p class="text-xs text-gray-400">Total IMEI</p></div>' +
-                    '<div class="bg-white/5 rounded-lg p-3 text-center"><p class="text-sm font-bold text-white">' + (p.first_arrival ? new Date(p.first_arrival).toLocaleDateString('id-ID') : '-') + '</p><p class="text-xs text-gray-400">Pertama</p></div>' +
-                    '<div class="bg-white/5 rounded-lg p-3 text-center"><p class="text-sm font-bold text-white">' + (p.last_arrival ? new Date(p.last_arrival).toLocaleDateString('id-ID') : '-') + '</p><p class="text-xs text-gray-400">Terakhir</p></div>' +
-                    '</div></div>' +
-                    '<div class="glass-card-solid rounded-xl p-6"><h4 class="font-bold mb-4"><i class="fas fa-history text-blue-400 mr-2"></i>Riwayat HKT</h4><div class="space-y-2 max-h-64 overflow-y-auto">' + txnHtml + '</div></div>';
-                
-                container.classList.remove('hidden');
-            } catch (err) {
-                showToast('Error: ' + err.message, 'error');
-            }
-        }
-        
-        async function loadAlerts() {
-            try {
-                const res = await fetch('/api/passengers/alerts');
-                const data = await res.json();
-                const container = document.getElementById('alertsList');
-                
-                if (!data.data || data.data.length === 0) {
-                    container.innerHTML = '<p class="text-gray-400 text-center py-8">Tidak ada alert</p>';
-                    return;
-                }
-                
-                container.innerHTML = data.data.map(p => {
-                    const flags = [];
-                    if (p.total_arrivals >= 3) flags.push('<span class="px-2 py-1 rounded text-xs bg-blue-500/30 text-blue-300">Frequent</span>');
-                    if (p.total_devices >= 4) flags.push('<span class="px-2 py-1 rounded text-xs bg-red-500/30 text-red-300">IMEI Collector</span>');
-                    
-                    return '<div class="result-row p-4 rounded-xl cursor-pointer" onclick="document.getElementById(\'passportInput\').value=\'' + p.passport + '\'; setSubMenu(\'lookup\'); lookupPassenger();">' +
-                        '<div class="flex justify-between items-center">' +
-                        '<div><p class="font-bold text-white">' + p.passport + '</p><div class="flex gap-2 mt-1">' + flags.join('') + '</div></div>' +
-                        '<div class="text-right"><p class="text-lg font-bold text-yellow-400">' + p.total_devices + ' <span class="text-xs text-gray-400">IMEI</span></p><p class="text-xs text-gray-400">' + p.total_arrivals + ' kedatangan</p></div>' +
-                        '</div></div>';
-                }).join('');
-            } catch (err) {
-                showToast('Error loading alerts', 'error');
-            }
-        }
-        
-        async function searchTransactions() {
-            const q = document.getElementById('searchTransInput')?.value?.trim();
-            if (!q) return;
-            
-            try {
-                const res = await fetch('/api/passengers/transactions?q=' + encodeURIComponent(q));
-                const data = await res.json();
-                const container = document.getElementById('transactionsList');
-                
-                if (!data.data || data.data.length === 0) {
-                    container.innerHTML = '<p class="text-gray-400 text-center py-8">Tidak ditemukan</p>';
-                    return;
-                }
-                
-                container.innerHTML = data.data.map(t => 
-                    '<div class="result-row p-3 rounded-lg"><div class="flex justify-between"><div><p class="font-semibold text-white">' + t.passport + '</p><p class="text-sm text-cyan-400">' + (t.hkt1 || '-') + '</p><p class="text-xs text-gray-400">' + t.nama_petugas + '</p></div><div class="text-right"><p class="text-sm">' + new Date(t.tanggal_dokumen).toLocaleDateString('id-ID') + '</p><p class="text-xs ' + (t.status_penelitian === 'PEMBEBASAN' ? 'text-green-400' : 'text-yellow-400') + '">' + (t.status_penelitian || '-') + '</p></div></div></div>'
-                ).join('');
-            } catch (err) {
-                showToast('Error searching', 'error');
-            }
-        }
-        
-        async function loadPassengerStats() {
-            try {
-                const res = await fetch('/api/passengers/stats');
-                const data = await res.json();
-                const s = data.data;
-                
-                document.getElementById('statPassengers').textContent = s.total_passengers.toLocaleString();
-                document.getElementById('statTransactions').textContent = s.total_transactions.toLocaleString();
-                document.getElementById('statFrequent').textContent = s.frequent_travelers.toLocaleString();
-                document.getElementById('statCollectors').textContent = s.imei_collectors.toLocaleString();
-                
-                document.getElementById('topDevicesList').innerHTML = s.top_devices.map((d, i) => 
-                    '<div class="flex justify-between py-2 border-b border-white/5"><span class="text-gray-300">' + (i+1) + '. ' + d._id + '</span><span class="text-cyan-400 font-bold">' + d.count + '</span></div>'
-                ).join('') || '<p class="text-gray-500">Tidak ada data</p>';
-                
-                document.getElementById('topOfficersList').innerHTML = s.top_officers.map((o, i) => 
-                    '<div class="flex justify-between py-2 border-b border-white/5"><span class="text-gray-300">' + (i+1) + '. ' + (o._id.nama || o._id.nip) + '</span><span class="text-purple-400 font-bold">' + o.count + '</span></div>'
-                ).join('') || '<p class="text-gray-500">Tidak ada data</p>';
-            } catch (err) {
-                console.error(err);
-            }
         }
 
         // ==================== INIT ====================
