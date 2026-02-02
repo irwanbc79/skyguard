@@ -43,6 +43,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         .tab-content { display: none; }
+        .content-section { display: none; }
         .tab-content.active { display: block; }
         .result-row { background: rgba(255,255,255,0.03); border-left: 3px solid transparent; transition: all 0.2s ease; }
         .result-row:hover { background: rgba(59, 130, 246, 0.1); border-left-color: #3b82f6; }
@@ -499,7 +500,7 @@
             renderSubMenu(menu);
 
             // Set default sub menu for IMEI
-            if (menu === 'imei' && menuConfig[menu].subMenus.length > 0) {
+            if ((menu === 'imei' || menu === 'penumpang') && menuConfig[menu].subMenus.length > 0) {
                 setSubMenu(menuConfig[menu].subMenus[0].id);
             }
         }
