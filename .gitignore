@@ -3,3 +3,6 @@ node_modules/
 .pm2/
 *.log
 .DS_Store
+*.bak
+*.bak.*
+*.xlsx

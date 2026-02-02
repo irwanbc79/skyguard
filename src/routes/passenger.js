@@ -2,10 +2,20 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ps = require('../services/passengerService');
-const upload = multer({ storage: multer.memoryStorage() });
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }
+});
 
 router.get('/stats', async (req, res) => {
   try { res.json({ status: 'ok', data: await ps.getStats() }); }
+  catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+// NEW: Advanced Stats Endpoint
+router.get('/stats/advanced', async (req, res) => {
+  try { res.json({ status: 'ok', data: await ps.getAdvancedStats() }); }
   catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
@@ -28,12 +38,36 @@ router.get('/:paspor', async (req, res) => {
 });
 
 router.post('/upload', upload.single('file'), async (req, res) => {
+  req.setTimeout(600000);
+  res.setTimeout(600000);
+  
   try {
-    if (!req.file) return res.status(400).json({ status: 'error', message: 'No file' });
-    const lines = req.file.buffer.toString('utf-8').split('\n').filter(l => l.trim());
-    const result = await ps.importCSV(lines, req.body.uploaded_by || 'Unknown', req.file.originalname);
-    res.json({ status: 'ok', data: { filename: req.file.originalname, uploaded_by: req.body.uploaded_by, ...result } });
-  } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+    if (!req.file) return res.status(400).json({ status: 'error', message: 'File tidak ditemukan' });
+    
+    const filename = req.file.originalname;
+    const uploadedBy = req.body.uploaded_by || 'Unknown';
+    const isExcel = filename.match(/\.(xlsx|xls)$/i);
+    const fileSizeMB = (req.file.size / 1024 / 1024).toFixed(2);
+    
+    console.log(`[UPLOAD] File: ${filename}, Size: ${fileSizeMB}MB, Type: ${isExcel ? 'Excel' : 'CSV'}`);
+    
+    let result;
+    if (isExcel) {
+      result = await ps.importExcel(req.file.buffer, uploadedBy, filename);
+    } else {
+      const lines = req.file.buffer.toString('utf-8').split('\n').filter(l => l.trim());
+      result = await ps.importCSV(lines, uploadedBy, filename);
+    }
+    
+    res.json({
+      status: 'ok',
+      message: `Import selesai: ${result.newRecords} baru, ${result.duplicateRecords} duplikat${result.errorRecords ? `, ${result.errorRecords} error` : ''}`,
+      data: { filename, uploaded_by: uploadedBy, file_type: isExcel ? 'excel' : 'csv', file_size_mb: fileSizeMB, ...result }
+    });
+  } catch (err) {
+    console.error('[UPLOAD ERROR]', err.message);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
 });
 
 module.exports = router;

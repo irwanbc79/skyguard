@@ -315,29 +315,11 @@
 
         <!-- PENUMPANG Content (Coming Soon) -->
         <div id="content-penumpang" class="content-section fade-in">
-            <div class="glass-card-solid rounded-2xl p-8 text-center">
-                <i class="fas fa-user-friends text-6xl text-yellow-400/30 mb-4"></i>
-                <h2 class="text-2xl font-bold mb-2">Modul Penumpang</h2>
-                <p class="text-gray-400 mb-6">Fitur dalam tahap pengembangan</p>
-                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-calculator text-yellow-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Kalkulator Pembebasan</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-file-alt text-yellow-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Customs Declaration</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-history text-yellow-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Riwayat Kedatangan</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-exclamation-triangle text-yellow-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Alert Profiling</p>
-                    </div>
-                </div>
-            </div>
+            <!-- Sub-content containers -->
+            <div id="penumpang-lookup" class="penumpang-sub"></div>
+            <div id="penumpang-alerts" class="penumpang-sub"></div>
+            <div id="penumpang-upload" class="penumpang-sub"></div>
+            <div id="penumpang-stats" class="penumpang-sub"></div>
         </div>
 
         <!-- BARANG Content (Coming Soon) -->
@@ -457,14 +439,8 @@
                 subMenus: [
                     { id: 'lookup', label: 'Cari Penumpang', icon: 'fa-search' },
                     { id: 'alerts', label: 'Alert Profiling', icon: 'fa-exclamation-triangle' },
-                    { id: 'riwayat', label: 'Riwayat', icon: 'fa-history' },
+                    { id: 'upload', label: 'Upload Data', icon: 'fa-upload' },
                     { id: 'stats', label: 'Statistik', icon: 'fa-chart-bar' }
-                ], 
-                subMenus: [
-                    { id: 'pembebasan', label: 'Kalkulator Pembebasan', icon: 'fa-calculator' },
-                    { id: 'deklarasi', label: 'Customs Declaration', icon: 'fa-file-alt' },
-                    { id: 'riwayat', label: 'Riwayat', icon: 'fa-history' },
-                    { id: 'profiling', label: 'Alert Profiling', icon: 'fa-exclamation-triangle' }
                 ],
                 color: '#f59e0b'
             },
@@ -562,28 +538,12 @@
         function loadSubContent(menu, subId) {
             if (menu === 'imei') {
                 const container = document.getElementById('content-imei');
-                
-                // Handle Penumpang sub menus
-                if (currentMainMenu === 'penumpang') {
-                    document.querySelectorAll('#penumpang-sub-content .sub-content').forEach(el => el.classList.add('hidden'));
-                    const subEl = document.getElementById('penumpang-' + subId);
-                    if (subEl) subEl.classList.remove('hidden');
-                    
-                    if (subId === 'alerts') loadAlerts();
-                    if (subId === 'stats') loadPassengerStats();
-                }
-                
-                if (subId === 'kurs') {
-                    container.innerHTML = getKursContent();
-                    renderKursTable();
-                } else if (subId === 'harga') {
-                    container.innerHTML = getHargaContent();
-                    renderAllDevices();
-                } else if (subId === 'kalkulator') {
-                    container.innerHTML = getKalkulatorContent();
-                } else if (subId === 'input') {
-                    container.innerHTML = getInputContent();
-                }
+                if (subId === 'kurs') { container.innerHTML = getKursContent(); renderKursTable(); }
+                else if (subId === 'harga') { container.innerHTML = getHargaContent(); loadAllDevices().then(() => loadGroupedView('Apple')); }
+                else if (subId === 'kalkulator') { container.innerHTML = getKalkulatorContent(); if (!allDevicesList || allDevicesList.length === 0) loadAllDevices(); }
+                else if (subId === 'input') { container.innerHTML = getInputContent(); }
+            } else if (menu === 'penumpang') {
+                loadPenumpangSubContent(subId);
             }
         }
 
@@ -801,10 +761,10 @@
         // ==================== DATA FUNCTIONS ====================
         async function loadAllDevices() {
             try {
-                const res = await fetch('/api/devices/all');
+                const res = await fetch('/api/devices');
                 const data = await res.json();
                 allDevicesData = data.data;
-                document.getElementById('totalDevices').textContent = data.total;
+                const totalEl = document.getElementById('totalDevices'); if (totalEl) totalEl.textContent = data.total;
                 allDevicesList = [];
                 Object.keys(allDevicesData).forEach(brand => {
                     allDevicesData[brand].forEach(d => allDevicesList.push(d));
@@ -875,6 +835,110 @@
             setSubMenu('kalkulator');
             setDevice(1, { brand, model, capacity, price_usd: price });
         }
+        // ==================== 3-LEVEL GROUPED VIEW ====================
+        let groupedData = null;
+        let currentSeries = null;
+        let currentBrandGrouped = "Apple";
+
+        async function loadGroupedView(brand) {
+            currentBrandGrouped = brand || "Apple";
+            currentSeries = null;
+            try {
+                const res = await fetch("/api/devices/grouped?brand=" + encodeURIComponent(currentBrandGrouped));
+                const json = await res.json();
+                if (json.status === "ok") {
+                    groupedData = json.data;
+                    if (groupedData.length > 0) currentSeries = groupedData[0].series;
+                    renderGroupedView();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function renderGroupedView() {
+            const container = document.getElementById("allDevicesContainer");
+            if (!container || !allDevicesData) return;
+            const brands = Object.keys(allDevicesData);
+            
+            let html = "<div class=\"flex flex-wrap gap-2 mb-4 pb-4 border-b border-white/10\">";
+            brands.forEach(b => {
+                const isActive = b === currentBrandGrouped;
+                const count = allDevicesData[b]?.length || 0;
+                html += "<button onclick=\"loadGroupedView(\x27" + b + "\x27)\" class=\"flex items-center gap-2 px-4 py-2 rounded-xl transition-all " + (isActive ? "bg-blue-600 text-white" : "bg-white/5 hover:bg-white/10 text-gray-300") + "\"><span class=\"font-medium\">" + b + "</span><span class=\"text-xs opacity-70\">(" + count + ")</span></button>";
+            });
+            html += "</div>";
+            
+            if (!groupedData || groupedData.length === 0) {
+                html += "<p class=\"text-gray-400\">Loading...</p>";
+                container.innerHTML = html;
+                return;
+            }
+            
+            html += "<div class=\"flex flex-wrap gap-2 mb-4\">";
+            groupedData.forEach(s => {
+                const isActive = s.series === currentSeries;
+                html += "<button onclick=\"selectSeries(\x27" + s.series + "\x27)\" class=\"px-4 py-2 rounded-lg font-medium " + (isActive ? "bg-green-600 text-white" : "bg-white/5 hover:bg-white/10 text-gray-300") + "\">" + s.series + " <span class=\"text-xs opacity-70\">(" + s.models.length + ")</span></button>";
+            });
+            html += "</div>";
+            
+            const seriesData = groupedData.find(s => s.series === currentSeries);
+            if (seriesData) {
+                html += "<div class=\"grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4\">";
+                seriesData.models.forEach((m, mi) => {
+                    const v0 = m.variants[0] || {};
+                    const sid = "sel_" + currentSeries + "_" + mi;
+                    html += "<div class=\"device-card rounded-xl p-4 border border-white/10\">";
+                    html += "<div class=\"flex justify-between items-start mb-3\"><div><p class=\"font-bold text-white text-lg\">" + m.model + "</p></div><span class=\"text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded\">" + m.variants.length + " storage</span></div>";
+                    html += "<div class=\"mb-3\"><label class=\"text-xs text-gray-400 mb-1 block\">Pilih Storage:</label>";
+                    html += "<select id=\"" + sid + "\" onchange=\"updateGroupedPrice(\x27" + currentSeries + "\x27," + mi + ")\" class=\"w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm\">";
+                    m.variants.forEach((v, vi) => {
+                        html += "<option value=\"" + vi + "\" data-price=\"" + v.price_usd + "\" data-tax=\"" + v.tax_idr + "\" data-cap=\"" + v.capacity + "\" data-pid=\"" + v.price_id + "\" data-did=\"" + v._id + "\">" + v.capacity + " - $" + v.price_usd.toLocaleString() + "</option>";
+                    });
+                    html += "</select></div>";
+                    html += "<div id=\"disp_" + currentSeries + "_" + mi + "\" class=\"border-t border-white/10 pt-3\">";
+                    html += "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + (v0.price_usd||0).toLocaleString() + "</span></div>";
+                    html += "<div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + (v0.tax_idr||0).toLocaleString() + "</span></div>";
+                    html += "<div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + currentSeries + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button>";
+                    html += "<button onclick=\"editFromGrouped(\x27" + currentSeries + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
+                    html += "</div></div>";
+                });
+                html += "</div>";
+            }
+            container.innerHTML = html;
+        }
+
+        function selectSeries(s) { currentSeries = s; renderGroupedView(); }
+
+        function updateGroupedPrice(series, mi) {
+            const sel = document.getElementById("sel_" + series + "_" + mi);
+            const disp = document.getElementById("disp_" + series + "_" + mi);
+            if (!sel || !disp) return;
+            const opt = sel.options[sel.selectedIndex];
+            const price = parseFloat(opt.dataset.price) || 0;
+            const tax = parseFloat(opt.dataset.tax) || 0;
+            disp.innerHTML = "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + price.toLocaleString() + "</span></div><div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + tax.toLocaleString() + "</span></div><div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button><button onclick=\"editFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
+        }
+
+        function hitungFromGrouped(series, mi) {
+            const sel = document.getElementById("sel_" + series + "_" + mi);
+            if (!sel || !groupedData) return;
+            const sData = groupedData.find(s => s.series === series);
+            if (!sData) return;
+            const m = sData.models[mi];
+            const opt = sel.options[sel.selectedIndex];
+            setSubMenu("kalkulator");
+            setDevice(1, { brand: m.brand, model: m.model, capacity: opt.dataset.cap, price_usd: parseFloat(opt.dataset.price) });
+        }
+
+        function editFromGrouped(series, mi) {
+            const sel = document.getElementById("sel_" + series + "_" + mi);
+            if (!sel || !groupedData) return;
+            const sData = groupedData.find(s => s.series === series);
+            if (!sData) return;
+            const m = sData.models[mi];
+            const opt = sel.options[sel.selectedIndex];
+            openEditModal(opt.dataset.pid, parseFloat(opt.dataset.price), parseFloat(opt.dataset.tax), m.brand, m.model, opt.dataset.cap, opt.dataset.did);
+        }
+
 
         // ==================== CALCULATOR FUNCTIONS ====================
         function setDevice(slot, device) {
@@ -1192,6 +1256,147 @@
             } catch (err) {
                 console.error(err);
             }
+        }
+
+
+        // ==================== PENUMPANG FUNCTIONS ====================
+        function getPenumpangLookupContent() {
+            return `<div class="glass-card-solid rounded-2xl p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-search text-yellow-400"></i> Cari Data Penumpang</h3>
+                <div class="flex gap-3">
+                    <div class="flex-1 relative">
+                        <i class="fas fa-passport absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="pasporInput" placeholder="Masukkan nomor paspor..." class="input-modern w-full pl-12 pr-4 py-4 rounded-xl text-white placeholder-gray-500 outline-none uppercase" onkeypress="if(event.key==='Enter')searchPaspor()">
+                    </div>
+                    <button onclick="searchPaspor()" class="btn-primary px-6 py-4 rounded-xl font-semibold"><i class="fas fa-search mr-2"></i>Cari</button>
+                </div>
+            </div><div id="pasporResult"></div>`;
+        }
+
+        function getPenumpangAlertsContent() {
+            return `<div class="glass-card-solid rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold flex items-center gap-2"><i class="fas fa-exclamation-triangle text-red-400"></i> Alert Profiling - High Risk</h3>
+                    <button onclick="loadAlerts()" class="btn-primary px-4 py-2 rounded-lg text-sm"><i class="fas fa-sync-alt mr-2"></i>Refresh</button>
+                </div>
+                <div id="alertsContainer"><div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i><p>Loading...</p></div></div>
+            </div>`;
+        }
+
+        function getPenumpangUploadContent() {
+            return `<div class="grid lg:grid-cols-2 gap-6">
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-upload text-yellow-400"></i> Upload Data CSV</h3>
+                    <div class="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-yellow-400/50 transition cursor-pointer" onclick="document.getElementById('csvFile').click()">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-yellow-400/50 mb-3"></i>
+                        <p class="text-gray-300 mb-2">Klik untuk upload file CSV</p>
+                        <p class="text-xs text-gray-500">Format: kodeKantor;nomorDokumen;tanggalDokumen;paspor;...</p>
+                        <input type="file" id="csvFile" accept=".csv" class="hidden" onchange="handleCSVUpload(this)">
+                    </div>
+                    <div id="uploadProgress" class="mt-4 hidden"><div class="bg-white/10 rounded-full h-2"><div id="uploadBar" class="bg-yellow-400 h-full rounded-full transition-all" style="width:0%"></div></div><p id="uploadStatus" class="text-sm text-gray-400 mt-2"></p></div>
+                    <div id="uploadResult" class="mt-4"></div>
+                </div>
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-history text-blue-400"></i> Riwayat Upload</h3>
+                    <div id="uploadLogs"><div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin"></i></div></div>
+                </div>
+            </div>`;
+        }
+
+        function getPenumpangStatsContent() {
+            return `<div class="grid md:grid-cols-4 gap-4 mb-6">
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Total Records</p><p id="statRecords" class="text-3xl font-bold text-blue-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Unique Passengers</p><p id="statPassengers" class="text-3xl font-bold text-green-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Frequent Travelers</p><p id="statFrequent" class="text-3xl font-bold text-yellow-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">IMEI Collectors</p><p id="statCollectors" class="text-3xl font-bold text-red-400">-</p></div>
+            </div>
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-mobile-alt text-cyan-400 mr-2"></i>Top 10 Devices</h3><div id="topDevices"></div></div>
+                <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-user-tie text-purple-400 mr-2"></i>Top Petugas</h3><div id="topOfficers"></div></div>
+            </div>`;
+        }
+
+        async function searchPaspor() {
+            const paspor = document.getElementById('pasporInput')?.value.trim().toUpperCase();
+            if (!paspor) { showToast('Masukkan nomor paspor', 'error'); return; }
+            const container = document.getElementById('pasporResult');
+            container.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-yellow-400"></i></div>';
+            try {
+                const res = await fetch('/api/passenger/' + paspor);
+                const { data } = await res.json();
+                if (!data) { container.innerHTML = '<div class="glass-card-solid rounded-2xl p-8 text-center"><i class="fas fa-user-slash text-4xl text-gray-500 mb-3"></i><p class="text-gray-400">Paspor <strong>' + paspor + '</strong> tidak ditemukan</p></div>'; return; }
+                const risk = data.risk || { level: 'GREEN', color: '#22c55e', score: 0 };
+                const s = data.summary || {};
+                container.innerHTML = `<div class="glass-card-solid rounded-2xl p-6 mb-4">
+                    <div class="flex justify-between items-start gap-4 mb-6"><div><p class="text-sm text-gray-400">Nomor Paspor</p><p class="text-2xl font-bold">${paspor}</p></div>
+                    <div class="flex items-center gap-3 px-4 py-2 rounded-xl" style="background:${risk.color}20;border:1px solid ${risk.color}"><i class="fas fa-shield-alt" style="color:${risk.color}"></i><div><p class="text-xs opacity-70">Risk Level</p><p class="font-bold" style="color:${risk.color}">${risk.level} (${risk.score})</p></div></div></div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-blue-400">${s.totalVisits||0}</p><p class="text-xs text-gray-400">Kunjungan</p></div>
+                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-green-400">${s.uniqueDevices||0}</p><p class="text-xs text-gray-400">Devices</p></div>
+                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-yellow-400">${s.pembebasanCount||0}</p><p class="text-xs text-gray-400">Pembebasan</p></div>
+                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-red-400">${s.billingCount||0}</p><p class="text-xs text-gray-400">Billing</p></div>
+                    </div></div>
+                    ${data.records?.length ? '<div class="glass-card-solid rounded-2xl p-6"><h4 class="font-bold mb-4"><i class="fas fa-history text-yellow-400 mr-2"></i>Riwayat ('+data.records.length+')</h4><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b border-white/10"><th class="pb-2">Tanggal</th><th class="pb-2">No. Dok</th><th class="pb-2">Device</th><th class="pb-2">Status</th><th class="pb-2">Petugas</th></tr></thead><tbody>'+data.records.slice(0,20).map(r=>'<tr class="border-b border-white/5"><td class="py-2">'+(r.tanggal_dokumen?new Date(r.tanggal_dokumen).toLocaleDateString("id-ID"):"-")+'</td><td class="py-2 font-mono text-xs">'+(r.nomor_dokumen||"-")+'</td><td class="py-2 text-cyan-400">'+(r.hkt1||"-")+'</td><td class="py-2"><span class="px-2 py-1 rounded text-xs '+(r.status_penelitian==="BILLING"?"bg-red-500/20 text-red-400":"bg-green-500/20 text-green-400")+'">'+(r.status_penelitian||"-")+'</span></td><td class="py-2 text-xs text-gray-400">'+(r.nama_petugas||"-")+'</td></tr>').join("")+'</tbody></table></div></div>' : ''}`;
+            } catch(e) { container.innerHTML = '<div class="text-red-400">Error: '+e.message+'</div>'; }
+        }
+
+        async function loadAlerts() {
+            const container = document.getElementById('alertsContainer'); if (!container) return;
+            try {
+                const res = await fetch('/api/passenger/repeaters?min=3');
+                const { data } = await res.json();
+                if (!data?.length) { container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i><p>Tidak ada alert</p></div>'; return; }
+                container.innerHTML = '<div class="space-y-3">'+data.slice(0,20).map(p=>'<div class="result-row rounded-xl p-4 flex justify-between items-center cursor-pointer hover:bg-white/10" onclick="document.getElementById(\'pasporInput\').value=\''+p.paspor+'\';setMainMenu(\'penumpang\');setSubMenu(\'lookup\');setTimeout(searchPaspor,200)"><div class="flex items-center gap-4"><div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:'+p.risk.color+'20"><i class="fas fa-user" style="color:'+p.risk.color+'"></i></div><div><p class="font-bold">'+p.paspor+'</p><p class="text-xs text-gray-400">'+p.visits+' kunjungan • '+p.unique_devices+' devices</p></div></div><span class="px-3 py-1 rounded-full text-sm font-bold" style="background:'+p.risk.color+'20;color:'+p.risk.color+'">'+p.risk.level+'</span></div>').join('')+'</div>';
+            } catch(e) { container.innerHTML = '<div class="text-red-400">Error</div>'; }
+        }
+
+        async function handleCSVUpload(input) {
+            const file = input.files[0]; if (!file) return;
+            const progress = document.getElementById('uploadProgress'), bar = document.getElementById('uploadBar'), status = document.getElementById('uploadStatus'), result = document.getElementById('uploadResult');
+            progress.classList.remove('hidden'); bar.style.width = '30%'; status.textContent = 'Uploading...';
+            const formData = new FormData(); formData.append('file', file); formData.append('uploaded_by', 'Web Upload');
+            try {
+                bar.style.width = '60%';
+                const res = await fetch('/api/passenger/upload', { method: 'POST', body: formData });
+                const data = await res.json(); bar.style.width = '100%'; status.textContent = 'Complete!';
+                if (data.status === 'ok') { result.innerHTML = '<div class="bg-green-500/20 border border-green-500/30 rounded-xl p-4"><p class="text-green-400 font-bold"><i class="fas fa-check-circle mr-2"></i>Upload Berhasil!</p><p class="text-sm mt-1">New: '+data.data.newRecords+' | Duplicate: '+data.data.duplicateRecords+'</p></div>'; loadUploadLogs(); }
+                else { result.innerHTML = '<div class="bg-red-500/20 p-4 rounded-xl text-red-400">'+data.message+'</div>'; }
+            } catch(e) { result.innerHTML = '<div class="text-red-400">Error: '+e.message+'</div>'; }
+            input.value = '';
+        }
+
+        async function loadUploadLogs() {
+            const container = document.getElementById('uploadLogs'); if (!container) return;
+            try {
+                const res = await fetch('/api/passenger/upload-logs');
+                const { data } = await res.json();
+                if (!data?.length) { container.innerHTML = '<p class="text-gray-400 text-center">Belum ada riwayat</p>'; return; }
+                container.innerHTML = '<div class="space-y-2">'+data.slice(0,10).map(l=>'<div class="bg-white/5 rounded-lg p-3 text-sm"><div class="flex justify-between"><span class="font-semibold">'+l.filename+'</span><span class="text-gray-500">'+new Date(l.uploaded_at).toLocaleDateString("id-ID")+'</span></div><p class="text-xs text-gray-400 mt-1">'+l.new_records+' new, '+l.duplicate_records+' dup</p></div>').join('')+'</div>';
+            } catch(e) { container.innerHTML = '<div class="text-red-400 text-sm">Error</div>'; }
+        }
+
+        async function loadPenumpangStats() {
+            try {
+                const res = await fetch('/api/passenger/stats');
+                const { data } = await res.json();
+                document.getElementById('statRecords').textContent = (data.totalRecords||0).toLocaleString();
+                document.getElementById('statPassengers').textContent = (data.totalPassengers||0).toLocaleString();
+                document.getElementById('statFrequent').textContent = (data.frequentTravelers||0).toLocaleString();
+                document.getElementById('statCollectors').textContent = (data.imeiCollectors||0).toLocaleString();
+                const devC = document.getElementById('topDevices');
+                if (devC && data.topDevices?.length) devC.innerHTML = data.topDevices.map((d,i)=>'<div class="flex justify-between py-2 '+(i<data.topDevices.length-1?'border-b border-white/5':'')+'"><span class="text-sm">'+(d.device||d._id)+'</span><span class="text-cyan-400 font-bold">'+d.count+'</span></div>').join('');
+                const offC = document.getElementById('topOfficers');
+                if (offC && data.topOfficers?.length) offC.innerHTML = data.topOfficers.map((o,i)=>'<div class="flex justify-between py-2 '+(i<data.topOfficers.length-1?'border-b border-white/5':'')+'"><span class="text-sm">'+(o._id?.nama||'Unknown')+'</span><span class="text-purple-400 font-bold">'+o.count+'</span></div>').join('');
+            } catch(e) { console.error(e); }
+        }
+
+        function loadPenumpangSubContent(subId) {
+            ['lookup','alerts','upload','stats'].forEach(c => { const el = document.getElementById('penumpang-'+c); if(el) el.style.display = c===subId?'block':'none'; });
+            const container = document.getElementById('penumpang-'+subId); if (!container) return;
+            if (subId==='lookup') container.innerHTML = getPenumpangLookupContent();
+            else if (subId==='alerts') { container.innerHTML = getPenumpangAlertsContent(); loadAlerts(); }
+            else if (subId==='upload') { container.innerHTML = getPenumpangUploadContent(); loadUploadLogs(); }
+            else if (subId==='stats') { container.innerHTML = getPenumpangStatsContent(); loadPenumpangStats(); }
         }
 
         // ==================== INIT ====================
