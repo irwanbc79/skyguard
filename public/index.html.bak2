@@ -437,10 +437,10 @@
             },
             penumpang: {
                 subMenus: [
-                    { id: 'stats', label: 'Statistik', icon: 'fa-chart-pie' },
+                    { id: 'lookup', label: 'Cari Penumpang', icon: 'fa-search' },
                     { id: 'alerts', label: 'Alert Profiling', icon: 'fa-exclamation-triangle' },
                     { id: 'upload', label: 'Upload Data', icon: 'fa-upload' },
-                    { id: 'lookup', label: 'Cari Penumpang', icon: 'fa-search' }
+                    { id: 'stats', label: 'Statistik', icon: 'fa-chart-bar' }
                 ],
                 color: '#f59e0b'
             },
@@ -539,8 +539,8 @@
             if (menu === 'imei') {
                 const container = document.getElementById('content-imei');
                 if (subId === 'kurs') { container.innerHTML = getKursContent(); renderKursTable(); }
-                else if (subId === 'harga') { container.innerHTML = getHargaContent(); loadAllDevices().then(() => loadGroupedView('Apple')); }
-                else if (subId === 'kalkulator') { container.innerHTML = getKalkulatorContent(); if (!allDevicesList || allDevicesList.length === 0) loadAllDevices(); }
+                else if (subId === 'harga') { container.innerHTML = getHargaContent(); renderAllDevices(); }
+                else if (subId === 'kalkulator') { container.innerHTML = getKalkulatorContent(); }
                 else if (subId === 'input') { container.innerHTML = getInputContent(); }
             } else if (menu === 'penumpang') {
                 loadPenumpangSubContent(subId);
@@ -761,10 +761,10 @@
         // ==================== DATA FUNCTIONS ====================
         async function loadAllDevices() {
             try {
-                const res = await fetch('/api/devices');
+                const res = await fetch('/api/devices/all');
                 const data = await res.json();
                 allDevicesData = data.data;
-                const totalEl = document.getElementById('totalDevices'); if (totalEl) totalEl.textContent = data.total;
+                document.getElementById('totalDevices').textContent = data.total;
                 allDevicesList = [];
                 Object.keys(allDevicesData).forEach(brand => {
                     allDevicesData[brand].forEach(d => allDevicesList.push(d));
@@ -835,110 +835,6 @@
             setSubMenu('kalkulator');
             setDevice(1, { brand, model, capacity, price_usd: price });
         }
-        // ==================== 3-LEVEL GROUPED VIEW ====================
-        let groupedData = null;
-        let currentSeries = null;
-        let currentBrandGrouped = "Apple";
-
-        async function loadGroupedView(brand) {
-            currentBrandGrouped = brand || "Apple";
-            currentSeries = null;
-            try {
-                const res = await fetch("/api/devices/grouped?brand=" + encodeURIComponent(currentBrandGrouped));
-                const json = await res.json();
-                if (json.status === "ok") {
-                    groupedData = json.data;
-                    if (groupedData.length > 0) currentSeries = groupedData[0].series;
-                    renderGroupedView();
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        function renderGroupedView() {
-            const container = document.getElementById("allDevicesContainer");
-            if (!container || !allDevicesData) return;
-            const brands = Object.keys(allDevicesData);
-            
-            let html = "<div class=\"flex flex-wrap gap-2 mb-4 pb-4 border-b border-white/10\">";
-            brands.forEach(b => {
-                const isActive = b === currentBrandGrouped;
-                const count = allDevicesData[b]?.length || 0;
-                html += "<button onclick=\"loadGroupedView(\x27" + b + "\x27)\" class=\"flex items-center gap-2 px-4 py-2 rounded-xl transition-all " + (isActive ? "bg-blue-600 text-white" : "bg-white/5 hover:bg-white/10 text-gray-300") + "\"><span class=\"font-medium\">" + b + "</span><span class=\"text-xs opacity-70\">(" + count + ")</span></button>";
-            });
-            html += "</div>";
-            
-            if (!groupedData || groupedData.length === 0) {
-                html += "<p class=\"text-gray-400\">Loading...</p>";
-                container.innerHTML = html;
-                return;
-            }
-            
-            html += "<div class=\"flex flex-wrap gap-2 mb-4\">";
-            groupedData.forEach(s => {
-                const isActive = s.series === currentSeries;
-                html += "<button onclick=\"selectSeries(\x27" + s.series + "\x27)\" class=\"px-4 py-2 rounded-lg font-medium " + (isActive ? "bg-green-600 text-white" : "bg-white/5 hover:bg-white/10 text-gray-300") + "\">" + s.series + " <span class=\"text-xs opacity-70\">(" + s.models.length + ")</span></button>";
-            });
-            html += "</div>";
-            
-            const seriesData = groupedData.find(s => s.series === currentSeries);
-            if (seriesData) {
-                html += "<div class=\"grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4\">";
-                seriesData.models.forEach((m, mi) => {
-                    const v0 = m.variants[0] || {};
-                    const sid = "sel_" + currentSeries + "_" + mi;
-                    html += "<div class=\"device-card rounded-xl p-4 border border-white/10\">";
-                    html += "<div class=\"flex justify-between items-start mb-3\"><div><p class=\"font-bold text-white text-lg\">" + m.model + "</p></div><span class=\"text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded\">" + m.variants.length + " storage</span></div>";
-                    html += "<div class=\"mb-3\"><label class=\"text-xs text-gray-400 mb-1 block\">Pilih Storage:</label>";
-                    html += "<select id=\"" + sid + "\" onchange=\"updateGroupedPrice(\x27" + currentSeries + "\x27," + mi + ")\" class=\"w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm\">";
-                    m.variants.forEach((v, vi) => {
-                        html += "<option value=\"" + vi + "\" data-price=\"" + v.price_usd + "\" data-tax=\"" + v.tax_idr + "\" data-cap=\"" + v.capacity + "\" data-pid=\"" + v.price_id + "\" data-did=\"" + v._id + "\">" + v.capacity + " - $" + v.price_usd.toLocaleString() + "</option>";
-                    });
-                    html += "</select></div>";
-                    html += "<div id=\"disp_" + currentSeries + "_" + mi + "\" class=\"border-t border-white/10 pt-3\">";
-                    html += "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + (v0.price_usd||0).toLocaleString() + "</span></div>";
-                    html += "<div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + (v0.tax_idr||0).toLocaleString() + "</span></div>";
-                    html += "<div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + currentSeries + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button>";
-                    html += "<button onclick=\"editFromGrouped(\x27" + currentSeries + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
-                    html += "</div></div>";
-                });
-                html += "</div>";
-            }
-            container.innerHTML = html;
-        }
-
-        function selectSeries(s) { currentSeries = s; renderGroupedView(); }
-
-        function updateGroupedPrice(series, mi) {
-            const sel = document.getElementById("sel_" + series + "_" + mi);
-            const disp = document.getElementById("disp_" + series + "_" + mi);
-            if (!sel || !disp) return;
-            const opt = sel.options[sel.selectedIndex];
-            const price = parseFloat(opt.dataset.price) || 0;
-            const tax = parseFloat(opt.dataset.tax) || 0;
-            disp.innerHTML = "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + price.toLocaleString() + "</span></div><div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + tax.toLocaleString() + "</span></div><div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button><button onclick=\"editFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
-        }
-
-        function hitungFromGrouped(series, mi) {
-            const sel = document.getElementById("sel_" + series + "_" + mi);
-            if (!sel || !groupedData) return;
-            const sData = groupedData.find(s => s.series === series);
-            if (!sData) return;
-            const m = sData.models[mi];
-            const opt = sel.options[sel.selectedIndex];
-            setSubMenu("kalkulator");
-            setDevice(1, { brand: m.brand, model: m.model, capacity: opt.dataset.cap, price_usd: parseFloat(opt.dataset.price) });
-        }
-
-        function editFromGrouped(series, mi) {
-            const sel = document.getElementById("sel_" + series + "_" + mi);
-            if (!sel || !groupedData) return;
-            const sData = groupedData.find(s => s.series === series);
-            if (!sData) return;
-            const m = sData.models[mi];
-            const opt = sel.options[sel.selectedIndex];
-            openEditModal(opt.dataset.pid, parseFloat(opt.dataset.price), parseFloat(opt.dataset.tax), m.brand, m.model, opt.dataset.cap, opt.dataset.did);
-        }
-
 
         // ==================== CALCULATOR FUNCTIONS ====================
         function setDevice(slot, device) {
@@ -1304,384 +1200,113 @@
         }
 
         function getPenumpangStatsContent() {
-            return `
-            <!-- Executive Header -->
-            <div class="glass-card-solid rounded-2xl p-6 mb-6">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h2 class="text-2xl font-bold flex items-center gap-3">
-                            <i class="fas fa-chart-line text-yellow-400"></i>
-                            Dashboard Pengawasan Penumpang
-                        </h2>
-                        <p class="text-gray-400 mt-1">Executive Summary - BC Kualanamu</p>
-                    </div>
-                    <div class="flex items-center gap-3 text-sm">
-                        <span class="text-gray-400">Terakhir diperbarui:</span>
-                        <span id="lastUpdate" class="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg font-medium">-</span>
-                    </div>
-                </div>
+            return `<div class="grid md:grid-cols-4 gap-4 mb-6">
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Total Rekaman</p><p id="statRecords" class="text-3xl font-bold text-blue-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Penumpang Unik</p><p id="statPassengers" class="text-3xl font-bold text-green-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Sering Bepergian</p><p id="statFrequent" class="text-3xl font-bold text-yellow-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Kolektor IMEI</p><p id="statCollectors" class="text-3xl font-bold text-red-400">-</p></div>
             </div>
-
-            <!-- KPI Cards -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="stat-card rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer" title="Total seluruh data rekam IMEI penumpang">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-sm text-gray-400 mb-1">Total Rekaman</p>
-                            <p id="statRecords" class="text-3xl font-bold text-blue-400">-</p>
-                        </div>
-                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                            <i class="fas fa-database text-blue-400 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i>Data IMEI tercatat</p>
-                </div>
-                
-                <div class="stat-card rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer" title="Jumlah penumpang unik berdasarkan nomor paspor">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-sm text-gray-400 mb-1">Total Penumpang</p>
-                            <p id="statPassengers" class="text-3xl font-bold text-green-400">-</p>
-                        </div>
-                        <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                            <i class="fas fa-users text-green-400 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2"><i class="fas fa-passport mr-1"></i>Paspor unik</p>
-                </div>
-                
-                <div class="stat-card rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer" title="Penumpang dengan kunjungan ≥3 kali (perlu perhatian khusus)">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-sm text-gray-400 mb-1">Frequent Traveler</p>
-                            <p id="statFrequent" class="text-3xl font-bold text-yellow-400">-</p>
-                        </div>
-                        <div class="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                            <i class="fas fa-plane-arrival text-yellow-400 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2"><i class="fas fa-exclamation-triangle mr-1"></i>≥3 kunjungan</p>
-                </div>
-                
-                <div class="stat-card rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer" title="Jumlah petugas unik (berdasarkan NIP) yang pernah merekam data IMEI">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-sm text-gray-400 mb-1">Kolektor IMEI</p>
-                            <p id="statCollectors" class="text-3xl font-bold text-purple-400">-</p>
-                        </div>
-                        <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                            <i class="fas fa-user-shield text-purple-400 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2"><i class="fas fa-id-badge mr-1"></i>Petugas aktif</p>
-                </div>
+            <div class="grid md:grid-cols-3 gap-4 mb-6">
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Rata-rata Harian</p><p id="statDaily" class="text-2xl font-bold text-cyan-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Tingkat Billing</p><p id="statBillingRate" class="text-2xl font-bold text-orange-400">-</p></div>
+                <div class="stat-card rounded-xl p-5"><p class="text-sm text-gray-400 mb-1">Periode Data</p><p id="statPeriod" class="text-lg font-bold text-purple-400">-</p></div>
             </div>
-
-            <!-- Billing vs Pembebasan Summary -->
-            <div class="grid lg:grid-cols-3 gap-4 mb-6">
-                <div class="glass-card-solid rounded-xl p-5 border-l-4 border-red-500">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="text-sm text-gray-400">Total Billing</p>
-                            <p id="statBilling" class="text-2xl font-bold text-red-400">-</p>
-                        </div>
-                        <i class="fas fa-file-invoice-dollar text-red-400/30 text-3xl"></i>
-                    </div>
-                    <div class="mt-2 flex items-center gap-2">
-                        <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div id="billingBar" class="h-full bg-red-500 rounded-full" style="width:0%"></div>
-                        </div>
-                        <span id="billingPct" class="text-xs text-red-400">0%</span>
-                    </div>
-                </div>
-                
-                <div class="glass-card-solid rounded-xl p-5 border-l-4 border-green-500">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="text-sm text-gray-400">Total Pembebasan</p>
-                            <p id="statPembebasan" class="text-2xl font-bold text-green-400">-</p>
-                        </div>
-                        <i class="fas fa-check-circle text-green-400/30 text-3xl"></i>
-                    </div>
-                    <div class="mt-2 flex items-center gap-2">
-                        <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div id="pembebasanBar" class="h-full bg-green-500 rounded-full" style="width:0%"></div>
-                        </div>
-                        <span id="pembebasanPct" class="text-xs text-green-400">0%</span>
-                    </div>
-                </div>
-                
-                <div class="glass-card-solid rounded-xl p-5 border-l-4 border-blue-500">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="text-sm text-gray-400">Proses Lainnya</p>
-                            <p id="statOther" class="text-2xl font-bold text-blue-400">-</p>
-                        </div>
-                        <i class="fas fa-hourglass-half text-blue-400/30 text-3xl"></i>
-                    </div>
-                    <div class="mt-2 flex items-center gap-2">
-                        <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div id="otherBar" class="h-full bg-blue-500 rounded-full" style="width:0%"></div>
-                        </div>
-                        <span id="otherPct" class="text-xs text-blue-400">0%</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Content Grid -->
             <div class="grid lg:grid-cols-2 gap-6 mb-6">
-                <!-- Distribusi Merek -->
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        <i class="fas fa-tags text-cyan-400"></i>
-                        Distribusi Merek HP
-                    </h3>
-                    <div id="brandDist" class="space-y-3"></div>
-                </div>
-                
-                <!-- Top 10 Petugas -->
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        <i class="fas fa-trophy text-yellow-400"></i>
-                        Top 10 Petugas
-                        <span class="text-xs text-gray-500 font-normal ml-2">(berdasarkan jumlah penanganan)</span>
-                    </h3>
-                    <div id="topOfficers" class="space-y-2"></div>
-                </div>
+                <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-mobile-alt text-cyan-400 mr-2"></i>Top 10 Perangkat</h3><div id="topDevices" class="space-y-1"></div></div>
+                <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-user-tie text-purple-400 mr-2"></i>Top 10 Petugas</h3><div id="topOfficers" class="space-y-1"></div></div>
             </div>
-
-            <!-- Second Row -->
             <div class="grid lg:grid-cols-2 gap-6 mb-6">
-                <!-- Top Devices -->
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        <i class="fas fa-mobile-alt text-blue-400"></i>
-                        Top 10 Tipe HP
-                    </h3>
-                    <div id="topDevices" class="space-y-2"></div>
-                </div>
-                
-                <!-- High Risk Passengers -->
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        <i class="fas fa-exclamation-triangle text-red-400"></i>
-                        Penumpang Berisiko Tinggi
-                        <span class="text-xs text-gray-500 font-normal ml-2">(skor ≥20)</span>
-                    </h3>
-                    <div id="highRiskList" class="space-y-2 max-h-80 overflow-y-auto"></div>
-                </div>
+                <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-chart-pie text-green-400 mr-2"></i>Status Penelitian</h3><div id="statusBreakdown" class="space-y-2"></div></div>
+                <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-tags text-blue-400 mr-2"></i>Distribusi Merek</h3><div id="brandDist" class="space-y-2"></div></div>
             </div>
-
-            <!-- Monthly Trend -->
-            <div class="glass-card-solid rounded-2xl p-6">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-chart-area text-green-400"></i>
-                    Tren Bulanan (12 Bulan Terakhir)
-                </h3>
-                <div id="monthlyTrend" class="overflow-x-auto"></div>
-            </div>`;
-        }
-
-        async function searchPaspor() {
-            const paspor = document.getElementById('pasporInput')?.value.trim().toUpperCase();
-            if (!paspor) { showToast('Masukkan nomor paspor', 'error'); return; }
-            const container = document.getElementById('pasporResult');
-            container.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-yellow-400"></i></div>';
-            try {
-                const res = await fetch('/api/passenger/' + paspor);
-                const { data } = await res.json();
-                if (!data) { container.innerHTML = '<div class="glass-card-solid rounded-2xl p-8 text-center"><i class="fas fa-user-slash text-4xl text-gray-500 mb-3"></i><p class="text-gray-400">Paspor <strong>' + paspor + '</strong> tidak ditemukan</p></div>'; return; }
-                const risk = data.risk || { level: 'GREEN', color: '#22c55e', score: 0 };
-                const s = data.summary || {};
-                container.innerHTML = `<div class="glass-card-solid rounded-2xl p-6 mb-4">
-                    <div class="flex justify-between items-start gap-4 mb-6"><div><p class="text-sm text-gray-400">Nomor Paspor</p><p class="text-2xl font-bold">${paspor}</p></div>
-                    <div class="flex items-center gap-3 px-4 py-2 rounded-xl" style="background:${risk.color}20;border:1px solid ${risk.color}"><i class="fas fa-shield-alt" style="color:${risk.color}"></i><div><p class="text-xs opacity-70">Risk Level</p><p class="font-bold" style="color:${risk.color}">${risk.level} (${risk.score})</p></div></div></div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-blue-400">${s.totalVisits||0}</p><p class="text-xs text-gray-400">Kunjungan</p></div>
-                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-green-400">${s.uniqueDevices||0}</p><p class="text-xs text-gray-400">Devices</p></div>
-                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-yellow-400">${s.pembebasanCount||0}</p><p class="text-xs text-gray-400">Pembebasan</p></div>
-                        <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-red-400">${s.billingCount||0}</p><p class="text-xs text-gray-400">Billing</p></div>
-                    </div></div>
-                    ${data.records?.length ? '<div class="glass-card-solid rounded-2xl p-6"><h4 class="font-bold mb-4"><i class="fas fa-history text-yellow-400 mr-2"></i>Riwayat ('+data.records.length+')</h4><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b border-white/10"><th class="pb-2">Tanggal</th><th class="pb-2">No. Dok</th><th class="pb-2">Device</th><th class="pb-2">Status</th><th class="pb-2">Petugas</th></tr></thead><tbody>'+data.records.slice(0,20).map(r=>'<tr class="border-b border-white/5"><td class="py-2">'+(r.tanggal_dokumen?new Date(r.tanggal_dokumen).toLocaleDateString("id-ID"):"-")+'</td><td class="py-2 font-mono text-xs">'+(r.nomor_dokumen||"-")+'</td><td class="py-2 text-cyan-400">'+(r.hkt1||"-")+'</td><td class="py-2"><span class="px-2 py-1 rounded text-xs '+(r.status_penelitian==="BILLING"?"bg-red-500/20 text-red-400":"bg-green-500/20 text-green-400")+'">'+(r.status_penelitian||"-")+'</span></td><td class="py-2 text-xs text-gray-400">'+(r.nama_petugas||"-")+'</td></tr>').join("")+'</tbody></table></div></div>' : ''}`;
-            } catch(e) { container.innerHTML = '<div class="text-red-400">Error: '+e.message+'</div>'; }
-        }
-
-        async function loadAlerts() {
-            const container = document.getElementById('alertsContainer'); if (!container) return;
-            try {
-                const res = await fetch('/api/passenger/repeaters?min=3');
-                const { data } = await res.json();
-                if (!data?.length) { container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i><p>Tidak ada alert</p></div>'; return; }
-                container.innerHTML = '<div class="space-y-3">'+data.slice(0,20).map(p=>'<div class="result-row rounded-xl p-4 flex justify-between items-center cursor-pointer hover:bg-white/10" onclick="document.getElementById(\'pasporInput\').value=\''+p.paspor+'\';setMainMenu(\'penumpang\');setSubMenu(\'lookup\');setTimeout(searchPaspor,200)"><div class="flex items-center gap-4"><div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:'+p.risk.color+'20"><i class="fas fa-user" style="color:'+p.risk.color+'"></i></div><div><p class="font-bold">'+p.paspor+'</p><p class="text-xs text-gray-400">'+p.visits+' kunjungan • '+p.unique_devices+' devices</p></div></div><span class="px-3 py-1 rounded-full text-sm font-bold" style="background:'+p.risk.color+'20;color:'+p.risk.color+'">'+p.risk.level+'</span></div>').join('')+'</div>';
-            } catch(e) { container.innerHTML = '<div class="text-red-400">Error</div>'; }
-        }
-
-        async function handleCSVUpload(input) {
-            const file = input.files[0]; if (!file) return;
-            const progress = document.getElementById('uploadProgress'), bar = document.getElementById('uploadBar'), status = document.getElementById('uploadStatus'), result = document.getElementById('uploadResult');
-            progress.classList.remove('hidden'); bar.style.width = '30%'; status.textContent = 'Uploading...';
-            const formData = new FormData(); formData.append('file', file); formData.append('uploaded_by', 'Web Upload');
-            try {
-                bar.style.width = '60%';
-                const res = await fetch('/api/passenger/upload', { method: 'POST', body: formData });
-                const data = await res.json(); bar.style.width = '100%'; status.textContent = 'Complete!';
-                if (data.status === 'ok') { result.innerHTML = '<div class="bg-green-500/20 border border-green-500/30 rounded-xl p-4"><p class="text-green-400 font-bold"><i class="fas fa-check-circle mr-2"></i>Upload Berhasil!</p><p class="text-sm mt-1">New: '+data.data.newRecords+' | Duplicate: '+data.data.duplicateRecords+'</p></div>'; loadUploadLogs(); }
-                else { result.innerHTML = '<div class="bg-red-500/20 p-4 rounded-xl text-red-400">'+data.message+'</div>'; }
-            } catch(e) { result.innerHTML = '<div class="text-red-400">Error: '+e.message+'</div>'; }
-            input.value = '';
-        }
-
-        async function loadUploadLogs() {
-            const container = document.getElementById('uploadLogs'); if (!container) return;
-            try {
-                const res = await fetch('/api/passenger/upload-logs');
-                const { data } = await res.json();
-                if (!data?.length) { container.innerHTML = '<p class="text-gray-400 text-center">Belum ada riwayat</p>'; return; }
-                container.innerHTML = '<div class="space-y-2">'+data.slice(0,10).map(l=>'<div class="bg-white/5 rounded-lg p-3 text-sm"><div class="flex justify-between"><span class="font-semibold">'+l.filename+'</span><span class="text-gray-500">'+new Date(l.uploaded_at).toLocaleDateString("id-ID")+'</span></div><p class="text-xs text-gray-400 mt-1">'+l.new_records+' new, '+l.duplicate_records+' dup</p></div>').join('')+'</div>';
-            } catch(e) { container.innerHTML = '<div class="text-red-400 text-sm">Error</div>'; }
+            <div class="glass-card-solid rounded-2xl p-6 mb-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>Penumpang Berisiko Tinggi (Top 10)</h3><div id="highRiskList" class="overflow-x-auto"></div></div>
+            <div class="glass-card-solid rounded-2xl p-6"><h3 class="text-lg font-bold mb-4"><i class="fas fa-chart-line text-yellow-400 mr-2"></i>Tren Bulanan (12 Bulan Terakhir)</h3><div id="monthlyTrend" class="overflow-x-auto"></div></div>`;
         }
 
         async function loadPenumpangStats() {
             try {
-                const res = await fetch('/api/passenger/stats/advanced');
-                const a = (await res.json()).data;
+                const [basicRes, advRes] = await Promise.all([
+                    fetch('/api/passenger/stats'),
+                    fetch('/api/passenger/stats/advanced')
+                ]);
+                const basic = await basicRes.json();
+                const adv = await advRes.json();
+                const data = basic.data || {};
+                const a = adv.data || {};
                 
-                // Basic Stats
-                document.getElementById('statRecords').textContent = (a.totalRecords||0).toLocaleString();
-                document.getElementById('statPassengers').textContent = (a.totalPassengers||0).toLocaleString();
-                document.getElementById('statFrequent').textContent = (a.frequentTravelers||0).toLocaleString();
-                document.getElementById('statCollectors').textContent = (a.uniqueOfficers||0).toLocaleString();
+                document.getElementById('statRecords').textContent = (data.totalRecords||0).toLocaleString();
+                document.getElementById('statPassengers').textContent = (data.totalPassengers||0).toLocaleString();
+                document.getElementById('statFrequent').textContent = (data.frequentTravelers||0).toLocaleString();
+                document.getElementById('statCollectors').textContent = (data.imeiCollectors||0).toLocaleString();
+                document.getElementById('statDaily').textContent = (a.dailyAverage||0).toLocaleString() + ' /hari';
+                document.getElementById('statBillingRate').textContent = (a.billingRate||0) + '%';
                 
-                // Last Update
-                const lastUpEl = document.getElementById('lastUpdate');
-                if (lastUpEl && a.lastUpload) {
-                    lastUpEl.textContent = new Date(a.lastUpload.uploaded_at).toLocaleString('id-ID');
+                if (a.dateRange?.minDate && a.dateRange?.maxDate) {
+                    const minD = new Date(a.dateRange.minDate).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+                    const maxD = new Date(a.dateRange.maxDate).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+                    document.getElementById('statPeriod').textContent = minD + ' - ' + maxD;
                 }
                 
-                // Status Breakdown (Billing vs Pembebasan)
-                if (a.statusBreakdown?.length) {
-                    const total = a.statusBreakdown.reduce((x,y) => x + y.count, 0);
-                    const billing = a.statusBreakdown.find(s => s._id === 'BILLING')?.count || 0;
-                    const pembebasan = a.statusBreakdown.find(s => s._id === 'PEMBEBASAN')?.count || 0;
-                    const other = total - billing - pembebasan;
-                    
-                    document.getElementById('statBilling').textContent = billing.toLocaleString();
-                    document.getElementById('statPembebasan').textContent = pembebasan.toLocaleString();
-                    document.getElementById('statOther').textContent = other.toLocaleString();
-                    
-                    const billingPct = total > 0 ? ((billing/total)*100).toFixed(1) : 0;
-                    const pembebasanPct = total > 0 ? ((pembebasan/total)*100).toFixed(1) : 0;
-                    const otherPct = total > 0 ? ((other/total)*100).toFixed(1) : 0;
-                    
-                    document.getElementById('billingBar').style.width = billingPct + '%';
-                    document.getElementById('billingPct').textContent = billingPct + '%';
-                    document.getElementById('pembebasanBar').style.width = pembebasanPct + '%';
-                    document.getElementById('pembebasanPct').textContent = pembebasanPct + '%';
-                    document.getElementById('otherBar').style.width = otherPct + '%';
-                    document.getElementById('otherPct').textContent = otherPct + '%';
+                const devC = document.getElementById('topDevices');
+                if (devC && data.topDevices?.length) {
+                    devC.innerHTML = data.topDevices.map((d,i) => 
+                        `<div class="flex justify-between items-center py-2 ${i<data.topDevices.length-1?'border-b border-white/5':''}">
+                        <span class="text-sm flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 text-xs flex items-center justify-center">${i+1}</span>${d.device||d._id}</span>
+                        <span class="text-cyan-400 font-bold">${d.count.toLocaleString()}</span></div>`
+                    ).join('');
                 }
                 
-                // Top 10 Petugas
                 const offC = document.getElementById('topOfficers');
                 if (offC && a.topPetugas?.length) {
-                    offC.innerHTML = a.topPetugas.slice(0,10).map((o,i) => {
-                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-                        return `<div class="flex justify-between items-center py-2 ${i<9?'border-b border-white/5':''}" title="Total penumpang yang ditangani">
-                            <div class="flex items-center gap-3">
-                                <span class="w-7 h-7 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center font-bold">${medal || (i+1)}</span>
-                                <div>
-                                    <span class="text-sm font-medium">${o.nama||o._id||'Unknown'}</span>
-                                    <span class="text-xs text-gray-500 ml-2">${o.billing||0} billing</span>
-                                </div>
-                            </div>
-                            <span class="text-purple-400 font-bold">${(o.total||0).toLocaleString()}</span>
-                        </div>`;
+                    offC.innerHTML = a.topPetugas.slice(0,10).map((o,i) => 
+                        `<div class="flex justify-between items-center py-2 ${i<9?'border-b border-white/5':''}">
+                        <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center">${i+1}</span>
+                        <div><span class="text-sm">${o._id||'Unknown'}</span><br><span class="text-xs text-gray-500">${o.billing||0} billing</span></div></div>
+                        <span class="text-purple-400 font-bold">${(o.total||0).toLocaleString()}</span></div>`
+                    ).join('');
+                } else if (offC) { offC.innerHTML = '<p class="text-gray-500 text-sm">Tidak ada data</p>'; }
+                
+                const statusC = document.getElementById('statusBreakdown');
+                if (statusC && a.statusBreakdown?.length) {
+                    const total = a.statusBreakdown.reduce((x,y) => x + y.count, 0);
+                    statusC.innerHTML = a.statusBreakdown.map(s => {
+                        const pct = ((s.count/total)*100).toFixed(1);
+                        const color = s._id === 'BILLING' ? 'red' : s._id === 'PEMBEBASAN' ? 'green' : 'blue';
+                        return `<div class="mb-2"><div class="flex justify-between text-sm mb-1"><span>${s._id||'Lainnya'}</span><span class="text-${color}-400">${s.count.toLocaleString()} (${pct}%)</span></div>
+                        <div class="h-2 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-${color}-500 rounded-full" style="width:${pct}%"></div></div></div>`;
                     }).join('');
                 }
                 
-                // Brand Distribution with Logos
                 const brandC = document.getElementById('brandDist');
                 if (brandC && a.brandDistribution?.length) {
                     const total = a.brandDistribution.reduce((x,y) => x + y.count, 0);
-                    const logos = {'APPLE':'🍎','SAMSUNG':'📱','OPPO':'🟢','VIVO':'🔵','XIAOMI':'🟠','REALME':'🟡','REDMI':'🔴','INFINIX':'🟣','HONOR':'💜','IPHONE':'🍎','HUAWEI':'🔶','TECNO':'🔷','ITEL':'⬛','NOKIA':'🔵','GOOGLE':'🔍','SONY':'⚫','ASUS':'🔷','ONEPLUS':'🔴','MOTOROLA':'Ⓜ️','LG':'🔴'};
-                    const colors = ['blue','cyan','green','yellow','orange','pink','purple','red','indigo','teal'];
+                    const colors = ['blue','cyan','green','yellow','purple','pink','orange','red','indigo','teal'];
                     brandC.innerHTML = a.brandDistribution.slice(0,10).map((b,i) => {
                         const pct = ((b.count/total)*100).toFixed(1);
-                        const logo = logos[b._id?.toUpperCase()] || '📲';
-                        return `<div class="flex items-center gap-3 py-2 ${i<9?'border-b border-white/5':''}">
-                            <span class="text-xl w-8 text-center">${logo}</span>
-                            <div class="flex-1">
-                                <div class="flex justify-between mb-1">
-                                    <span class="text-sm font-medium">${b._id}</span>
-                                    <span class="text-${colors[i%10]}-400 font-bold">${pct}%</span>
-                                </div>
-                                <div class="h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div class="h-full bg-${colors[i%10]}-500 rounded-full transition-all duration-500" style="width:${pct}%"></div>
-                                </div>
-                            </div>
-                        </div>`;
+                        return `<div class="flex justify-between items-center py-1"><span class="text-sm flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-${colors[i%10]}-500"></span>${b._id}</span><span class="text-${colors[i%10]}-400 font-bold">${pct}%</span></div>`;
                     }).join('');
                 }
                 
-                // Top Devices
-                const devC = document.getElementById('topDevices');
-                if (devC && a.topDevices?.length) {
-                    devC.innerHTML = a.topDevices.slice(0,10).map((d,i) => {
-                        return `<div class="flex justify-between items-center py-2 ${i<9?'border-b border-white/5':''}">
-                            <div class="flex items-center gap-3">
-                                <span class="w-6 h-6 rounded bg-blue-500/20 text-blue-400 text-xs flex items-center justify-center">${i+1}</span>
-                                <span class="text-sm">${d.device||d._id}</span>
-                            </div>
-                            <span class="text-cyan-400 font-bold">${(d.count||0).toLocaleString()}</span>
-                        </div>`;
-                    }).join('');
-                }
-                
-                // High Risk Passengers
                 const riskC = document.getElementById('highRiskList');
                 if (riskC && a.highRiskPassengers?.length) {
-                    riskC.innerHTML = a.highRiskPassengers.filter(p => p.riskScore >= 20).slice(0,10).map((p,i) => {
-                        const rc = p.riskScore >= 30 ? 'red' : 'yellow';
-                        return `<div class="flex justify-between items-center py-2 px-3 rounded-lg bg-${rc}-500/10 border border-${rc}-500/20 hover:bg-${rc}-500/20 cursor-pointer transition-all" 
-                                onclick="document.getElementById('pasporInput').value='${p._id}';setSubMenu('lookup');setTimeout(searchPaspor,200)">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-user-secret text-${rc}-400"></i>
-                                <div>
-                                    <span class="font-mono font-bold text-sm">${p._id}</span>
-                                    <p class="text-xs text-gray-400">${p.visits} kunjungan • ${p.deviceCount} device • ${p.billingCount} billing</p>
-                                </div>
-                            </div>
-                            <span class="px-2 py-1 rounded text-xs bg-${rc}-500/30 text-${rc}-400 font-bold">Skor: ${p.riskScore}</span>
-                        </div>`;
-                    }).join('') || '<p class="text-gray-500 text-center py-4">Tidak ada penumpang berisiko tinggi</p>';
-                }
+                    riskC.innerHTML = `<table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b border-white/10"><th class="pb-2">No</th><th class="pb-2">Paspor</th><th class="pb-2">Kunjungan</th><th class="pb-2">Device</th><th class="pb-2">Billing</th><th class="pb-2">Risk Score</th><th class="pb-2">Terakhir</th></tr></thead><tbody>` +
+                    a.highRiskPassengers.slice(0,10).map((p,i) => {
+                        const rc = p.riskScore >= 30 ? 'red' : p.riskScore >= 20 ? 'yellow' : 'orange';
+                        return `<tr class="border-b border-white/5 hover:bg-white/5"><td class="py-2">${i+1}</td><td class="py-2 font-mono font-bold">${p._id}</td><td class="py-2 text-center">${p.visits}</td><td class="py-2 text-center text-cyan-400">${p.deviceCount}</td><td class="py-2 text-center text-red-400">${p.billingCount}</td><td class="py-2"><span class="px-2 py-1 rounded text-xs bg-${rc}-500/20 text-${rc}-400 font-bold">${p.riskScore}</span></td><td class="py-2 text-xs text-gray-400">${p.lastVisit ? new Date(p.lastVisit).toLocaleDateString('id-ID') : '-'}</td></tr>`;
+                    }).join('') + '</tbody></table>';
+                } else if (riskC) { riskC.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Tidak ada penumpang berisiko tinggi</p>'; }
                 
-                // Monthly Trend
                 const trendC = document.getElementById('monthlyTrend');
                 if (trendC && a.monthlyTrend?.length) {
                     const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
-                    const maxTotal = Math.max(...a.monthlyTrend.map(m => m.total));
-                    trendC.innerHTML = `<div class="grid grid-cols-12 gap-2 items-end h-40 mb-4">
-                        ${a.monthlyTrend.slice(0,12).reverse().map(m => {
-                            const height = maxTotal > 0 ? (m.total/maxTotal)*100 : 0;
-                            const billingH = m.total > 0 ? (m.billing/m.total)*100 : 0;
-                            return `<div class="flex flex-col items-center gap-1">
-                                <div class="w-full bg-white/10 rounded-t relative" style="height:${height}%" title="${m.total.toLocaleString()} total">
-                                    <div class="absolute bottom-0 w-full bg-green-500/50 rounded-t" style="height:${100-billingH}%"></div>
-                                    <div class="absolute top-0 w-full bg-red-500/50 rounded-t" style="height:${billingH}%"></div>
-                                </div>
-                                <span class="text-xs text-gray-400">${months[(m._id?.month||1)-1]}</span>
-                            </div>`;
-                        }).join('')}
-                    </div>
-                    <div class="flex justify-center gap-6 text-xs">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-green-500/50 rounded"></span> Pembebasan</span>
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500/50 rounded"></span> Billing</span>
-                    </div>`;
+                    trendC.innerHTML = `<table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b border-white/10"><th class="pb-2">Bulan</th><th class="pb-2 text-right">Total</th><th class="pb-2 text-right">Penumpang</th><th class="pb-2 text-right">Billing</th><th class="pb-2 text-right">Pembebasan</th></tr></thead><tbody>` +
+                    a.monthlyTrend.map(m => {
+                        return `<tr class="border-b border-white/5"><td class="py-2 font-medium">${months[m._id.month-1]} ${m._id.year}</td><td class="py-2 text-right text-blue-400 font-bold">${m.total.toLocaleString()}</td><td class="py-2 text-right text-green-400">${m.uniquePassengers.toLocaleString()}</td><td class="py-2 text-right text-red-400">${m.billing.toLocaleString()}</td><td class="py-2 text-right text-yellow-400">${m.pembebasan.toLocaleString()}</td></tr>`;
+                    }).join('') + '</tbody></table>';
                 }
-                
             } catch(e) { console.error('Stats error:', e); }
         }
+
 
         function loadPenumpangSubContent(subId) {
             ['lookup','alerts','upload','stats'].forEach(c => { const el = document.getElementById('penumpang-'+c); if(el) el.style.display = c===subId?'block':'none'; });
@@ -1697,6 +1322,5 @@
         loadLatest();
         loadAllDevices();
     </script>
-<script src="/edit-price.js"></script>
 </body>
 </html>

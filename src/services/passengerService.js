@@ -193,7 +193,11 @@ async function getAdvancedStats() {
   ]);
   const billingRate = billingStats[0] ? ((billingStats[0].billing / billingStats[0].total) * 100).toFixed(1) : 0;
   
+  // Get basic stats
+  const basicStats = await getStats();
+  
   return {
+    ...basicStats,
     monthlyTrend: monthlyTrend.reverse(),
     statusBreakdown,
     topPetugas,
@@ -202,7 +206,8 @@ async function getAdvancedStats() {
     highRiskPassengers,
     dailyAverage,
     billingRate,
-    dateRange: dateRange[0] || {}
+    dateRange: dateRange[0] || {},
+    uniqueOfficers: topPetugas.length
   };
 }
 
