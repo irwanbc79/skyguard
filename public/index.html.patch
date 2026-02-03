@@ -1,0 +1,4 @@
+// Di dalam fungsi setMenu(), tambahkan:
+if (menuId === 'barang') {
+  loadBarangContent();
+}

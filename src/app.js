@@ -23,6 +23,10 @@ app.use('/api/passengers', require('./routes/passengers'));
 app.use('/api/kurs', kursRoutes);
 app.use('/api/passenger', passengerRoutes);
 
+// HS Codes route
+app.use('/api/hs-codes', require('./routes/hscodes'));
+app.use('/api/hs', require('./routes/hscodes'));
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });

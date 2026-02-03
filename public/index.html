@@ -324,33 +324,11 @@
         </div>
 
         <!-- BARANG Content (Coming Soon) -->
+        <!-- BARANG Content - HS Explorer -->
         <div id="content-barang" class="content-section fade-in">
-            <div class="glass-card-solid rounded-2xl p-8 text-center">
-                <i class="fas fa-box text-6xl text-purple-400/30 mb-4"></i>
-                <h2 class="text-2xl font-bold mb-2">Modul Barang</h2>
-                <p class="text-gray-400 mb-6">Fitur dalam tahap pengembangan</p>
-                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-barcode text-purple-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Cek HS Code</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-percentage text-purple-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Tarif & Lartas</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-calculator text-purple-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Kalkulator BM</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-database text-purple-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Database Komoditas</p>
-                    </div>
-                </div>
-            </div>
+            <!-- HS Explorer will be loaded here by JavaScript -->
         </div>
 
-        <!-- CARGO Content (Coming Soon) -->
         <div id="content-cargo" class="content-section fade-in">
             <div class="glass-card-solid rounded-2xl p-8 text-center">
                 <i class="fas fa-ship text-6xl text-pink-400/30 mb-4"></i>
@@ -500,7 +478,7 @@
             renderSubMenu(menu);
 
             // Set default sub menu for IMEI
-            if ((menu === 'imei' || menu === 'penumpang') && menuConfig[menu].subMenus.length > 0) {
+            if ((menu === 'imei' || menu === 'penumpang' || menu === 'barang') && menuConfig[menu].subMenus.length > 0) {
                 setSubMenu(menuConfig[menu].subMenus[0].id);
             }
         }
@@ -543,8 +521,7 @@
                 else if (subId === 'harga') { container.innerHTML = getHargaContent(); loadAllDevices().then(() => loadGroupedView('Apple')); }
                 else if (subId === 'kalkulator') { container.innerHTML = getKalkulatorContent(); if (!allDevicesList || allDevicesList.length === 0) loadAllDevices(); }
                 else if (subId === 'input') { container.innerHTML = getInputContent(); }
-            } else if (menu === 'penumpang') {
-                loadPenumpangSubContent(subId);
+            } else if (menu === 'penumpang') { loadPenumpangSubContent(subId); } else if (menu === 'barang') { const container = document.getElementById('content-barang'); if (subId === 'hscode') { loadBarangContent('hscode'); } else if (subId === 'tarif') { container.innerHTML = getTarifContent(); } else if (subId === 'kalkulatorbm') { container.innerHTML = getKalkulatorBMContent(); } else if (subId === 'komoditas') { container.innerHTML = getKomoditasContent(); }
             }
         }
 
@@ -1699,5 +1676,6 @@
         loadAllDevices();
     </script>
 <script src="/edit-price.js"></script>
+<script src="/hs-explorer.js"></script>
 </body>
 </html>
