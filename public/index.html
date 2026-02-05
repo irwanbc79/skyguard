@@ -959,6 +959,32 @@
         let groupedData = null;
         let currentSeries = null;
         let currentBrandGrouped = "Apple";
+        let currentKursUSD = 16777; // Default kurs
+
+        // Fungsi hitung pajak real-time
+        function calculateTax(priceUsd) {
+            const BEBAS_BEA = 500;
+            const TARIF_BM = 0.10;
+            const TARIF_PPN = 0.11;
+            const kenaFob = Math.max(0, priceUsd - BEBAS_BEA);
+            const nilaiPabean = kenaFob * currentKursUSD;
+            const bm = nilaiPabean * TARIF_BM;
+            const ppn = (nilaiPabean + bm) * TARIF_PPN;
+            return Math.round(bm + ppn);
+        }
+
+        // Load kurs saat startup
+        async function loadKursForCalc() {
+            try {
+                const res = await fetch("/api/kurs/USD");
+                const data = await res.json();
+                if (data.status === "ok" && data.data.rate) {
+                    currentKursUSD = data.data.rate;
+                    console.log("Kurs USD loaded:", currentKursUSD);
+                }
+            } catch(e) { console.error("Load kurs error:", e); }
+        }
+        loadKursForCalc();
 
         async function loadGroupedView(brand) {
             currentBrandGrouped = brand || "Apple";
@@ -1016,7 +1042,7 @@
                     html += "</select></div>";
                     html += "<div id=\"disp_" + currentSeries + "_" + mi + "\" class=\"border-t border-white/10 pt-3\">";
                     html += "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + (v0.price_usd||0).toLocaleString() + "</span></div>";
-                    html += "<div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + (v0.tax_idr||0).toLocaleString() + "</span></div>";
+                    html += "<div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + calculateTax(v0.price_usd).toLocaleString() + "</span></div>";
                     html += "<div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + currentSeries + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button>";
                     html += "<button onclick=\"editFromGrouped(\x27" + currentSeries + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
                     html += "</div></div>";
@@ -1035,7 +1061,7 @@
             const opt = sel.options[sel.selectedIndex];
             const price = parseFloat(opt.dataset.price) || 0;
             const tax = parseFloat(opt.dataset.tax) || 0;
-            disp.innerHTML = "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + price.toLocaleString() + "</span></div><div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + tax.toLocaleString() + "</span></div><div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button><button onclick=\"editFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
+            disp.innerHTML = "<div class=\"flex justify-between mb-2\"><span class=\"text-gray-400 text-sm\">Harga USD</span><span class=\"text-2xl font-bold text-green-400\">$" + price.toLocaleString() + "</span></div><div class=\"flex justify-between mb-3\"><span class=\"text-gray-400 text-sm\">Pajak IDR</span><span class=\"text-lg font-semibold text-yellow-400\">Rp " + calculateTax(price).toLocaleString() + "</span></div><div class=\"flex gap-2\"><button onclick=\"hitungFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg\"><i class=\"fas fa-calculator mr-1\"></i>Hitung</button><button onclick=\"editFromGrouped(\x27" + series + "\x27," + mi + ")\" class=\"flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm py-2 rounded-lg\"><i class=\"fas fa-edit mr-1\"></i>Edit</button></div>";
         }
 
         function hitungFromGrouped(series, mi) {
