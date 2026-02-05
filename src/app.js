@@ -38,6 +38,8 @@ app.get('/', (req, res) => {
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('MongoDB connected');
+    const { initKurs } = require('./services/kursService');
+    initKurs();
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
