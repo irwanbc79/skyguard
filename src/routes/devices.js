@@ -6,6 +6,7 @@ router.get('/', deviceController.getAll);
 router.get('/search', deviceController.search);
 router.get('/brands', deviceController.getBrands);
 router.get('/latest', deviceController.getLatest);
+router.get('/time-range', deviceController.getTimeRange);
 router.get('/grouped', deviceController.getGroupedByType);
 router.get('/clear-cache', deviceController.clearCache);
 router.get('/:id', deviceController.getById);

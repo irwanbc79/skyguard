@@ -30,7 +30,8 @@ const getDevicesWithPricesPipeline = (match = {}) => [
       price_usd: { $ifNull: ['$price.price_usd', 0] },
       tax_idr: { $ifNull: ['$price.tax_idr', 0] },
       updated_at: '$price.created_at',
-      updated_by: '$price.created_by'
+      updated_by: '$price.created_by',
+      price_id: '$price._id'
     }
   },
   { $sort: { price_usd: -1 } }
@@ -324,4 +325,26 @@ exports.getPriceHistory = async (req, res) => {
     if (!price) return res.status(404).json({ status: 'error', message: 'Price not found' });
     res.json({ status: 'ok', data: { current: { price_usd: price.price_usd, tax_idr: price.tax_idr }, history: price.edit_history || [] }});
   } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+};
+
+// Get time range of recorded prices
+exports.getTimeRange = async (req, res) => {
+  try {
+    const PriceReference = require('../models/PriceReference');
+    
+    const [oldest, newest] = await Promise.all([
+      PriceReference.findOne().sort({ created_at: 1 }).select('created_at'),
+      PriceReference.findOne().sort({ created_at: -1 }).select('created_at')
+    ]);
+    
+    res.json({
+      status: 'ok',
+      data: {
+        oldest: oldest?.created_at || null,
+        newest: newest?.created_at || null
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
 };

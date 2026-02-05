@@ -88,7 +88,6 @@
                     <div class="text-right text-xs">
                         <div id="currentDate" class="text-gray-400"></div>
                         <div id="currentTime" class="text-lg font-bold text-white"></div>
-                        <div id="waktuRekam" class="text-[10px] text-cyan-400 mt-0.5"></div>
                     </div>
                     <div class="w-9 h-9 rounded-full bg-blue-500/30 flex items-center justify-center">
                         <i class="fas fa-user text-sm"></i>
@@ -449,23 +448,10 @@
         function updateClock() {
             const now = new Date();
             document.getElementById('currentDate').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
-            document.getElementById('currentTime').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         }
         setInterval(updateClock, 1000);
         updateClock();
-
-        // Load time range dari database
-        async function loadTimeRange() {
-            try {
-                const res = await fetch('/api/devices/time-range');
-                const data = await res.json();
-                if (data.status === 'ok' && data.data.oldest && data.data.newest) {
-                    const fmt = (d) => new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    document.getElementById('waktuRekam').innerHTML = '<i class="fas fa-database text-cyan-500 mr-1"></i>(Periode Data Rekam IMEI) ' + fmt(data.data.oldest) + ' s.d ' + fmt(data.data.newest);
-                }
-            } catch (e) { console.error('Time range error:', e); }
-        }
-        loadTimeRange();
 
         // ==================== MENU FUNCTIONS ====================
         function setMainMenu(menu) {
