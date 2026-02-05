@@ -677,205 +677,63 @@
 
         function getInputContent() {
             return `
-                <div class="max-w-4xl mx-auto">
-                    <!-- Tab Navigation -->
-                    <div class="flex gap-2 mb-6">
-                        <button onclick="switchInputTab('device')" id="tabDevice" class="flex-1 py-3 px-4 rounded-xl bg-green-500 text-white font-semibold transition"><i class="fas fa-mobile-alt mr-2"></i>Input Device</button>
-                        <button onclick="switchInputTab('kurs')" id="tabKurs" class="flex-1 py-3 px-4 rounded-xl bg-slate-700 text-gray-300 font-semibold hover:bg-slate-600 transition"><i class="fas fa-dollar-sign mr-2"></i>Update Kurs</button>
-                    </div>
-                    
-                    <!-- Device Input Form -->
-                    <div id="deviceInputForm" class="glass-card-solid rounded-2xl p-6">
-                        <h3 class="text-lg font-semibold mb-5 flex items-center gap-2"><i class="fas fa-plus-circle text-green-400"></i> Input Data Device Baru</h3>
-                        <div class="space-y-4">
-                            <div class="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Brand</label>
-                                    <select style="background: #1a3a5c; color: white;" id="inputBrand" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
-                                        <option value="Apple">Apple</option>
-                                        <option value="Samsung">Samsung</option>
-                                        <option value="Xiaomi">Xiaomi</option>
-                                        <option value="OPPO">OPPO</option>
-                                        <option value="Vivo">Vivo</option>
-                                        <option value="Other">Lainnya</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Model</label>
-                                    <input type="text" id="inputModel" placeholder="Contoh: iPhone 16 Pro Max" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
-                                </div>
-                            </div>
-                            <div class="grid md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Kapasitas</label>
-                                    <select style="background: #1a3a5c; color: white;" id="inputCapacity" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
-                                        <option value="64GB">64GB</option>
-                                        <option value="128GB">128GB</option>
-                                        <option value="256GB">256GB</option>
-                                        <option value="512GB">512GB</option>
-                                        <option value="1TB">1TB</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Harga (USD)</label>
-                                    <input type="number" id="inputPrice" placeholder="0.00" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Pajak (IDR)</label>
-                                    <input type="number" id="inputTax" placeholder="0" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
-                                </div>
+                <div class="glass-card-solid rounded-2xl p-6 max-w-2xl mx-auto">
+                    <h3 class="text-lg font-semibold mb-5 flex items-center gap-2"><i class="fas fa-plus-circle text-green-400"></i> Input Data Device Baru</h3>
+                    <div class="space-y-4">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">Brand</label>
+                                <select style="background: #1a3a5c; color: white;" id="inputBrand" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
+                                    <option value="Apple">Apple</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="Xiaomi">Xiaomi</option>
+                                    <option value="OPPO">OPPO</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Other">Lainnya</option>
+                                </select>
                             </div>
                             <div>
-                                <label class="block text-sm text-gray-400 mb-2">Sumber Data</label>
-                                <input type="text" id="inputSource" placeholder="Contoh: Database Handphone.xlsx" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
+                                <label class="block text-sm text-gray-400 mb-2">Model</label>
+                                <input type="text" id="inputModel" placeholder="Contoh: iPhone 16 Pro Max" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
                             </div>
-                            <button onclick="submitDevice()" class="btn-primary w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2"><i class="fas fa-save"></i> Simpan Data</button>
                         </div>
-                    </div>
-                    
-                    <!-- Kurs Update Form -->
-                    <div id="kursInputForm" class="hidden glass-card-solid rounded-2xl p-6">
-                        <h3 class="text-lg font-semibold mb-5 flex items-center gap-2"><i class="fas fa-sync-alt text-blue-400"></i> Update Kurs Pajak Mingguan</h3>
-                        <div class="space-y-4">
-                            <div class="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Nomor KMK</label>
-                                    <input type="text" id="kursKmk" placeholder="Contoh: KMK 6/MK/EF.2/2026" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">Periode Berlaku</label>
-                                    <input type="text" id="kursPeriode" placeholder="Contoh: 11 Feb 2026 - 17 Feb 2026" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
-                                </div>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">Kapasitas</label>
+                                <select style="background: #1a3a5c; color: white;" id="inputCapacity" class="input-modern w-full px-4 py-3 rounded-xl text-white outline-none">
+                                    <option value="64GB">64GB</option>
+                                    <option value="128GB">128GB</option>
+                                    <option value="256GB">256GB</option>
+                                    <option value="512GB">512GB</option>
+                                    <option value="1TB">1TB</option>
+                                </select>
                             </div>
-                            <div class="bg-slate-700/50 rounded-xl p-4">
-                                <div class="flex justify-between items-center mb-3">
-                                    <span class="text-sm text-gray-400">Mata Uang Utama</span>
-                                    <button onclick="loadCurrentKurs()" class="text-xs bg-blue-500/20 text-blue-400 px-3 py-1 rounded-lg hover:bg-blue-500/30"><i class="fas fa-download mr-1"></i>Load Current</button>
-                                </div>
-                                <div class="grid md:grid-cols-3 gap-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">USD</span>
-                                        <input type="number" id="kursUSD" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">EUR</span>
-                                        <input type="number" id="kursEUR" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">SGD</span>
-                                        <input type="number" id="kursSGD" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">MYR</span>
-                                        <input type="number" id="kursMYR" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">AUD</span>
-                                        <input type="number" id="kursAUD" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">GBP</span>
-                                        <input type="number" id="kursGBP" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">JPY</span>
-                                        <input type="number" id="kursJPY" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">CNY</span>
-                                        <input type="number" id="kursCNY" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-16 text-sm font-medium">HKD</span>
-                                        <input type="number" id="kursHKD" step="0.01" class="input-modern flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none">
-                                    </div>
-                                </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">Harga (USD)</label>
+                                <input type="number" id="inputPrice" placeholder="0.00" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
                             </div>
-                            <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-amber-400 text-sm">
-                                <i class="fas fa-info-circle mr-2"></i>
-                                <strong>Info:</strong> Kurs akan otomatis di-refresh setiap Rabu jam 10:00 WIB dari Kemenkeu. Update manual jika diperlukan.
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">Pajak (IDR)</label>
+                                <input type="number" id="inputTax" placeholder="0" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
                             </div>
-                            <button onclick="submitKursUpdate()" class="btn-primary w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500"><i class="fas fa-save"></i> Simpan Kurs</button>
                         </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Sumber Data</label>
+                            <input type="text" id="inputSource" placeholder="Contoh: Database Handphone.xlsx" class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none">
+                        </div>
+                        <button onclick="submitDevice()" class="btn-primary w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2"><i class="fas fa-save"></i> Simpan Data</button>
                     </div>
                 </div>
             `;
         }
 
-        function showToast(message, type = "success") {
+        // ==================== UTILITY FUNCTIONS ====================
+        function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             document.getElementById('toastMessage').textContent = message;
             document.getElementById('toastIcon').className = type === 'success' ? 'fas fa-check-circle text-green-400 text-xl' : 'fas fa-exclamation-circle text-red-400 text-xl';
             toast.classList.remove('translate-y-20', 'opacity-0');
             setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
-        }
-
-
-        // ==================== KURS FUNCTIONS ====================
-        function switchInputTab(tab) {
-            const tabDevice = document.getElementById("tabDevice");
-            const tabKurs = document.getElementById("tabKurs");
-            const deviceForm = document.getElementById("deviceInputForm");
-            const kursForm = document.getElementById("kursInputForm");
-            if (tab === "device") {
-                tabDevice.className = "flex-1 py-3 px-4 rounded-xl bg-green-500 text-white font-semibold transition";
-                tabKurs.className = "flex-1 py-3 px-4 rounded-xl bg-slate-700 text-gray-300 font-semibold hover:bg-slate-600 transition";
-                deviceForm.classList.remove("hidden");
-                kursForm.classList.add("hidden");
-            } else {
-                tabDevice.className = "flex-1 py-3 px-4 rounded-xl bg-slate-700 text-gray-300 font-semibold hover:bg-slate-600 transition";
-                tabKurs.className = "flex-1 py-3 px-4 rounded-xl bg-blue-500 text-white font-semibold transition";
-                deviceForm.classList.add("hidden");
-                kursForm.classList.remove("hidden");
-                loadCurrentKurs();
-            }
-        }
-
-        async function loadCurrentKurs() {
-            try {
-                const res = await fetch("/api/kurs/all");
-                const data = await res.json();
-                if (data.status === "ok") {
-                    const currencies = data.data.currencies;
-                    const codes = ["USD", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "HKD"];
-                    codes.forEach(code => {
-                        const input = document.getElementById("kurs" + code);
-                        const kurs = currencies.find(c => c.code === code);
-                        if (input && kurs) input.value = kurs.rate;
-                    });
-                    const kmkInput = document.getElementById("kursKmk");
-                    const periodeInput = document.getElementById("kursPeriode");
-                    if (kmkInput) kmkInput.value = data.data.kmk_number || "";
-                    if (periodeInput) periodeInput.value = data.data.periode || "";
-                }
-            } catch (err) { console.error("Load kurs error:", err); }
-        }
-
-        async function submitKursUpdate() {
-            const kmk = document.getElementById("kursKmk").value.trim();
-            const periode = document.getElementById("kursPeriode").value.trim();
-            if (!kmk || !periode) { alert("Nomor KMK dan Periode wajib diisi!"); return; }
-            const codes = ["USD", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "HKD"];
-            const currencies = [];
-            codes.forEach(code => {
-                const input = document.getElementById("kurs" + code);
-                if (input && input.value) {
-                    currencies.push({ code: code, rate: parseFloat(input.value) });
-                }
-            });
-            if (currencies.length === 0) { alert("Minimal isi satu nilai kurs!"); return; }
-            try {
-                const res = await fetch("/api/kurs/bulk-update", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ currencies, periode, kmk_number: kmk, updated_by: "admin" })
-                });
-                const result = await res.json();
-                if (result.status === "ok") {
-                    alert("Kurs berhasil diupdate!");
-                    loadCurrentKurs();
-                } else { alert("Gagal: " + result.message); }
-            } catch (err) { alert("Error: " + err.message); }
         }
 
         // ==================== DATA FUNCTIONS ====================

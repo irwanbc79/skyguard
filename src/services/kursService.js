@@ -173,12 +173,12 @@ async function hitungPajak(fobUsd, jumlahUnit = 1, currency = 'USD') {
 }
 
 // Scheduler: Auto scrape setiap Rabu jam 10:00 WIB
-cron.schedule('0 10 * * 3', async () => {
-  console.log('Running scheduled kurs scrape (Wednesday 10:00 WIB)...');
+cron.schedule('0 1 * * 3', async () => {
+  console.log('Running scheduled kurs scrape (Wednesday 01:00 WIB)...');
   await scrapeKurs();
 }, { timezone: 'Asia/Jakarta' });
 
-console.log('Kurs scheduler initialized - Auto scrape every Wednesday 10:00 WIB');
+console.log('Kurs scheduler initialized - Auto scrape every Wednesday 01:00 WIB');
 
 module.exports = { 
   initKurs, 
