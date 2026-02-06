@@ -56,7 +56,18 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       result = await ps.importExcel(req.file.buffer, uploadedBy, filename);
     } else {
       const lines = req.file.buffer.toString('utf-8').split('\n').filter(l => l.trim());
-      result = await ps.importCSV(lines, uploadedBy, filename);
+      
+      // Detect file type from filename or header
+      const isPenetapan = filename.toLowerCase().includes('penetapan') || 
+                          (lines[0] && lines[0].includes('namaLengkap'));
+      
+      if (isPenetapan) {
+        console.log('[UPLOAD] Detected: Data Penetapan CSV');
+        result = await ps.importPenetapanCSV(lines, uploadedBy, filename);
+        result.fileType = 'penetapan';
+      } else {
+        result = await ps.importCSV(lines, uploadedBy, filename);
+      }
     }
     
     res.json({

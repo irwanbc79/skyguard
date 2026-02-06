@@ -43,11 +43,11 @@ async function getRepeaters(minVisits = 5) {
   const results = await Passenger.aggregate([
     { $group: { _id: '$paspor', visits: { $sum: 1 }, devices: { $addToSet: '$hkt1' },
         billingCount: { $sum: { $cond: [{ $eq: ['$status_penelitian', 'BILLING'] }, 1, 0] } },
-        firstVisit: { $min: '$tanggal_dokumen' }, lastVisit: { $max: '$tanggal_dokumen' } } },
+        firstVisit: { $min: '$tanggal_dokumen' }, lastVisit: { $max: '$tanggal_dokumen' }, nama: { $first: '$nama_lengkap' } } },
     { $match: { visits: { $gte: minVisits } } }, { $sort: { visits: -1 } }, { $limit: 100 }
   ]);
   return results.map(r => ({
-    paspor: r._id, visits: r.visits, unique_devices: r.devices.filter(Boolean).length,
+    paspor: r._id, nama: r.nama, visits: r.visits, unique_devices: r.devices.filter(Boolean).length,
     devices: r.devices.filter(Boolean), billing_count: r.billingCount,
     first_visit: r.firstVisit, last_visit: r.lastVisit,
     risk: calculateRiskScore(r.visits, r.devices.filter(Boolean).length, r.billingCount)
@@ -78,7 +78,8 @@ async function getStats() {
   // IMEI Collectors (>= 4 unique devices)
   const imeiCollectors = await Passenger.aggregate([
     { $group: { _id: '$paspor', devices: { $addToSet: '$hkt1' } } },
-    { $project: { deviceCount: { $size: { $filter: { input: '$devices', as: 'd', cond: { $ne: ['$$d', ''] } } } } } },
+    { $project: { nama: 1,
+        deviceCount: { $size: { $filter: { input: '$devices', as: 'd', cond: { $ne: ['$$d', ''] } } } } } },
     { $match: { deviceCount: { $gte: 4 } } },
     { $count: 'total' }
   ]);
@@ -156,10 +157,12 @@ async function getAdvancedStats() {
         devices: { $addToSet: '$hkt1' },
         billingCount: { $sum: { $cond: [{ $eq: ['$status_penelitian', 'BILLING'] }, 1, 0] } },
         lastVisit: { $max: '$tanggal_dokumen' },
-        lastDevice: { $last: '$hkt1' }
+        lastDevice: { $last: '$hkt1' },
+        nama: { $first: '$nama_lengkap' }
     }},
     { $project: {
         visits: 1, billingCount: 1, lastVisit: 1, lastDevice: 1,
+        nama: 1,
         deviceCount: { $size: { $filter: { input: '$devices', as: 'd', cond: { $ne: ['$$d', ''] } } } },
         riskScore: { $add: [
           { $multiply: ['$visits', 2] },
@@ -316,8 +319,51 @@ async function importCSV(lines, uploadedBy, filename) {
 
 async function getUploadLogs(limit = 20) { return UploadLog.find().sort({ uploaded_at: -1 }).limit(limit); }
 
+
+// Import Data Penetapan CSV - update nama_lengkap berdasarkan qrCode
+async function importPenetapanCSV(lines, uploadedBy, filename) {
+  let updatedRecords = 0, notFoundRecords = 0;
+  
+  for (let i = 1; i < lines.length; i++) {
+    const f = lines[i].replace(/^\uFEFF/, '').replace(/\r/g, '').split(';').map(x => x.trim());
+    if (f.length < 4) continue;
+    
+    const qrCode = f[1]; // qrCode di kolom 2
+    const noIdentitas = f[2]; // noIdentitas (paspor)
+    const namaLengkap = f[3]; // namaLengkap di kolom 4
+    
+    if (!qrCode || !namaLengkap) continue;
+    
+    try {
+      // Update record yang sudah ada berdasarkan qrCode
+      const result = await Passenger.updateOne(
+        { qr_code: qrCode },
+        { $set: { nama_lengkap: namaLengkap } }
+      );
+      
+      if (result.matchedCount > 0) updatedRecords++;
+      else notFoundRecords++;
+    } catch (err) {
+      console.error('[PENETAPAN] Error:', err.message);
+    }
+  }
+  
+  await UploadLog.create({
+    uploaded_by: uploadedBy,
+    filename,
+    total_records: lines.length - 1,
+    new_records: updatedRecords,
+    duplicate_records: notFoundRecords,
+    notes: 'Data Penetapan - Updated names'
+  });
+  
+  console.log('[PENETAPAN] Result:', updatedRecords, 'updated,', notFoundRecords, 'not found');
+  return { total: lines.length - 1, updatedRecords, notFoundRecords };
+}
+
+
 module.exports = { 
   calculateRiskScore, getByPaspor, getRepeaters, 
   getStats, getAdvancedStats,  // NEW
-  importExcel, importCSV, getUploadLogs 
+  importExcel, importCSV, importPenetapanCSV, getUploadLogs 
 };

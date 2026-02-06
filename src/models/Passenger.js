@@ -12,6 +12,7 @@ const passengerSchema = new mongoose.Schema({
   
   // Data Penumpang
   paspor: { type: String, required: true, index: true },
+  nama_lengkap: { type: String }, // Nama pemilik paspor dari Data Penetapan
   
   // Data Rekam
   waktu_rekam: { type: Date },
