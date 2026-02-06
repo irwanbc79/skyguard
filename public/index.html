@@ -1454,23 +1454,55 @@
                     </div>
                     
                     <!-- Panduan Upload -->
-                    <div class="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-left">
-                        <h4 class="text-sm font-bold text-blue-400 mb-2"><i class="fas fa-info-circle mr-2"></i>Panduan Upload</h4>
-                        <div class="space-y-2 text-xs text-gray-300">
-                            <div class="flex items-start gap-2">
-                                <span class="text-green-400 font-bold">1.</span>
-                                <div><strong class="text-green-400">Data Rekam IMEI</strong> - Export dari CEISA menu "Rekam IMEI"<br/>
-                                <span class="text-gray-500">Format: kodeKantor;nomorDokumen;tanggalDokumen;paspor;waktuRekam;qrCode;...</span></div>
+                    <div class="mt-4 p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl text-left">
+                        <h4 class="text-sm font-bold text-blue-400 mb-3"><i class="fas fa-book-open mr-2"></i>Panduan Upload Data CEISA</h4>
+                        
+                        <!-- File 1: Data Rekam IMEI -->
+                        <div class="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-0.5 bg-green-500 text-white text-xs rounded font-bold">1</span>
+                                <strong class="text-green-400">Data Rekam IMEI</strong>
+                                <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">CSV</span>
                             </div>
-                            <div class="flex items-start gap-2">
-                                <span class="text-yellow-400 font-bold">2.</span>
-                                <div><strong class="text-yellow-400">Data Penetapan</strong> - Export dari CEISA menu "Penetapan HKT"<br/>
-                                <span class="text-gray-500">Format: kodeKantor;qrCode;noIdentitas;namaLengkap;noPenyelesaian;...</span></div>
+                            <p class="text-xs text-gray-400 mb-2">Sumber: CEISA → Monitoring → Rekam IMEI → Export CSV</p>
+                            <div class="text-xs text-gray-500 bg-black/20 p-2 rounded font-mono overflow-x-auto">
+                                <span class="text-cyan-400">Header:</span> kodeKantor<span class="text-gray-600">;</span>nomorDokumen<span class="text-gray-600">;</span>tanggalDokumen<span class="text-gray-600">;</span>paspor<span class="text-gray-600">;</span>waktuRekam<span class="text-gray-600">;</span>qrCode<span class="text-gray-600">;</span>nipPetugas<span class="text-gray-600">;</span>namaPetugas<span class="text-gray-600">;</span>status<span class="text-gray-600">;</span>kodeKantorPeneliti<span class="text-gray-600">;</span>hkt1<span class="text-gray-600">;</span>hkt2<span class="text-gray-600">;</span>statusPenelitian
                             </div>
                         </div>
-                        <div class="mt-3 pt-3 border-t border-white/10 text-xs">
-                            <p class="text-gray-400"><i class="fas fa-shield-alt text-green-400 mr-1"></i> <strong>Deduplikasi Otomatis:</strong> Data duplikat tidak akan masuk ke database</p>
-                            <p class="text-gray-400 mt-1"><i class="fas fa-user-tag text-yellow-400 mr-1"></i> <strong>Update Nama:</strong> Upload Penetapan untuk melengkapi nama pemilik paspor</p>
+                        
+                        <!-- File 2: Data Penetapan -->
+                        <div class="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-0.5 bg-yellow-500 text-black text-xs rounded font-bold">2</span>
+                                <strong class="text-yellow-400">Data Penetapan HKT</strong>
+                                <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">CSV</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mb-2">Sumber: CEISA → Monitoring → Penetapan HKT → Export CSV</p>
+                            <div class="text-xs text-gray-500 bg-black/20 p-2 rounded font-mono overflow-x-auto">
+                                <span class="text-cyan-400">Header:</span> kodeKantor<span class="text-gray-600">;</span>qrCode<span class="text-gray-600">;</span>noIdentitas<span class="text-gray-600">;</span><span class="text-yellow-300">namaLengkap</span><span class="text-gray-600">;</span>noPenyelesaian<span class="text-gray-600">;</span>tglPenyelesaian<span class="text-gray-600">;</span>hkt1<span class="text-gray-600">;</span>hargaPenetapanHkt1<span class="text-gray-600">;</span>...
+                            </div>
+                            <p class="text-xs text-yellow-400/70 mt-2"><i class="fas fa-lightbulb mr-1"></i>File ini untuk melengkapi <strong>nama pemilik paspor</strong></p>
+                        </div>
+                        
+                        <!-- Info Penting -->
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2 bg-white/5 rounded-lg">
+                                <p class="text-gray-400"><i class="fas fa-file-csv text-blue-400 mr-1"></i> <strong>Format:</strong> CSV (semicolon ;)</p>
+                            </div>
+                            <div class="p-2 bg-white/5 rounded-lg">
+                                <p class="text-gray-400"><i class="fas fa-weight-hanging text-purple-400 mr-1"></i> <strong>Max Size:</strong> 50 MB</p>
+                            </div>
+                            <div class="p-2 bg-white/5 rounded-lg">
+                                <p class="text-gray-400"><i class="fas fa-shield-alt text-green-400 mr-1"></i> <strong>Deduplikasi:</strong> Otomatis</p>
+                            </div>
+                            <div class="p-2 bg-white/5 rounded-lg">
+                                <p class="text-gray-400"><i class="fas fa-clock text-orange-400 mr-1"></i> <strong>Proses:</strong> ~1 menit/50rb row</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Tips -->
+                        <div class="mt-3 pt-3 border-t border-white/10">
+                            <p class="text-xs text-cyan-400"><i class="fas fa-lightbulb mr-1"></i> <strong>Tips:</strong> Upload <span class="text-green-400">Data Rekam</span> dulu, baru <span class="text-yellow-400">Penetapan</span> untuk melengkapi nama</p>
                         </div>
                     </div>
                     <div id="uploadProgress" class="mt-4 hidden"><div class="bg-white/10 rounded-full h-2"><div id="uploadBar" class="bg-yellow-400 h-full rounded-full transition-all" style="width:0%"></div></div><p id="uploadStatus" class="text-sm text-gray-400 mt-2"></p></div>
