@@ -17,9 +17,11 @@ app.use(express.static(path.join(__dirname, '../public')));
 const deviceRoutes = require('./routes/devices');
 const kursRoutes = require('./routes/kurs');
 const passengerRoutes = require('./routes/passenger');
+const cargoRoutes = require('./routes/cargo');
 
 app.use('/api/devices', deviceRoutes);
 app.use('/api/passengers', require('./routes/passengers'));
+app.use('/api/cargo', cargoRoutes);
 app.use('/api/kurs', kursRoutes);
 app.use('/api/passenger', passengerRoutes);
 

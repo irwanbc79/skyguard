@@ -331,195 +331,32 @@
         </div>
 
         <div id="content-cargo" class="content-section fade-in">
-            <!-- Cargo Sub Menu -->
-            <div class="flex gap-2 mb-6 border-b border-slate-700 pb-4">
-                <button onclick="loadCargoSubContent('stats')" class="cargo-submenu-btn px-4 py-2 rounded-lg bg-teal-500/20 text-teal-400 hover:bg-teal-500/30 transition-all" data-sub="stats">
-                    <i class="fas fa-chart-pie mr-2"></i>Statistik
-                </button>
-                <button onclick="loadCargoSubContent('search')" class="cargo-submenu-btn px-4 py-2 rounded-lg hover:bg-white/10 transition-all" data-sub="search">
-                    <i class="fas fa-search mr-2"></i>Cari CN-PIBK
-                </button>
-                <button onclick="loadCargoSubContent('upload')" class="cargo-submenu-btn px-4 py-2 rounded-lg hover:bg-white/10 transition-all" data-sub="upload">
-                    <i class="fas fa-upload mr-2"></i>Upload Data
-                </button>
-            </div>
-
-            <!-- Stats Sub Content -->
-            <div id="cargo-stats" class="cargo-subcontent">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold mb-2"><i class="fas fa-ship text-teal-400 mr-3"></i>CN-PIBK Intelligence Dashboard</h2>
-                    <p class="text-gray-400">Monitoring Consignment Note & Pemberitahuan Impor Barang Kiriman</p>
-                </div>
-
-                <!-- KPI Cards -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="stat-card rounded-xl p-5">
-                        <p class="text-sm text-gray-400 mb-1">Total Transaksi</p>
-                        <p id="cargoTotalRecords" class="text-3xl font-bold text-teal-400">-</p>
+            <div class="glass-card-solid rounded-2xl p-8 text-center">
+                <i class="fas fa-ship text-6xl text-pink-400/30 mb-4"></i>
+                <h2 class="text-2xl font-bold mb-2">Modul Cargo</h2>
+                <p class="text-gray-400 mb-6">Fitur dalam tahap pengembangan</p>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <i class="fas fa-search-location text-pink-400 text-xl mb-2"></i>
+                        <p class="font-semibold text-sm">Tracking Manifest</p>
                     </div>
-                    <div class="stat-card rounded-xl p-5">
-                        <p class="text-sm text-gray-400 mb-1">Total CIF (USD)</p>
-                        <p id="cargoTotalCIF" class="text-3xl font-bold text-green-400">-</p>
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <i class="fas fa-calculator text-pink-400 text-xl mb-2"></i>
+                        <p class="font-semibold text-sm">Kalkulator Import</p>
                     </div>
-                    <div class="stat-card rounded-xl p-5">
-                        <p class="text-sm text-gray-400 mb-1">High Value (>$500)</p>
-                        <p id="cargoHighValue" class="text-3xl font-bold text-yellow-400">-</p>
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <i class="fas fa-building text-pink-400 text-xl mb-2"></i>
+                        <p class="font-semibold text-sm">Database Importir</p>
                     </div>
-                    <div class="stat-card rounded-xl p-5">
-                        <p class="text-sm text-gray-400 mb-1" title="Rentang waktu data yang tersedia">Rentang Data</p>
-                        <p id="cargoDataRange" class="text-lg font-bold text-blue-400">-</p>
-                    </div>
-                </div>
-
-                <!-- Charts Row -->
-                <div class="grid md:grid-cols-2 gap-6 mb-6">
-                    <!-- Top PJT -->
-                    <div class="glass-card-solid rounded-2xl p-6">
-                        <h3 class="text-lg font-bold mb-4"><i class="fas fa-truck text-teal-400 mr-2"></i>Top 10 PJT (Pemberitahu)</h3>
-                        <div id="cargoTopPJT" class="space-y-2"></div>
-                    </div>
-                    
-                    <!-- Status Breakdown -->
-                    <div class="glass-card-solid rounded-2xl p-6">
-                        <h3 class="text-lg font-bold mb-4"><i class="fas fa-tasks text-blue-400 mr-2"></i>Status Breakdown</h3>
-                        <div id="cargoStatusBreakdown" class="space-y-2"></div>
-                    </div>
-                </div>
-
-                <!-- Second Row -->
-                <div class="grid md:grid-cols-2 gap-6 mb-6">
-                    <!-- Top PDTT -->
-                    <div class="glass-card-solid rounded-2xl p-6">
-                        <h3 class="text-lg font-bold mb-4"><i class="fas fa-user-tie text-purple-400 mr-2"></i>Top 10 Petugas (PDTT)</h3>
-                        <div id="cargoTopPDTT" class="space-y-2"></div>
-                    </div>
-                    
-                    <!-- Top Penerima -->
-                    <div class="glass-card-solid rounded-2xl p-6">
-                        <h3 class="text-lg font-bold mb-4"><i class="fas fa-user text-cyan-400 mr-2"></i>Top 10 Penerima</h3>
-                        <div id="cargoTopPenerima" class="space-y-2"></div>
-                    </div>
-                </div>
-
-                <!-- Monthly Trend -->
-                <div class="glass-card-solid rounded-2xl p-6 mb-6">
-                    <h3 class="text-lg font-bold mb-4"><i class="fas fa-chart-line text-green-400 mr-2"></i>Trend Bulanan</h3>
-                    <div id="cargoMonthlyTrend" class="h-48"></div>
-                </div>
-
-                <!-- High Value Transactions Table -->
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4"><i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>Transaksi Nilai Tinggi (CIF > $500)</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="text-gray-400 border-b border-white/10">
-                                <tr>
-                                    <th class="text-left py-2">Tanggal</th>
-                                    <th class="text-left py-2">Penerima</th>
-                                    <th class="text-left py-2">PJT</th>
-                                    <th class="text-right py-2">CIF (USD)</th>
-                                    <th class="text-left py-2">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cargoHighValueTable"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search Sub Content -->
-            <div id="cargo-search" class="cargo-subcontent" style="display:none;">
-                <div class="glass-card-solid rounded-2xl p-6 mb-6">
-                    <h3 class="text-lg font-bold mb-4"><i class="fas fa-search text-teal-400 mr-2"></i>Cari Data CN-PIBK</h3>
-                    <div class="grid md:grid-cols-3 gap-4 mb-4">
-                        <input type="text" id="cargoSearchNomorAju" placeholder="Nomor Aju" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                        <input type="text" id="cargoSearchPenerima" placeholder="Nama Penerima" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                        <input type="text" id="cargoSearchPengirim" placeholder="Nama Pengirim" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                    </div>
-                    <div class="grid md:grid-cols-4 gap-4 mb-4">
-                        <input type="text" id="cargoSearchPJT" placeholder="Nama PJT" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                        <input type="number" id="cargoSearchCIFMin" placeholder="CIF Min (USD)" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                        <input type="number" id="cargoSearchCIFMax" placeholder="CIF Max (USD)" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                        <button onclick="searchCargo()" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg transition-all">
-                            <i class="fas fa-search mr-2"></i>Cari
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <div id="cargoSearchInfo" class="text-gray-400 mb-4">Masukkan kriteria pencarian di atas</div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="text-gray-400 border-b border-white/10">
-                                <tr>
-                                    <th class="text-left py-2">Tanggal</th>
-                                    <th class="text-left py-2">Nomor Aju</th>
-                                    <th class="text-left py-2">Penerima</th>
-                                    <th class="text-left py-2">Pengirim</th>
-                                    <th class="text-left py-2">PJT</th>
-                                    <th class="text-right py-2">CIF</th>
-                                    <th class="text-left py-2">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cargoSearchResults"></tbody>
-                        </table>
-                    </div>
-                    <div id="cargoPagination" class="flex justify-center gap-2 mt-4"></div>
-                </div>
-            </div>
-
-            <!-- Upload Sub Content -->
-            <div id="cargo-upload" class="cargo-subcontent" style="display:none;">
-                <div class="glass-card-solid rounded-2xl p-6 mb-6">
-                    <h3 class="text-lg font-bold mb-4"><i class="fas fa-upload text-teal-400 mr-2"></i>Upload Data CN-PIBK</h3>
-                    <p class="text-gray-400 mb-4">Upload file CSV/Excel dengan format CNPIBK. Data duplikat (Nomor Aju sama) akan di-update otomatis.</p>
-                    
-                    <div class="border-2 border-dashed border-teal-500/30 rounded-xl p-8 text-center mb-4">
-                        <input type="file" id="cargoFileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="previewCargoFile(this)">
-                        <label for="cargoFileInput" class="cursor-pointer">
-                            <i class="fas fa-cloud-upload-alt text-5xl text-teal-400/50 mb-4"></i>
-                            <p class="text-gray-400">Klik atau drag file CSV/Excel ke sini</p>
-                            <p id="cargoFileName" class="text-teal-400 font-bold mt-2"></p>
-                        </label>
-                    </div>
-                    
-                    <div class="flex gap-4">
-                        <input type="text" id="cargoUploadBy" placeholder="Nama Uploader" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2">
-                        <button onclick="uploadCargoFile()" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg transition-all">
-                            <i class="fas fa-upload mr-2"></i>Upload & Import
-                        </button>
-                    </div>
-                    
-                    <div id="cargoUploadProgress" class="hidden mt-4">
-                        <div class="bg-white/10 rounded-full h-2 overflow-hidden">
-                            <div id="cargoProgressBar" class="bg-teal-500 h-full transition-all" style="width:0%"></div>
-                        </div>
-                        <p id="cargoUploadStatus" class="text-center text-gray-400 mt-2"></p>
-                    </div>
-                </div>
-
-                <!-- Upload History -->
-                <div class="glass-card-solid rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4"><i class="fas fa-history text-blue-400 mr-2"></i>Riwayat Upload</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="text-gray-400 border-b border-white/10">
-                                <tr>
-                                    <th class="text-left py-2">Waktu</th>
-                                    <th class="text-left py-2">File</th>
-                                    <th class="text-left py-2">Uploader</th>
-                                    <th class="text-right py-2">Total</th>
-                                    <th class="text-right py-2">Baru</th>
-                                    <th class="text-right py-2">Update</th>
-                                    <th class="text-right py-2">Error</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cargoUploadLogs"></tbody>
-                        </table>
+                    <div class="bg-white/5 rounded-xl p-4">
+                        <i class="fas fa-bell text-pink-400 text-xl mb-2"></i>
+                        <p class="font-semibold text-sm">Alert Container</p>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- DASHBOARD Content (Coming Soon) -->
         <div id="content-dashboard" class="content-section fade-in">
             <div class="glass-card-solid rounded-2xl p-8 text-center">
                 <i class="fas fa-chart-line text-6xl text-teal-400/30 mb-4"></i>
@@ -598,11 +435,12 @@
             },
             cargo: { 
                 subMenus: [
-                    { id: 'stats', label: 'Statistik', icon: 'fa-chart-pie' },
-                    { id: 'search', label: 'Cari CN-PIBK', icon: 'fa-search' },
-                    { id: 'upload', label: 'Upload Data', icon: 'fa-upload' }
+                    { id: 'tracking', label: 'Tracking Manifest', icon: 'fa-search-location' },
+                    { id: 'kalkulatorimport', label: 'Kalkulator Import', icon: 'fa-calculator' },
+                    { id: 'importir', label: 'Database Importir', icon: 'fa-building' },
+                    { id: 'alert', label: 'Alert Container', icon: 'fa-bell' }
                 ],
-                color: '#14b8a6'
+                color: '#ec4899'
             },
             dashboard: { subMenus: [], color: '#14b8a6' }
         };
@@ -654,7 +492,7 @@
             renderSubMenu(menu);
 
             // Set default sub menu for IMEI
-            if ((menu === 'imei' || menu === 'penumpang' || menu === 'barang' || menu === 'cargo') && menuConfig[menu].subMenus.length > 0) {
+            if ((menu === 'imei' || menu === 'penumpang' || menu === 'barang') && menuConfig[menu].subMenus.length > 0) {
                 setSubMenu(menuConfig[menu].subMenus[0].id);
             }
         }
@@ -698,7 +536,7 @@
                 else if (subId === 'kalkulator') { container.innerHTML = getKalkulatorContent(); if (!allDevicesList || allDevicesList.length === 0) loadAllDevices(); }
                 else if (subId === 'input') { container.innerHTML = getInputContent(); }
             } else if (menu === 'penumpang') { loadPenumpangSubContent(subId); } else if (menu === 'barang') { const container = document.getElementById('content-barang'); if (subId === 'hscode') { loadBarangContent('hscode'); } else if (subId === 'tarif') { container.innerHTML = getTarifContent(); } else if (subId === 'kalkulatorbm') { container.innerHTML = getKalkulatorBMContent(); } else if (subId === 'komoditas') { container.innerHTML = getKomoditasContent(); }
-            } else if (menu === 'cargo') { loadCargoSubContent(subId); }
+            }
         }
 
         // ==================== IMEI CONTENT TEMPLATES ====================
@@ -1870,7 +1708,7 @@
                 const risk = data.risk || { level: 'GREEN', color: '#22c55e', score: 0 };
                 const s = data.summary || {};
                 container.innerHTML = `<div class="glass-card-solid rounded-2xl p-6 mb-4">
-                    <div class="flex justify-between items-start gap-4 mb-6"><div><p class="text-sm text-gray-400">Nomor Paspor</p><p class="text-2xl font-bold">${paspor}</p>${data.records?.[0]?.nama_lengkap ? `<p class="text-lg text-cyan-400 mt-1"><i class="fas fa-user mr-2"></i>${data.records[0].nama_lengkap}</p>` : ""}</div>
+                    <div class="flex justify-between items-start gap-4 mb-6"><div><p class="text-sm text-gray-400">Nomor Paspor</p><p class="text-2xl font-bold">${paspor}</p></div>
                     <div class="flex items-center gap-3 px-4 py-2 rounded-xl" style="background:${risk.color}20;border:1px solid ${risk.color}"><i class="fas fa-shield-alt" style="color:${risk.color}"></i><div><p class="text-xs opacity-70">Risk Level</p><p class="font-bold" style="color:${risk.color}">${risk.level} (${risk.score})</p></div></div></div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white/5 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-blue-400">${s.totalVisits||0}</p><p class="text-xs text-gray-400">Kunjungan</p></div>
@@ -2077,265 +1915,6 @@
         }
 
         // ==================== INIT ====================
-
-        // ==================== CARGO FUNCTIONS ====================
-        function loadCargoSubContent(subId) {
-            ['stats','search','upload'].forEach(c => {
-                const el = document.getElementById('cargo-'+c);
-                if(el) el.style.display = c===subId ? 'block' : 'none';
-            });
-            document.querySelectorAll('.cargo-submenu-btn').forEach(btn => {
-                btn.classList.remove('bg-teal-500/20', 'text-teal-400');
-                if(btn.dataset.sub === subId) btn.classList.add('bg-teal-500/20', 'text-teal-400');
-            });
-            if(subId === 'stats') loadCargoStats();
-            if(subId === 'upload') loadCargoUploadLogs();
-        }
-
-        async function loadCargoStats() {
-            try {
-                const res = await fetch('/api/cargo/stats');
-                const s = await res.json();
-                
-                document.getElementById('cargoTotalRecords').textContent = (s.totalRecords||0).toLocaleString();
-                document.getElementById('cargoTotalCIF').textContent = '$' + (s.totalCIF||0).toLocaleString(undefined, {minimumFractionDigits:2});
-                document.getElementById('cargoHighValue').textContent = (s.highValueTransactions?.length||0).toLocaleString();
-                
-                if(s.dataRange?.minDate && s.dataRange?.maxDate) {
-                    const minD = new Date(s.dataRange.minDate).toLocaleDateString('id-ID',{month:'short',year:'numeric'});
-                    const maxD = new Date(s.dataRange.maxDate).toLocaleDateString('id-ID',{month:'short',year:'numeric'});
-                    document.getElementById('cargoDataRange').textContent = minD + ' - ' + maxD;
-                }
-                
-                // Top PJT
-                const pjtC = document.getElementById('cargoTopPJT');
-                if(pjtC && s.topPemberitahu?.length) {
-                    pjtC.innerHTML = s.topPemberitahu.map((p,i) => `
-                        <div class="flex justify-between items-center py-2 ${i<9?'border-b border-white/5':''}">
-                            <div class="flex items-center gap-3">
-                                <span class="w-6 h-6 rounded bg-teal-500/20 text-teal-400 text-xs flex items-center justify-center">${i+1}</span>
-                                <span class="text-sm">${p._id||'Unknown'}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-teal-400 font-bold">${(p.count||0).toLocaleString()}</span>
-                                <span class="text-xs text-gray-500 ml-2">$${(p.totalCIF||0).toLocaleString()}</span>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-                
-                // Status Breakdown
-                const statusC = document.getElementById('cargoStatusBreakdown');
-                if(statusC && s.statusBreakdown?.length) {
-                    const total = s.statusBreakdown.reduce((a,b) => a + b.count, 0);
-                    statusC.innerHTML = s.statusBreakdown.slice(0,8).map((st,i) => {
-                        const pct = total > 0 ? ((st.count/total)*100).toFixed(1) : 0;
-                        const color = st._id?.includes('DILUNASI') ? 'green' : st._id?.includes('PEMBEBASAN') ? 'blue' : 'yellow';
-                        return `<div class="flex items-center gap-3 py-1">
-                            <div class="flex-1">
-                                <div class="flex justify-between text-xs mb-1">
-                                    <span class="truncate max-w-[200px]" title="${st._id}">${(st._id||'Lainnya').substring(0,40)}...</span>
-                                    <span class="text-${color}-400">${pct}%</span>
-                                </div>
-                                <div class="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div class="h-full bg-${color}-500 rounded-full" style="width:${pct}%"></div>
-                                </div>
-                            </div>
-                            <span class="text-xs text-gray-400 w-16 text-right">${st.count.toLocaleString()}</span>
-                        </div>`;
-                    }).join('');
-                }
-                
-                // Top PDTT
-                const pdttC = document.getElementById('cargoTopPDTT');
-                if(pdttC && s.topPdtt?.length) {
-                    pdttC.innerHTML = s.topPdtt.map((p,i) => `
-                        <div class="flex justify-between items-center py-2 ${i<9?'border-b border-white/5':''}">
-                            <div class="flex items-center gap-3">
-                                <span class="w-6 h-6 rounded bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center">${i+1}</span>
-                                <div>
-                                    <span class="text-sm">${p.nama||'Unknown'}</span>
-                                    <span class="text-xs text-gray-500 ml-2">${p._id}</span>
-                                </div>
-                            </div>
-                            <span class="text-purple-400 font-bold">${(p.count||0).toLocaleString()}</span>
-                        </div>
-                    `).join('');
-                }
-                
-                // Top Penerima
-                const pnrC = document.getElementById('cargoTopPenerima');
-                if(pnrC && s.topPenerima?.length) {
-                    pnrC.innerHTML = s.topPenerima.map((p,i) => `
-                        <div class="flex justify-between items-center py-2 ${i<9?'border-b border-white/5':''}">
-                            <div class="flex items-center gap-3">
-                                <span class="w-6 h-6 rounded bg-cyan-500/20 text-cyan-400 text-xs flex items-center justify-center">${i+1}</span>
-                                <span class="text-sm truncate max-w-[200px]">${p._id||'Unknown'}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-cyan-400 font-bold">${(p.count||0).toLocaleString()}</span>
-                                <span class="text-xs text-gray-500 ml-2">$${(p.totalCIF||0).toLocaleString()}</span>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-                
-                // Monthly Trend
-                const trendC = document.getElementById('cargoMonthlyTrend');
-                if(trendC && s.monthlyTrend?.length) {
-                    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
-                    const maxCount = Math.max(...s.monthlyTrend.map(m => m.count));
-                    trendC.innerHTML = `<div class="grid grid-cols-12 gap-2 items-end h-36">
-                        ${s.monthlyTrend.slice(0,12).reverse().map(m => {
-                            const height = maxCount > 0 ? (m.count/maxCount)*100 : 0;
-                            return `<div class="flex flex-col items-center gap-1">
-                                <div class="w-full bg-teal-500/50 rounded-t transition-all hover:bg-teal-400/70" style="height:${height}%" title="${m.count.toLocaleString()} transaksi, $${(m.totalCIF||0).toLocaleString()} CIF"></div>
-                                <span class="text-xs text-gray-400">${months[(m._id?.month||1)-1]}</span>
-                            </div>`;
-                        }).join('')}
-                    </div>`;
-                }
-                
-                // High Value Table
-                const hvT = document.getElementById('cargoHighValueTable');
-                if(hvT && s.highValueTransactions?.length) {
-                    hvT.innerHTML = s.highValueTransactions.map(t => `
-                        <tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="showCargoDetail('${t.nomor_aju}')">
-                            <td class="py-2">${t.tanggal_hawb ? new Date(t.tanggal_hawb).toLocaleDateString('id-ID') : '-'}</td>
-                            <td class="py-2 truncate max-w-[150px]">${t.nama_penerima||'-'}</td>
-                            <td class="py-2">${t.nama_pemberitahu||'-'}</td>
-                            <td class="py-2 text-right text-yellow-400 font-bold">$${(t.cif_akhir||0).toLocaleString()}</td>
-                            <td class="py-2"><span class="text-xs px-2 py-1 rounded ${t.current_status?.includes('DILUNASI')?'bg-green-500/20 text-green-400':'bg-yellow-500/20 text-yellow-400'}">${(t.current_status||'').substring(0,30)}...</span></td>
-                        </tr>
-                    `).join('');
-                }
-                
-            } catch(e) { console.error('Cargo stats error:', e); }
-        }
-
-        async function searchCargo(page = 1) {
-            const params = new URLSearchParams();
-            const nomorAju = document.getElementById('cargoSearchNomorAju')?.value;
-            const penerima = document.getElementById('cargoSearchPenerima')?.value;
-            const pengirim = document.getElementById('cargoSearchPengirim')?.value;
-            const pjt = document.getElementById('cargoSearchPJT')?.value;
-            const cifMin = document.getElementById('cargoSearchCIFMin')?.value;
-            const cifMax = document.getElementById('cargoSearchCIFMax')?.value;
-            
-            if(nomorAju) params.set('nomor_aju', nomorAju);
-            if(penerima) params.set('nama_penerima', penerima);
-            if(pengirim) params.set('nama_pengirim', pengirim);
-            if(pjt) params.set('nama_pemberitahu', pjt);
-            if(cifMin) params.set('cif_min', cifMin);
-            if(cifMax) params.set('cif_max', cifMax);
-            params.set('page', page);
-            params.set('limit', 20);
-            
-            try {
-                const res = await fetch('/api/cargo/search?' + params);
-                const r = await res.json();
-                
-                document.getElementById('cargoSearchInfo').textContent = `Ditemukan ${r.total.toLocaleString()} hasil (Halaman ${r.page}/${r.pages})`;
-                
-                const tbody = document.getElementById('cargoSearchResults');
-                tbody.innerHTML = r.data.map(d => `
-                    <tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="showCargoDetail('${d.nomor_aju}')">
-                        <td class="py-2">${d.tanggal_hawb ? new Date(d.tanggal_hawb).toLocaleDateString('id-ID') : '-'}</td>
-                        <td class="py-2 font-mono text-xs">${d.nomor_aju?.substring(0,20)||'-'}...</td>
-                        <td class="py-2 truncate max-w-[120px]">${d.nama_penerima||'-'}</td>
-                        <td class="py-2 truncate max-w-[120px]">${d.nama_pengirim||'-'}</td>
-                        <td class="py-2">${d.nama_pemberitahu||'-'}</td>
-                        <td class="py-2 text-right text-teal-400">$${(d.cif_akhir||0).toLocaleString()}</td>
-                        <td class="py-2"><span class="text-xs">${(d.current_status||'').substring(0,20)}...</span></td>
-                    </tr>
-                `).join('') || '<tr><td colspan="7" class="text-center py-4 text-gray-500">Tidak ada data</td></tr>';
-                
-                // Pagination
-                const pagC = document.getElementById('cargoPagination');
-                if(r.pages > 1) {
-                    let btns = [];
-                    for(let i = 1; i <= Math.min(r.pages, 10); i++) {
-                        btns.push(`<button onclick="searchCargo(${i})" class="px-3 py-1 rounded ${i===r.page?'bg-teal-500 text-white':'bg-white/10 hover:bg-white/20'}">${i}</button>`);
-                    }
-                    pagC.innerHTML = btns.join('');
-                } else {
-                    pagC.innerHTML = '';
-                }
-            } catch(e) { console.error('Search error:', e); }
-        }
-
-        function showCargoDetail(nomorAju) {
-            // TODO: Implement detail modal
-            alert('Detail: ' + nomorAju);
-        }
-
-        let cargoSelectedFile = null;
-        function previewCargoFile(input) {
-            if(input.files?.length) {
-                cargoSelectedFile = input.files[0];
-                document.getElementById('cargoFileName').textContent = cargoSelectedFile.name + ' (' + (cargoSelectedFile.size/1024/1024).toFixed(2) + ' MB)';
-            }
-        }
-
-        async function uploadCargoFile() {
-            if(!cargoSelectedFile) { alert('Pilih file terlebih dahulu'); return; }
-            
-            const uploader = document.getElementById('cargoUploadBy')?.value || 'Anonymous';
-            const formData = new FormData();
-            formData.append('file', cargoSelectedFile);
-            formData.append('uploaded_by', uploader);
-            
-            const progress = document.getElementById('cargoUploadProgress');
-            const bar = document.getElementById('cargoProgressBar');
-            const status = document.getElementById('cargoUploadStatus');
-            
-            progress.classList.remove('hidden');
-            bar.style.width = '30%';
-            status.textContent = 'Mengupload file...';
-            
-            try {
-                bar.style.width = '60%';
-                status.textContent = 'Memproses data...';
-                
-                const res = await fetch('/api/cargo/upload', { method: 'POST', body: formData });
-                const r = await res.json();
-                
-                bar.style.width = '100%';
-                status.textContent = r.message || 'Selesai!';
-                
-                setTimeout(() => {
-                    progress.classList.add('hidden');
-                    bar.style.width = '0%';
-                    document.getElementById('cargoFileName').textContent = '';
-                    cargoSelectedFile = null;
-                    loadCargoUploadLogs();
-                    loadCargoStats();
-                }, 2000);
-            } catch(e) {
-                status.textContent = 'Error: ' + e.message;
-                bar.classList.add('bg-red-500');
-            }
-        }
-
-        async function loadCargoUploadLogs() {
-            try {
-                const res = await fetch('/api/cargo/upload-logs');
-                const logs = await res.json();
-                
-                const tbody = document.getElementById('cargoUploadLogs');
-                tbody.innerHTML = logs.map(l => `
-                    <tr class="border-b border-white/5">
-                        <td class="py-2">${new Date(l.createdAt).toLocaleString('id-ID')}</td>
-                        <td class="py-2">${l.filename||'-'}</td>
-                        <td class="py-2">${l.uploaded_by||'-'}</td>
-                        <td class="py-2 text-right">${(l.total_records||0).toLocaleString()}</td>
-                        <td class="py-2 text-right text-green-400">${(l.new_records||0).toLocaleString()}</td>
-                        <td class="py-2 text-right text-yellow-400">${(l.duplicate_records||0).toLocaleString()}</td>
-                        <td class="py-2 text-right text-red-400">${(l.error_records||0).toLocaleString()}</td>
-                    </tr>
-                `).join('') || '<tr><td colspan="7" class="text-center py-4 text-gray-500">Belum ada riwayat upload</td></tr>';
-            } catch(e) { console.error('Upload logs error:', e); }
-        }
         loadAllKurs();
         loadLatest();
         loadAllDevices();
