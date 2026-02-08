@@ -1,3 +1,4 @@
+const { escapeRegex } = require('../utils/helpers');
 const Passenger = require('../models/Passenger');
 const Transaction = require('../models/Transaction');
 const Device = require('../models/Device');
@@ -8,13 +9,13 @@ exports.lookup = async (req, res) => {
   try {
     const { passport } = req.params;
     
-    const passenger = await Passenger.findOne({ passport: passport.toUpperCase() });
+    const passenger = await Passenger.findOne({ paspor: passport.toUpperCase() });
     if (!passenger) {
       return res.json({ status: 'ok', data: null, message: 'Penumpang tidak ditemukan' });
     }
     
     // Get transaction history
-    const transactions = await Transaction.find({ passport: passport.toUpperCase() })
+    const transactions = await Transaction.find({ paspor: passport.toUpperCase() })
       .sort({ tanggal_dokumen: -1 })
       .limit(20);
     
@@ -105,11 +106,11 @@ exports.searchTransactions = async (req, res) => {
     let query = {};
     if (q) {
       query.$or = [
-        { passport: new RegExp(q, 'i') },
-        { nomor_dokumen: new RegExp(q, 'i') },
-        { hkt1: new RegExp(q, 'i') },
-        { hkt2: new RegExp(q, 'i') },
-        { nama_petugas: new RegExp(q, 'i') }
+        { paspor: new RegExp(escapeRegex(q), 'i') },
+        { nomor_dokumen: new RegExp(escapeRegex(q), 'i') },
+        { hkt1: new RegExp(escapeRegex(q), 'i') },
+        { hkt2: new RegExp(escapeRegex(q), 'i') },
+        { nama_petugas: new RegExp(escapeRegex(q), 'i') }
       ];
     }
     if (status) query.status_penelitian = status;

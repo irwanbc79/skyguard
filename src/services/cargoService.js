@@ -1,3 +1,4 @@
+const { escapeRegex } = require('../utils/helpers');
 const Cnpibk = require('../models/cnpibk');
 const UploadLog = require('../models/UploadLog');
 const xlsx = require('xlsx');
@@ -143,7 +144,7 @@ async function getStats() {
     
     // Top 10 Pemberitahu (PJT)
     Cnpibk.aggregate([
-      { $match: { nama_pemberitahu: { $ne: '', $ne: null } } },
+      { $match: { nama_pemberitahu: { $nin: ['', null] } } },
       { $group: { 
         _id: '$nama_pemberitahu',
         npwp: { $first: '$npwp_pemberitahu' },
@@ -156,7 +157,7 @@ async function getStats() {
     
     // Top 10 PDTT (Petugas)
     Cnpibk.aggregate([
-      { $match: { nip_pdtt: { $ne: '', $ne: null } } },
+      { $match: { nip_pdtt: { $nin: ['', null] } } },
       { $group: { 
         _id: '$nip_pdtt',
         nama: { $first: '$nama_pdtt' },
@@ -169,7 +170,7 @@ async function getStats() {
     
     // Top 10 Penerima (frequent importers)
     Cnpibk.aggregate([
-      { $match: { nama_penerima: { $ne: '', $ne: null } } },
+      { $match: { nama_penerima: { $nin: ['', null] } } },
       { $group: { 
         _id: '$nama_penerima',
         count: { $sum: 1 },
@@ -236,12 +237,12 @@ async function getDataRange() {
 async function search(query) {
   const filter = {};
   
-  if (query.nomor_aju) filter.nomor_aju = new RegExp(query.nomor_aju, 'i');
-  if (query.nama_penerima) filter.nama_penerima = new RegExp(query.nama_penerima, 'i');
-  if (query.nama_pengirim) filter.nama_pengirim = new RegExp(query.nama_pengirim, 'i');
-  if (query.nama_pemberitahu) filter.nama_pemberitahu = new RegExp(query.nama_pemberitahu, 'i');
+  if (query.nomor_aju) filter.nomor_aju = new RegExp(escapeRegex(query.nomor_aju), 'i');
+  if (query.nama_penerima) filter.nama_penerima = new RegExp(escapeRegex(query.nama_penerima), 'i');
+  if (query.nama_pengirim) filter.nama_pengirim = new RegExp(escapeRegex(query.nama_pengirim), 'i');
+  if (query.nama_pemberitahu) filter.nama_pemberitahu = new RegExp(escapeRegex(query.nama_pemberitahu), 'i');
   if (query.nip_pdtt) filter.nip_pdtt = query.nip_pdtt;
-  if (query.status) filter.current_status = new RegExp(query.status, 'i');
+  if (query.status) filter.current_status = new RegExp(escapeRegex(query.status), 'i');
   if (query.cif_min) filter.cif_akhir = { $gte: parseFloat(query.cif_min) };
   if (query.cif_max) filter.cif_akhir = { ...filter.cif_akhir, $lte: parseFloat(query.cif_max) };
   
