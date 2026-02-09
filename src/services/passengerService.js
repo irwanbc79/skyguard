@@ -2,6 +2,9 @@ const Passenger = require('../models/Passenger');
 const UploadLog = require('../models/UploadLog');
 const XLSX = require('xlsx');
 
+const MAX_EXCEL_ROWS = 20000;
+const MAX_EXCEL_COLS = 200;
+
 function calculateRiskScore(totalVisits, uniqueDevices, billingCount) {
   const score = (totalVisits * 2) + (uniqueDevices * 3) + (billingCount * 5);
   let level = 'GREEN', color = '#22c55e';
@@ -231,7 +234,13 @@ async function importExcel(buffer, uploadedBy, filename) {
   if (workbook.SheetNames.length >= 2) {
     sheetName = workbook.SheetNames[1];
     const sheet = workbook.Sheets[sheetName];
-    dataSheet = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+    const rowCount = range.e.r - range.s.r + 1;
+    const colCount = range.e.c - range.s.c + 1;
+    if (rowCount > MAX_EXCEL_ROWS || colCount > MAX_EXCEL_COLS) {
+      throw new Error(`Sheet ${sheetName} terlalu besar (${rowCount}x${colCount}).`);
+    }
+    dataSheet = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
     console.log('[IMPORT] Page 2:', sheetName, '- rows:', dataSheet.length);
     if (dataSheet.length > 0) {
       console.log('[IMPORT] Columns:', Object.keys(dataSheet[0]));

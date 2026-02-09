@@ -3,9 +3,20 @@ const router = express.Router();
 const multer = require('multer');
 const ps = require('../services/passengerService');
 
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }
+  limits: { fileSize: MAX_UPLOAD_BYTES },
+  fileFilter: (req, file, cb) => {
+    const extension = (file.originalname || '').toLowerCase();
+    const isAllowed = ALLOWED_EXTENSIONS.some(ext => extension.endsWith(ext));
+    if (!isAllowed) {
+      return cb(new Error('Format file harus CSV atau Excel (.csv, .xls, .xlsx).'));
+    }
+    return cb(null, true);
+  }
 });
 
 router.get('/stats', async (req, res) => {

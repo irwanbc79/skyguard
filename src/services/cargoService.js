@@ -4,6 +4,9 @@ const UploadLog = require('../models/UploadLog');
 const xlsx = require('xlsx');
 const fs = require('fs');
 
+const MAX_EXCEL_ROWS = 20000;
+const MAX_EXCEL_COLS = 200;
+
 // Parse date dari berbagai format
 function parseDate(val) {
   if (!val) return null;
@@ -35,7 +38,13 @@ async function importCnpibk(filePath, uploadedBy = 'system') {
   // Baca file
   const workbook = xlsx.readFile(filePath, { cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+  const range = xlsx.utils.decode_range(sheet['!ref'] || 'A1');
+  const rowCount = range.e.r - range.s.r + 1;
+  const colCount = range.e.c - range.s.c + 1;
+  if (rowCount > MAX_EXCEL_ROWS || colCount > MAX_EXCEL_COLS) {
+    throw new Error(`Sheet terlalu besar (${rowCount}x${colCount}).`);
+  }
+  const rows = xlsx.utils.sheet_to_json(sheet, { defval: '', raw: false });
   
   stats.total = rows.length;
   

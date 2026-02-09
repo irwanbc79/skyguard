@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const cargoService = require('../services/cargoService');
 
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
+
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -16,7 +19,18 @@ const storage = multer.diskStorage({
     cb(null, `cnpibk_${Date.now()}${path.extname(file.originalname)}`);
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_UPLOAD_BYTES },
+  fileFilter: (req, file, cb) => {
+    const extension = (file.originalname || '').toLowerCase();
+    const isAllowed = ALLOWED_EXTENSIONS.some(ext => extension.endsWith(ext));
+    if (!isAllowed) {
+      return cb(new Error('Format file harus CSV atau Excel (.csv, .xls, .xlsx).'));
+    }
+    return cb(null, true);
+  }
+});
 
 // GET /api/cargo/stats - Executive Dashboard Statistics
 router.get('/stats', async (req, res) => {

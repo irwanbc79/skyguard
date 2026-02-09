@@ -62,6 +62,7 @@
         .menu-penumpang { color: #f59e0b; }
         .menu-barang { color: #a855f7; }
         .menu-cargo { color: #ec4899; }
+        .menu-manifest { color: #f97316; }
         .menu-dashboard { color: #14b8a6; }
         
         /* Coming soon overlay */
@@ -116,6 +117,9 @@
                 </button>
                 <button onclick="setMainMenu('cargo')" class="main-menu-item menu-cargo flex items-center gap-2 whitespace-nowrap" data-menu="cargo">
                     <i class="fas fa-ship"></i> CARGO
+                </button>
+                <button onclick="setMainMenu('manifest')" class="main-menu-item menu-manifest flex items-center gap-2 whitespace-nowrap" data-menu="manifest">
+                    <i class="fas fa-file-alt"></i> MANIFEST
                 </button>
                 <button onclick="setMainMenu('dashboard')" class="main-menu-item menu-dashboard flex items-center gap-2 whitespace-nowrap" data-menu="dashboard">
                     <i class="fas fa-chart-line"></i> DASHBOARD
@@ -509,6 +513,53 @@
                 </div>
             </div>
         </div>
+
+        <div id="content-manifest" class="content-section fade-in">
+            <div class="grid lg:grid-cols-3 gap-6">
+                <div class="glass-card-solid rounded-2xl p-5 lg:col-span-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-inbox text-orange-400"></i> Manifest Inbox</h3>
+                            <p class="text-xs text-gray-400">Daftar manifest terbaru</p>
+                        </div>
+                        <button onclick="loadManifestList()" class="btn-primary px-3 py-2 rounded-lg text-sm"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                    <div id="manifestList" class="space-y-2 text-sm"></div>
+                </div>
+                <div class="glass-card-solid rounded-2xl p-5 lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-file-signature text-orange-300"></i> Detail Manifest</h3>
+                            <p class="text-xs text-gray-400">Preview dan aksi review/sinkronisasi</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="manifestApproveBtn" onclick="updateManifestStatus('approved')" class="btn-success px-3 py-2 rounded-lg text-xs hidden"><i class="fas fa-check"></i> Approve</button>
+                            <button id="manifestRejectBtn" onclick="updateManifestStatus('rejected')" class="px-3 py-2 rounded-lg text-xs bg-red-500/80 hover:bg-red-500 hidden"><i class="fas fa-times"></i> Reject</button>
+                            <button id="manifestSyncBtn" onclick="syncManifest()" class="px-3 py-2 rounded-lg text-xs bg-orange-500/80 hover:bg-orange-500 hidden"><i class="fas fa-database"></i> Sync</button>
+                            <button id="manifestExportBtn" onclick="exportManifestPassengers()" class="px-3 py-2 rounded-lg text-xs bg-blue-500/80 hover:bg-blue-500 hidden"><i class="fas fa-file-csv"></i> Export CSV</button>
+                        </div>
+                    </div>
+                    <div id="manifestDetail" class="text-gray-400">Pilih manifest dari daftar untuk melihat detail.</div>
+                    <div id="manifestPassengerPreview" class="mt-6 hidden">
+                        <h4 class="text-sm font-semibold mb-2">Preview Penumpang</h4>
+                        <div class="overflow-auto rounded-xl border border-white/10">
+                            <table class="w-full text-sm">
+                                <thead class="bg-white/5 text-gray-300">
+                                    <tr>
+                                        <th class="p-2 text-left">Status</th>
+                                        <th class="p-2 text-left">Nama</th>
+                                        <th class="p-2 text-left">PNR</th>
+                                        <th class="p-2 text-left">Seat</th>
+                                        <th class="p-2 text-left">Flight</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="manifestPassengerRows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div id="content-dashboard" class="content-section fade-in">
             <div class="glass-card-solid rounded-2xl p-8 text-center">
                 <i class="fas fa-chart-line text-6xl text-teal-400/30 mb-4"></i>
@@ -554,6 +605,7 @@
         let currentMainMenu = 'home';
         let currentSubMenu = '';
         let selectedDevices = { 1: null, 2: null };
+        let selectedManifestId = null;
 
         // ==================== MENU CONFIG ====================
         const menuConfig = {
@@ -593,6 +645,7 @@
                 ],
                 color: '#14b8a6'
             },
+            manifest: { subMenus: [], color: '#f97316' },
             dashboard: { subMenus: [], color: '#14b8a6' }
         };
 
@@ -645,6 +698,9 @@
             // Set default sub menu for IMEI
             if ((menu === 'imei' || menu === 'penumpang' || menu === 'barang' || menu === 'cargo') && menuConfig[menu].subMenus.length > 0) {
                 setSubMenu(menuConfig[menu].subMenus[0].id);
+            }
+            if (menu === 'manifest') {
+                loadManifestList();
             }
         }
 
@@ -2324,6 +2380,160 @@
                     </tr>
                 `).join('') || '<tr><td colspan="7" class="text-center py-4 text-gray-500">Belum ada riwayat upload</td></tr>';
             } catch(e) { console.error('Upload logs error:', e); }
+        }
+
+        // ==================== MANIFEST FUNCTIONS ====================
+        async function loadManifestList() {
+            try {
+                const res = await fetch('/api/manifests');
+                const result = await res.json();
+                const manifests = result.data || [];
+                const container = document.getElementById('manifestList');
+                if (!container) return;
+                if (!manifests.length) {
+                    container.innerHTML = '<div class="text-gray-500 text-sm">Belum ada manifest.</div>';
+                    return;
+                }
+                container.innerHTML = manifests.map(m => {
+                    const dateLabel = m.flight_date ? new Date(m.flight_date).toLocaleString('id-ID') : '-';
+                    return `
+                        <div class="result-row rounded-xl p-3 cursor-pointer" onclick="selectManifest('${m._id}')">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-semibold text-white">${m.flight_number || m.filename || 'Manifest'}</p>
+                                    <p class="text-xs text-gray-400">${m.origin || '-'} &rarr; ${m.destination || '-'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-gray-400">${dateLabel}</p>
+                                    <span class="text-[10px] px-2 py-1 rounded-full bg-white/10">${m.status || 'received'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Manifest list error:', e);
+                showToast('Gagal memuat manifest', 'error');
+            }
+        }
+
+        async function selectManifest(id) {
+            selectedManifestId = id;
+            await loadManifestDetail();
+        }
+
+        async function loadManifestDetail() {
+            if (!selectedManifestId) return;
+            try {
+                const res = await fetch(`/api/manifests/${selectedManifestId}`);
+                const result = await res.json();
+                if (result.status !== 'ok') {
+                    showToast('Manifest tidak ditemukan', 'error');
+                    return;
+                }
+                const manifest = result.data;
+                const detail = document.getElementById('manifestDetail');
+                const totals = manifest.parsed_fields?.segments?.[0]?.totals || {};
+                detail.innerHTML = `
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xs text-gray-400">Flight</p>
+                            <p class="text-lg font-semibold">${manifest.flight_number || '-'}</p>
+                            <p class="text-xs text-gray-400 mt-2">Route</p>
+                            <p>${manifest.origin || '-'} &rarr; ${manifest.destination || '-'}</p>
+                            <p class="text-xs text-gray-400 mt-2">Carrier</p>
+                            <p>${manifest.carrier || '-'}</p>
+                        </div>
+                        <div class="bg-white/5 rounded-xl p-4">
+                            <p class="text-xs text-gray-400">Totals</p>
+                            <div class="grid grid-cols-2 gap-2 text-sm mt-2">
+                                <div>Manifested: <strong>${totals.total_manifested ?? '-'}</strong></div>
+                                <div>Checked-in: <strong>${totals.total_checked_in ?? '-'}</strong></div>
+                                <div>No Shows: <strong>${totals.no_shows ?? '-'}</strong></div>
+                                <div>Bags: <strong>${totals.total_bag_checked ?? '-'}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('manifestApproveBtn').classList.remove('hidden');
+                document.getElementById('manifestRejectBtn').classList.remove('hidden');
+                document.getElementById('manifestSyncBtn').classList.remove('hidden');
+                document.getElementById('manifestExportBtn').classList.remove('hidden');
+                await loadManifestPassengersPreview();
+            } catch (e) {
+                console.error('Manifest detail error:', e);
+                showToast('Gagal memuat detail manifest', 'error');
+            }
+        }
+
+        async function updateManifestStatus(status) {
+            if (!selectedManifestId) return;
+            try {
+                const res = await fetch(`/api/manifests/${selectedManifestId}/review`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    showToast('Status manifest diperbarui');
+                    loadManifestList();
+                } else {
+                    showToast(result.message || 'Gagal update status', 'error');
+                }
+            } catch (e) {
+                console.error('Update manifest error:', e);
+                showToast('Gagal update status', 'error');
+            }
+        }
+
+        async function syncManifest() {
+            if (!selectedManifestId) return;
+            try {
+                const res = await fetch(`/api/manifests/${selectedManifestId}/sync`, { method: 'POST' });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    showToast('Manifest tersinkronisasi');
+                    loadManifestPassengersPreview();
+                } else {
+                    showToast(result.message || 'Gagal sync manifest', 'error');
+                }
+            } catch (e) {
+                console.error('Sync manifest error:', e);
+                showToast('Gagal sync manifest', 'error');
+            }
+        }
+
+        async function loadManifestPassengersPreview() {
+            const preview = document.getElementById('manifestPassengerPreview');
+            const rowsEl = document.getElementById('manifestPassengerRows');
+            if (!preview || !rowsEl || !selectedManifestId) return;
+            try {
+                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=20`);
+                const result = await res.json();
+                const passengers = result.data || [];
+                if (!passengers.length) {
+                    preview.classList.add('hidden');
+                    return;
+                }
+                preview.classList.remove('hidden');
+                rowsEl.innerHTML = passengers.map(p => `
+                    <tr class="border-b border-white/5">
+                        <td class="p-2 text-xs">${p.status || '-'}</td>
+                        <td class="p-2">${p.name || '-'}</td>
+                        <td class="p-2 text-xs">${p.pnr || '-'}</td>
+                        <td class="p-2 text-xs">${p.seat_no || '-'}</td>
+                        <td class="p-2 text-xs">${p.flight_no || '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Manifest passenger preview error:', e);
+            }
+        }
+
+        function exportManifestPassengers() {
+            if (!selectedManifestId) return;
+            window.location.href = `/api/manifests/${selectedManifestId}/passengers/export`;
         }
         loadAllKurs();
         loadLatest();
