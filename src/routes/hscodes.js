@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { escapeRegex } = require('../utils/helpers');
 
 const sectionData = [
     { sectionNumber: 1, titleId: 'Binatang hidup; Produk hewani', titleEn: 'Live animals; Animal products', chapterRange: ['01','02','03','04','05'] },
@@ -141,7 +142,7 @@ router.get('/search', async (req, res) => {
             searchQuery = { hs_code: regex };
         } else {
             // Jika input text, cari di description
-            const regex = new RegExp(q, 'i');
+            const regex = new RegExp(escapeRegex(q), 'i');
             searchQuery = { $or: [{ description_id: regex }, { description_en: regex }] };
         }
         
@@ -194,8 +195,6 @@ router.get('/detail/:code', async (req, res) => {
         });
     } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
-
-module.exports = router;
 
 // GET /enote/section/:num - Get ENote page for section
 router.get('/enote/section/:num', (req, res) => {
@@ -277,3 +276,5 @@ router.get('/notes/chapter/:num', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+module.exports = router;
