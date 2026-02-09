@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { escapeRegex } = require('../utils/helpers');
 
 const sectionData = [
     { sectionNumber: 1, titleId: 'Binatang hidup; Produk hewani', titleEn: 'Live animals; Animal products', chapterRange: ['01','02','03','04','05'] },
@@ -141,7 +142,7 @@ router.get('/search', async (req, res) => {
             searchQuery = { hs_code: regex };
         } else {
             // Jika input text, cari di description
-            const regex = new RegExp(q, 'i');
+            const regex = new RegExp(escapeRegex(q), 'i');
             searchQuery = { $or: [{ description_id: regex }, { description_en: regex }] };
         }
         

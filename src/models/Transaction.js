@@ -4,7 +4,7 @@ const transactionSchema = new mongoose.Schema({
   kode_kantor: { type: String, index: true },
   nomor_dokumen: { type: String, index: true },
   tanggal_dokumen: { type: Date, index: true },
-  passport: { type: String, required: true, index: true },
+  paspor: { type: String, required: true, index: true },
   waktu_rekam: { type: Date },
   qr_code: { type: String },
   nip_petugas: { type: String, index: true },

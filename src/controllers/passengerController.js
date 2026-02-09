@@ -69,7 +69,7 @@ exports.getStats = async (req, res) => {
     
     // Top devices
     const topDevices = await Transaction.aggregate([
-      { $match: { hkt1: { $ne: null, $ne: '' } } },
+      { $match: { hkt1: { $nin: [null, ''] } } },
       { $group: { _id: '$hkt1', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 }
@@ -147,8 +147,8 @@ exports.matchDevice = async (req, res) => {
     
     // Search in device database
     const devices = await Device.find({
-      brand: new RegExp(brand, 'i'),
-      model: new RegExp(model.replace(/\s+/g, '.*'), 'i')
+      brand: new RegExp(escapeRegex(brand), 'i'),
+      model: new RegExp(escapeRegex(model).replace(/\s+/g, '.*'), 'i')
     });
     
     if (devices.length === 0) {

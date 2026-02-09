@@ -61,7 +61,7 @@ async function getStats() {
     Passenger.countDocuments(),
     Passenger.distinct('paspor').then(arr => arr.length),
     Passenger.aggregate([
-      { $match: { hkt1: { $ne: null, $ne: '' } } },
+      { $match: { hkt1: { $nin: [null, ''] } } },
       { $group: { _id: '$hkt1', count: { $sum: 1 } } },
       { $sort: { count: -1 } }, { $limit: 10 }
     ]),
@@ -120,7 +120,7 @@ async function getAdvancedStats() {
   
   // 3. Top Petugas (by records handled)
   const topPetugas = await Passenger.aggregate([
-    { $match: { nama_petugas: { $ne: '', $ne: null } } },
+    { $match: { nama_petugas: { $nin: ['', null] } } },
     { $group: { 
         _id: '$nip_petugas',
         nama: { $first: '$nama_petugas' },
@@ -133,7 +133,7 @@ async function getAdvancedStats() {
   
   // 4. Device Brand Distribution
   const brandDistribution = await Passenger.aggregate([
-    { $match: { hkt1: { $ne: '', $ne: null } } },
+    { $match: { hkt1: { $nin: ['', null] } } },
     { $project: { 
         brand: { $arrayElemAt: [{ $split: ['$hkt1', ' '] }, 0] }
     }},

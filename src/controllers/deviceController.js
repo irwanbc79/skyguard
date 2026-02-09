@@ -1,5 +1,6 @@
 const Device = require('../models/Device');
 const PriceReference = require('../models/PriceReference');
+const { escapeRegex } = require('../utils/helpers');
 
 // ==================== CACHE ====================
 let deviceCache = { data: null, grouped: null, timestamp: 0 };
@@ -77,8 +78,8 @@ exports.search = async (req, res) => {
     const match = {};
     if (q) {
       match.$or = [
-        { brand: { $regex: q, $options: 'i' } },
-        { model: { $regex: q, $options: 'i' } }
+        { brand: { $regex: escapeRegex(q), $options: 'i' } },
+        { model: { $regex: escapeRegex(q), $options: 'i' } }
       ];
     }
     if (brand) {
@@ -250,7 +251,7 @@ function capacityOrder(cap) {
 exports.getGroupedByType = async (req, res) => {
   try {
     const { brand } = req.query;
-    const match = brand ? { brand: { $regex: `^${brand}$`, $options: 'i' } } : {};
+    const match = brand ? { brand: { $regex: `^${escapeRegex(brand)}$`, $options: 'i' } } : {};
     const result = await Device.aggregate(getDevicesWithPricesPipeline(match));
     
     const seriesMap = {};

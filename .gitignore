@@ -5,4 +5,15 @@ node_modules/
 .DS_Store
 *.bak
 *.bak.*
+
+# Data files - jangan commit ke repo
+*.csv
 *.xlsx
+*.xls
+
+# Upload directory
+uploads/
+
+# Backup files
+src/backup_*/
+*.pre_cargo

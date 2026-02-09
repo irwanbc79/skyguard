@@ -1,11 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const path = require('path');
+const rateLimit = require('express-rate-limit');
 const ps = require('../services/passengerService');
+
+// Rate limiter khusus upload
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { status: 'error', message: 'Terlalu banyak upload, coba lagi nanti' }
+});
+
+// Allowed file extensions
+const allowedExtensions = ['.csv', '.xlsx', '.xls'];
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Hanya file CSV dan Excel (.csv, .xlsx, .xls) yang diizinkan'));
+    }
+  }
 });
 
 router.get('/stats', async (req, res) => {
@@ -37,7 +57,7 @@ router.get('/:paspor', async (req, res) => {
   } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
   req.setTimeout(600000);
   res.setTimeout(600000);
   
