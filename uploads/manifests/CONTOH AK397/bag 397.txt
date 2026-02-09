@@ -1,0 +1,93 @@
+a0055ros                        AirAsia Berhad                                
+09Feb26 14:13              Checked Baggage (Detail)             By:  xag485607
+                             for Flown Passengers                             
+                           from 09Feb26 to 09Feb26                            
+                      City Pair: KULKNO  Flight No:  397                      
+                           Sort by: Flight and Name                           
+                               Airline Code: AK                               
+                            Weight Unit: Kilograms                            
+
+
+Passenger Name         PNR    Seq  Cty Pr Flt   Bag Tag    Agent Name    Weight
+---------------------- ------ ---- ------ ----- ---------- ------------- ------
+Alicia/Felice          A7WSXV 58   KULKNO  397  9807791529 TOPABDKULPRD  5     
+Arangio/Anthony        LYWPWP 74   KULKNO  397  0807597571 XAG106221     15    
+AZIZAH/EVA             RFC3XD 95   KULKNO  397  0807607694 XAG104474     20    
+AZKHA/ATTHAYA NAURA    GDNPRG 25   KULKNO  397  3807146734 TOPABDKULPRD  14    
+                                                3807146735 TOPABDKULPRD        
+Ching/Reginald Voon Fo VBJKMP 129  KULKNO  397  0807636317 GTR8149       12    
+Chooi/Kai Sing         XEF57T 17   KULKNO  397  0807636526 APIXYREON     6     
+cintya/Hadis           J7TGYY 124  KULKNO  397  0807634828 GTR8320F      25    
+                                                0807634829 GTR8320F            
+Dwyer/Julia            VHS2XK 68   KULKNO  397  0807597524 XAG485123     11    
+Ebizar/Arswendy        H9D18C 41   KULKNO  397  3807146828 TOPICTBAGDPRD 19    
+ERWIN/ERWIN            GEFKRD 24   KULKNO  397  0807603784 XAG105433     15    
+Ester/Ester            YEUFXW 112  KULKNO  397  KNO181233  1027183A      15    
+                                                KNO181237  1027183A            
+FAISAL/MUHAMMAD        TD1LRZ 28   KULKNO  397  0807625784 GTR9697       7     
+Fazila/Nur Sharifa     H74BXL 92   KULKNO  397  0807630291 GTR9833       48    
+                                                0807630513 GTR9833             
+Grandits/Monika        BH8W8U 12   KULKNO  397  0457604486 1034082       9     
+HADI NUGROHO/PUTRA     E7UL5V 94   KULKNO  397  0807607768 XAG104474     9     
+HALIM/ALBERT           FF4ZRD 23   KULKNO  397  0807603611 XAG105433     14    
+Harvey/Timothy         VHS2XK 69   KULKNO  397  0807597534 XAG485123     20    
+HASIBUAN/MAHDALENA     TD1LRZ 29   KULKNO  397  0807625794 GTR9697       12    
+HASIBUAN/SALWA NADHILA L9QJVS 53   KULKNO  397  9807899107 TOPABDKULPRD  16    
+                                                9807899109 TOPABDKULPRD        
+IRSAN/MUHAMMAD         TDUCMW 90   KULKNO  397  0807607883 XAG104474     12    
+Juliati/Juliati        B8DZJF 97   KULKNO  397  0807629816 GTR9833       38    
+                                                0807629949 GTR9833             
+JUNITA PERANGIN ANGI/I E8SBYV 91   KULKNO  397  0807607820 XAG104474     19    
+Kadir/Abdul            AIEK8B 6    KULKNO  397  9807034347 TOPABDKULPRD  25    
+Kania/Anjeli           B8DZJF 98   KULKNO  397  0807630010 GTR9833       20    
+KARO KARO/YUDI SALPILA YB2UGC 118  KULKNO  397  9807819503 TOPICTBAGDPRD 20    
+Kesavan/Kammlesh       XEF57T 18   KULKNO  397  0807636468 APIXYREON     8     
+Kumari/Nila            HFY4XA 105  KULKNO  397  0807630776 GTR9833       48    
+                                                0807630936 GTR9833             
+Lim/Ida                A7WSXV 59   KULKNO  397  9807899120 TOPABDKULPRD  35    
+                                                9807899121 TOPABDKULPRD        
+Melda/Melda            H74BXL 93   KULKNO  397  0807630387 GTR9833       20    
+MUSRIADI/MUSRIADI      YD6DYM 26   KULKNO  397  9807057767 TOPABDKULPRD  38    
+                                                9807057768 TOPABDKULPRD        
+Mustafa/Egah Hidajat   YEUFXW 114  KULKNO  397  KNO181227  1027183A      14    
+Niclauss/Frederik Paul VY2KRS 70   KULKNO  397  0807597538 XAG104297     15    
+Pane/Ayu novitasari    Y62NUE 14   KULKNO  397  9807768552 TOPABDKULPRD  19    
+PRABHUDESAI/DEELIP JAY PGEDRA 123  KULKNO  397  3807146989 TOPABDKULPRD  13    
+Rahmat/Beni            ZFRU4A 131  KULKNO  397  3807147932 TOPABDKULPRD  18    
+ROSINTA/LASMA LENIDA   LHQNQK 111  KULKNO  397  3807146575 GTR7086C      13    
+                                                3807146576 TOPICTBAGDPRD       
+SELPIA/SELPIA          RK5TMR 32   KULKNO  397  9807789845 TOPABDKULPRD  20    
+                                                9807789846 TOPABDKULPRD        
+Shepherd/Lily Bella    NHY38H 71   KULKNO  397  0807597545 XAG489395     36    
+                                                0807597546 XAG489395           
+So/Sugeng              DYI8QM 120  KULKNO  397  9807096674 TOPABDKULPRD  29    
+                                                9807096675 TOPABDKULPRD        
+Song/Tan Linda         H6CJ9L 104  KULKNO  397  3807145450 TOPABDKULPRD  20    
+                                                3807145451 TOPABDKULPRD        
+Sudjono Antaredja/Iman S92C3F 77   KULKNO  397  9807768526 TOPABDKULPRD  58    
+                                                9807768527 TOPABDKULPRD        
+                                                9807768528 TOPABDKULPRD        
+                                                9807768529 TOPABDKULPRD        
+SYAHDANA/WITA          XY2Q7S 115  KULKNO  397  3807146797 TOPICTBAGDPRD 12    
+TEH/RACHEL             NECNKT 127  KULKNO  397  3807147393 TOPABDKULPRD  14    
+UMARU/ARIYA            PF724A 96   KULKNO  397  0807607577 XAG104474     18    
+                                                0807607578 XAG104474           
+Wijaya/Kenny           YEUFXW 116  KULKNO  397  KNO181229  1027183A      13    
+Wijaya/Kevin           YEUFXW 119  KULKNO  397  KNO181223  1027183A      14    
+Wiselin/Richelle       XB13GP 65   KULKNO  397  9807791528 TOPABDKULPRD  55    
+                                                9807899111 TOPABDKULPRD        
+                                                9807899114 TOPABDKULPRD        
+                                                9807899115 TOPABDKULPRD        
+                                                9807899116 TOPABDKULPRD        
+                                                9807899117 TOPABDKULPRD        
+                                                9807899118 TOPABDKULPRD        
+Wood/Angus             LYWPWP 73   KULKNO  397  0807597567 XAG106221     15    
+YONG/JIN FONG          N9S7RS 13   KULKNO  397  3807147618 TOPICTBAGDPRD 13    
+ZENELWI/ZENELWI        HGWNJK 109  KULKNO  397  3807146548 TOPICTBAGDPRD 25    
+ZHU/GUANGHUA           G6UGPL 100  KULKNO  397  3807145052 TOPICTBAGDPRD 19    
+Zsivkovics/Josef       BH8W8U 11   KULKNO  397  0457604491 1034082       11    
+
+Totals     Passengers:  52     Bags:  76     Weight:  1039
+
+
+End of report

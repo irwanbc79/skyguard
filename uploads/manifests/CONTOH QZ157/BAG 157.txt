@@ -1,0 +1,111 @@
+a0055ros                      AirAsia Indonesia                               
+09Feb26 16:39              Checked Baggage (Detail)             By:  XAG485607
+                             for Flown Passengers                             
+                           from 09Feb26 to 09Feb26                            
+                      City Pair: DMKKNO  Flight No:  157                      
+                           Sort by: Flight and Name                           
+                               Airline Code: QZ                               
+                            Weight Unit: Kilograms                            
+
+
+Passenger Name         PNR    Seq  Cty Pr Flt   Bag Tag    Agent Name    Weight
+---------------------- ------ ---- ------ ----- ---------- ------------- ------
+Adhytio/Dimas Wahyugi  FBVBNJ 21   DMKKNO  157  0807647626 XAG104558     20    
+                                                0807647627 XAG104558           
+                                                0807647849 XAG104558           
+angin/dini sri ida per X8JQQY 63   DMKKNO  157  0807651092 XAG104292     20    
+                                                0807651135 XAG104292           
+Armayati/Armayati      EJ3W9B 82   DMKKNO  157  0807644833 XAG483530     21    
+ASNA/ASNA              B8M3KS 7    DMKKNO  157  0807645736 XAG483530     12    
+Barus/Ira Natalia      YK2VME 48   DMKKNO  157  0807650412 XAG104292     26    
+                                                0807650483 XAG104292           
+caniago/Arfinal        OYEMJC 110  DMKKNO  157  0807647096 XAG486279     7     
+Chen/Justin            NHJS6H 90   DMKKNO  157  0807645286 XAG104292     21    
+                                                0807645287 XAG104292           
+                                                0807645288 XAG104292           
+Christy/Christy        I67RQL 108  DMKKNO  157  0807646432 XAG104292     20    
+cornelia/debby         X8JQQY 62   DMKKNO  157  0807651080 XAG104292     20    
+Dalimunthe/Srimalhayan TG3S2N 29   DMKKNO  157  0807645578 XAG487971     10    
+Dediana/Dediana        M7HBQL 85   DMKKNO  157  0807645029 XAG104292     20    
+                                                0807645030 XAG104292           
+Desita/Maria           N56EHB 100  DMKKNO  157  0807645837 XAG486279     25    
+                                                0807645838 XAG486279           
+                                                0807645839 XAG486279           
+DJAKIM/MUK LONG        I96RPF 24   DMKKNO  157  0807646290 XAG104558     60    
+                                                0807646291 XAG104558           
+                                                0807646712 XAG104558           
+                                                0807646713 XAG104558           
+EDJON/EDJON            BGDQKK 133  DMKKNO  157  0807654306 XAG104558     20    
+Ginting/Lenny Evianta  YK2VME 49   DMKKNO  157  0807650554 XAG104292     34    
+                                                0807650619 XAG104292           
+HENDRA/HENDRA          YD3NHJ 51   DMKKNO  157  0807647837 XAG104292     19    
+                                                0807647838 XAG104292           
+HENDRIK/HENDRIK        Z5WMTB 77   DMKKNO  157  0807649937 XAG104558     53    
+                                                0807650021 XAG104558           
+Howard/William         AE6DYD 67   DMKKNO  157  0940608545 XAG104520     38    
+                                                0940608546 XAG104520           
+Juli/Juli              EJ3W9B 83   DMKKNO  157  0807644869 XAG483530     18    
+                                                0807644870 XAG483530           
+LARASATI/LAILIA NABILA IYB9UC 129  DMKKNO  157  0807650905 XAG486279     20    
+LUKMIN/YENNY           EBBPGM 69   DMKKNO  157  0807628895 TAA5202       20    
+                                                0807628896 TAA5202             
+MA/WEI                 MDWJHG 80   DMKKNO  157  0807644627 XAG483530     23    
+MASLIANA/NETTY         S9TG3C 12   DMKKNO  157  0807649308 XAG486279     44    
+                                                0807649365 XAG486279           
+                                                0807649406 XAG486279           
+Maysaroh/Siti          QCUNPZ 28   DMKKNO  157  0807645054 XAG487971     20    
+Omar/Willic            G852GV 54   DMKKNO  157  0807652944 XAG104558     20    
+                                                0807652991 XAG104558           
+Panjaitan/Meri meinar  IDYE2T 120  DMKKNO  157  0807649110 XAG104292     17    
+Poh/Ng A               LJFC9B 99   DMKKNO  157  0807646660 XAG104292     21    
+                                                0807646724 XAG104292           
+putra/Elbert           GK5CWR 130  DMKKNO  157  0807650904 XAG483530     12    
+Rikki/Kenryo Varian    L7TBKI 93   DMKKNO  157  0807645537 XAG483530     31    
+                                                0807645538 XAG483530           
+rohammah/siti          K9YD4C 125  DMKKNO  157  0807649266 XAG487971     17    
+                                                0807649267 XAG487971           
+RUMONDANG/NOVITA SARI  JKBMKB 23   DMKKNO  157  0807648236 XAG104558     30    
+Rusmiaty/Rusmiaty      T6EPUR 132  DMKKNO  157  0807653914 XAG486279     40    
+                                                0807654017 XAG486279           
+                                                0807654018 XAG486279           
+Saragih/Rubiah         H8BFXI 58   DMKKNO  157  0807645465 XAG486279     30    
+                                                0807645466 XAG486279           
+                                                0807645502 XAG486279           
+Sari/Sri Mayang        B8NDQF 115  DMKKNO  157  0807648298 XAG104292     20    
+Siahaan/Febrina Artaul DH4VFX 66   DMKKNO  157  0940605677 XAG104176     24    
+Simarmata/Satria Pranj C6TZQY 87   DMKKNO  157  0807645147 XAG483530     25    
+SINAGA/VICKY CLAUDIA   BE2H6Q 73   DMKKNO  157  0807652303 XAG486279     30    
+Siregar/Erni Yusnita   IIHMVH 30   DMKKNO  157  0807645267 XAG487971     18    
+Siregar/Kanaya Syafira FH5VHK 31   DMKKNO  157  0807645475 XAG487971     17    
+Siregar/Muhammad Raja  FF72GA 26   DMKKNO  157  0807644694 XAG487971     16    
+                                                0807644695 XAG487971           
+Siregar/Rasya Hidayati N87CQY 32   DMKKNO  157  0807645164 XAG487971     17    
+Sitepu/Ika Sari        SIHLJH 50   DMKKNO  157  0807650899 XAG104292     25    
+                                                0807650906 XAG104292           
+Sitepu/Muhammad Rizky  XDMGVJ 76   DMKKNO  157  0807648196 XAG483530     20    
+                                                0807648197 XAG483530           
+Sitorus/Imah Sari      P6CHYB 27   DMKKNO  157  0807644850 XAG487971     20    
+                                                0807644851 XAG487971           
+Sonodimejo/Kepiaty Kas H8BFXI 59   DMKKNO  157  0807645486 XAG486279     30    
+                                                0807645487 XAG486279           
+                                                0807645488 XAG486279           
+Sugeng/Sugeng          LJFC9B 97   DMKKNO  157  0807646511 XAG104292     27    
+Susanty/Susanty        N5NJKB 41   DMKKNO  157  0807645061 XAG486279     25    
+                                                0807645062 XAG486279           
+Tambunan/Erikawati     BDRS7Q 126  DMKKNO  157  0807649385 XAG483530     20    
+TETAP/JENDAM           I9ZVKF 131  DMKKNO  157  0807651286 XAG486279     10    
+Tina/Agus              NHJS6H 88   DMKKNO  157  0807645257 XAG104292     19    
+                                                0807645258 XAG104292           
+                                                0807645381 XAG104292           
+Tjoe/Elis              L7TBKI 96   DMKKNO  157  0807645550 XAG483530     16    
+TOKIMAN/NELLY          MDWJHG 81   DMKKNO  157  0807644628 XAG483530     17    
+                                                0807644629 XAG483530           
+UMAR/ANTONI WIJAYA     RFPCNQ 5    DMKKNO  157  0807650916 XAG104558     20    
+Winata/Jeny            IHP1HX 15   DMKKNO  157  0807653934 XAG104558     40    
+                                                0807654110 XAG104558           
+Yie/Pe Lie             LJFC9B 98   DMKKNO  157  0807646632 XAG104292     19    
+
+Totals     Passengers:  55     Bags:  94     Weight:  1284
+
+
+End of report
