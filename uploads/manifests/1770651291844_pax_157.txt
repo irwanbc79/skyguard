@@ -1,0 +1,191 @@
+                               AirAsia Indonesia
+09Feb26 16:37                     Flight Close                     By:XAG485607 
+                             Weight Type: Kilograms
+
+                 Flight:   QZ 157  DMKKNO  Date:  09Feb26/1605
+================================================================================
+Totals:
+Manifested             -    130           Checked-in/Boarded           -     128
+Unconfirmed            -      0           No Shows                     -       2
+Stand-by Pax           -      0           Cleared Stand-by Pax         -       0
+Thru Manifested        -      0           Thru Checked-in/Boarded      -       0
+Thru No - shows        -      0
+Total Manifested       -    130           Total Checked-in             -     128
+
+Inf. Manifested        -      0           Inf. Checked-in/Boarded      -       0
+Child Manifested       -      3           Child Checked-in/Boarded     -       3
+Female Manifested      -     69           Female Checked-in/Boarded    -      69
+Male Manifested        -     58           Male Checked-in/Boarded      -      56
+
+Flt Cpns Possible      -      0           Flt Cpns Required            -       0
+
+Total Bag Checked      -     94           Total Bag Weight             -    1284
+
+Pax Checked-In by Zone
+
+                      M   F   C TTL   I
+   Zone 1    1-10 :  12  22   1  35   0
+   Zone 2   11-21 :  18  18   1  37   0
+   Zone 3   22-31 :  26  29   1  56   0
+                    --- --- --- --- ---
+  Totals:            56  69   3 128   0
+
+                                          Fare     Seq         Seat
+Cnt Name                       LVL PNR    Class    No  Date    No     CDst Flt  
+--- -------------------------- --- ------ -------- --- ------- ------ ---- -----
+Checked-in/Boarded:
+1   ABIGAIL SERENAULI,BEATRICE     S9TG3C E         14 03Feb26    17F 0KNO  157 
+2   Adhytio,Dimas Wahyugi          FBVBNJ K         21 06Jan26    20F 0KNO  157 
+3   ADIYATIN,SUPRIATIN ENDANG      IYB9UC K        128 08Jan26     8D 0KNO  157 
+4   Aliyanto,Aliyanto          P   M7GYPL K          2 09Jan26    18E 0KNO  157 
+5   Amalia,Rida                    BDRS7Q K        127 25Jan26     7B 0KNO  157 
+6   angin,dini sri ida perangi     X8JQQY E         63 31Jan26     9F 0KNO  157 
+7   ANGKASA,MARVIN LOUIS           SBIEWM K         10 20Oct25    15F 0KNO  157 
+8   ANTONI,ANTONI                  SBIEWM K          8 20Oct25    15D 0KNO  157 
+9   Aril Syahputra,Muhammad        Y91L8V E         56 04Feb26     9C 0KNO  157 
+10  Arkhan,Muhammad Alif           N5NJKB E         42 31Jan26    11B 0KNO  157 
+11  Armayati,Armayati              EJ3W9B K         82 10Jan26     6C 0KNO  157 
+12  ASNA,ASNA                      B8M3KS E          7 06Nov25    19E 0KNO  157 
+13  aurilyaa,Tasya                 X8RGNI K         45 17Jan26    23A 0KNO  157 
+14  Barus,Ira Natalia              YK2VME K         48 16Jan26    10E 0KNO  157 
+15  Bluhm,Dewi                     CCEZMG K          3 08Oct25    18A 0KNO  157 
+16  Bluhm,Jens Carsten             CCEZMG K          4 08Oct25    18C 0KNO  157 
+17  BR TARIGAN,LITNA MAYASARI      ZFHY3Q E         20 02Feb26    20E 0KNO  157 
+18  bugis,Ikhwan                   OYEMJC O        109 08Feb26     1C 0KNO  157 
+19  caniago,Arfinal                OYEMJC O        110 08Feb26     1B 0KNO  157 
+20  CERLY,CERLY                    EBBPGM E         70 01Feb26     6F 0KNO  157 
+21  Chandra,Chandra                N5NJKB E         38 31Jan26    11C 0KNO  157 
+22  Chen,Brighton Summer           NHJS6H K         91 22Jan26    25C 0KNO  157 
+23  Chen,Justin                    NHJS6H K         90 22Jan26    25F 0KNO  157 
+24  Christy,Christy                I67RQL E        108 30Oct25    29E 0KNO  157 
+25  Connelly,Paul              B   LDM1NG K         16 24Dec25     1F 0KNO  157 
+26  cornelia,debby                 X8JQQY E         62 31Jan26     9E 0KNO  157 
+27  Dalimunthe,Srimalhayani        TG3S2N E         29 03Feb26    23E 0KNO  157 
+28  Deby,Deby                      FBKTQZ K         53 09Jan26    10A 0KNO  157 
+29  Dediana,Dediana                M7HBQL K         85 22Jan26    29B 0KNO  157 
+30  Desita,Maria                   N56EHB K        100 07Dec25    19F 0KNO  157 
+31  DEWI,YULIANTY                  YY82JC E         34 04Nov25    22A 0KNO  157 
+32  DJAKIM,MUK LONG                I96RPF E         24 04Feb26     2E 0KNO  157 
+33  EDJON,EDJON                    BGDQKK E        133 06Feb26    30B 0KNO  157 
+34  ELISABETH,EVELYN OLIVIA        J9Z6VF E        107 30Oct25    30E 0KNO  157 
+35  ELLEN,ELLEN                    Z5WMTB K         78 22Sep25    24C 0KNO  157 
+36  Erdiana,Erdiana                FBVBNJ K         22 06Jan26    21F 0KNO  157 
+37  Fahlevi,Fahmy                  N5NJKB E         37 31Jan26    11A 0KNO  157 
+38  Fuadi,Agung                    MIVF8E K        104 18Jan26    24F 0KNO  157 
+39  Ginting,Lenny Evianta          YK2VME K         49 16Jan26    10D 0KNO  157 
+40  gusfianda,Muhammad dicky       QBVLFZ K        118 25Jan26    31E 0KNO  157 
+41  Halim,Chisacia                 AE6DYD W         68 23Jan26    10F 0KNO  157 
+42  HENDRA,HENDRA                  YD3NHJ E         51 04Nov25     9B 0KNO  157 
+43  Hendratmo,Dony                 O615MB E        114 06Feb26    25E 0KNO  157 
+44  HENDRIK,HENDRIK                Z5WMTB K         77 22Sep25    24A 0KNO  157 
+45  Hidayatullah,Hernawan Bayu     C7HNGI O         92 05Feb26    17B 0KNO  157 
+46  Howard,William                 AE6DYD W         67 23Jan26    23C 0KNO  157 
+47  Jeki,Jeki                      NFEGVD E        112 30Jan26    31B 0KNO  157 
+48  Joe,Po Tjoe                    N56EHB K        101 07Dec25    19D 0KNO  157 
+49  Johan,Johan                    L7TBKI E         95 12Nov25    26D 0KNO  157 
+50  Juli,Juli                      EJ3W9B K         83 10Jan26     6A 0KNO  157 
+51  JUNIYANTI,JUNIYANTI            SBIEWM K          9 20Oct25    15E 0KNO  157 
+52  Kalsum,Umi                     O615MB E        113 06Feb26    24E 0KNO  157 
+53  Kasura,Putri Antasa            M8JFGV K         35 17Jan26    22C 0KNO  157 
+54  Kirana,Freddy                  FBKTQZ K         52 09Jan26    10C 0KNO  157 
+55  Kurniawan,Muhammad Hariz       XDMGVJ K         75 17Dec25    26C 0KNO  157 
+56  Kurniawan,Wahyu                JC2NQZ E         64 07Feb26     8E 0KNO  157 
+57  LARASATI,LAILIA NABILA         IYB9UC K        129 08Jan26     8B 0KNO  157 
+58  LUKMIN,YENNY                   EBBPGM E         69 01Feb26     7F 0KNO  157 
+59  MA,WEI                         MDWJHG K         80 15Jan26    26F 0KNO  157 
+60  Manik,Edward Salomo            XBRDMP E        117 31Jan26    28F 0KNO  157 
+61  Manullang,Harda Octavia        C6TZQY K         86 27Jan26    27D 0KNO  157 
+62  MASLIANA,NETTY                 S9TG3C E         12 03Feb26    17D 0KNO  157 
+63  Maysaroh,Siti                  QCUNPZ E         28 04Feb26    22E 0KNO  157 
+64  MIRAZA,HALIMATUN SYAKDIAH      RFPCNQ K          6 08Jan26    18F 0KNO  157 
+65  MISRIATI,MISRIATI              NIWFWH K        119 25Jan26    29F 0KNO  157 
+66  NAPITUPULU,VERONICA AYULES     E871FV E         44 03Feb26    23D 0KNO  157 
+67  Omar,Willic                    G852GV K         54 09Jan26    22D 0KNO  157 
+68  Onggano,Erbin                  EJ3W9B K         84 10Jan26     6B 0KNO  157 
+69  Panjaitan,Meri meinar          IDYE2T K        120 25Jan26    22F 0KNO  157 
+70  Pinem,Lili Pebrina             MIVF8E K        103 18Jan26     6E 0KNO  157 
+71  Poh,Ng A                       LJFC9B K         99 30Oct25     5A 0KNO  157 
+72  putra,Elbert                   GK5CWR O        130 05Feb26    29A 0KNO  157 
+73  Rahyu,Valentino Girinanta      NHJS6H K         89 22Jan26    24D 0KNO  157 
+74  RAZALI,YULIADI                 A9YIUS E         74 08Feb26    29D 0KNO  157 
+75  Rikki,Jaysen Varian            L7TBKI E         94 12Nov25    26A 0KNO  157 
+76  Rikki,Kenryo Varian            L7TBKI E         93 12Nov25    25A 0KNO  157 
+77  Ritonga,Syukri                 WDC1KJ E        124 02Feb26    28B 0KNO  157 
+78  rohammah,siti                  K9YD4C K        125 25Jan26    29C 0KNO  157 
+79  RUMONDANG,NOVITA SARI          JKBMKB E         23 07Feb26    21E 0KNO  157 
+80  Rusmiaty,Rusmiaty              T6EPUR E        132 05Feb26    30C 0KNO  157 
+81  sandra,Ifan                    Y91L8V E         55 04Feb26     9A 0KNO  157 
+82  Saragi,Rosliana Ali Jonas      H8BFXI E         61 29Jan26     7D 0KNO  157 
+83  Saragih,Bintang Jonas          H8BFXI E         60 29Jan26     7A 0KNO  157 
+84  Saragih,Rubiah                 H8BFXI E         58 29Jan26     8F 0KNO  157 
+85  Sari,Sri Mayang                B8NDQF E        115 06Feb26    30D 0KNO  157 
+86  SEHATI,SEHATI                  VJNR7E K        122 24Jan26    30A 0KNO  157 
+87  Siahaan,Febrina Artauli        DH4VFX W         66 28Jan26    20A 0KNO  157 
+88  Sianturi,Grenny Vio Mora B     PHSPHX K        111 29Jan26    28C 0KNO  157 
+89  SIJABAT,ANRI ANDIKA            E871FV E         43 03Feb26    23F 0KNO  157 
+90  Silalahi,Gita Febria Hasbi     H8BFXI E         57 29Jan26     9D 0KNO  157 
+91  Simanjuntak,Rio Saputra        PHSPHX K        116 29Jan26    28E 0KNO  157 
+92  Simarmata,Satria Pranja        C6TZQY K         87 27Jan26    27C 0KNO  157 
+93  SINAGA,ANGELINA                RCI4HZ K         71 22Jan26    30F 0KNO  157 
+94  SINAGA,VICKY CLAUDIA           BE2H6Q K         73 22Jan26    31F 0KNO  157 
+95  SINAGA,YUNI SARAH              P83TUY K         72 22Jan26    31A 0KNO  157 
+96  SIREGAR,DANIEL B MARUDUT       ZFHY3Q E         19 02Feb26    19A 0KNO  157 
+97  Siregar,Erni Yusnita           IIHMVH E         30 03Feb26    23B 0KNO  157 
+98  Siregar,Kanaya Syafira Rah     FH5VHK E         31 03Feb26    21A 0KNO  157 
+99  Siregar,Muhammad Raja Inal     FF72GA E         26 04Feb26    21B 0KNO  157 
+100 SIREGAR,RAHEL RIANTI           I96RPF E         25 04Feb26     2D 0KNO  157 
+101 Siregar,Rasya Hidayatika       N87CQY E         32 04Feb26    21D 0KNO  157 
+102 Sitepu,Ika Sari                SIHLJH K         50 16Jan26    10B 0KNO  157 
+103 sitepu,martina navratilova     MIVF8E K        105 18Jan26    25D 0KNO  157 
+104 Sitepu,Muhammad Rizky Iman     XDMGVJ K         76 17Dec25    26E 0KNO  157 
+105 Sitorus,Imah Sari              P6CHYB E         27 03Feb26    22B 0KNO  157 
+106 SONG,JAEBONG                   F6KY3Y K        134 02Jan26    31D 0KNO  157 
+107 Sonodimejo,Kepiaty Kasiman     H8BFXI E         59 29Jan26     8C 0KNO  157 
+108 STEPHANIE,BELICIA CLEOMORA     S9TG3C E         13 03Feb26    17E 0KNO  157 
+109 Sugeng,Sugeng                  LJFC9B K         97 30Oct25     5B 0KNO  157 
+110 Sumarsih,Sumarsih              JC1VWM K        121 25Jan26    31C 0KNO  157 
+111 Suprianto,Edi                  N5NJKB E         39 31Jan26    11D 0KNO  157 
+112 SURBAKTI,SYAHDAT               M8Y9SI K        102 24Jan26    15B 0KNO  157 
+113 Susanty,Susanty                N5NJKB E         41 31Jan26    11F 0KNO  157 
+114 Tambunan,Erikawati             BDRS7Q K        126 25Jan26     8A 0KNO  157 
+115 TETAP,JENDAM                   I9ZVKF E        131 07Feb26    16E 0KNO  157 
+116 Tina,Agus                      NHJS6H K         88 22Jan26     6D 0KNO  157 
+117 TINY,PUTRI                     YY82JC E         33 04Nov25    21C 0KNO  157 
+118 Tjoe,Elis                      L7TBKI E         96 12Nov25    27F 0KNO  157 
+119 TOKIMAN,NELLY                  MDWJHG K         81 15Jan26    27E 0KNO  157 
+120 UCHIDA,YURINA                  RGS22K E         11 03Feb26    19B 0KNO  157 
+121 UMAR,ANTONI WIJAYA             RFPCNQ K          5 08Jan26    18D 0KNO  157 
+122 William,Bryan                  YIDVRX E        106 30Oct25    16B 0KNO  157 
+123 Winata,Jeny                    IHP1HX E         15 04Feb26    20B 0KNO  157 
+124 WU,OWEN ELDRIK                 Z5WMTB K         79 22Sep25    24B 0KNO  157 
+125 Wulandari,Rahayu               N5NJKB E         40 31Jan26    11E 0KNO  157 
+126 Yie,Pe Lie                     LJFC9B K         98 30Oct25    28A 0KNO  157 
+127 Zulkifli,Fahd Adha             WDC1KJ E        123 02Feb26    27B 0KNO  157 
+128 ZUO,ZHENXING                   MF9D8N W         65 13Jan26    18B 0KNO  157 
+    TKT: N8070144427363C2
+
+No Shows:
+1   KARTONO,FRANKY                 ACQB5D K          0 04Dec25    26B 0KNO  157 
+2   WIJAYA,SALIM                   ACQB5D K          0 04Dec25    25B 0KNO  157 
+
+Thru Checked-in/Boarded
+There are 0 Thru Pax who have checked-in/Boarded...
+
+Thru No Shows
+There are 0 thru No Shows on this flight...
+
+Unconfirmed
+There are 0 unconfirmed on this flight...
+
+                                              Fare     Priority
+Cnt Name                               PNR    Class    Code     Date    Dst 
+--- ---------------------------------- ------ -------- -------- ------- ----
+Stand-by
+There are 0 Stand-By on this flight...
+
+                                            (1,4)
+Cnt Name                             PNR    Class    Seq No Date    Seat No
+---       -------------------------- ------ -------- ------ ------- -------
+Unapproved Stand - by status:
+There are 0 unapproved stand-by pax on this flight...
+
