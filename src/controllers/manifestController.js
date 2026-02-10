@@ -1,6 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 const Manifest = require('../models/Manifest');
 const ManifestPassenger = require('../models/ManifestPassenger');
-const { ingestManifest } = require('../services/manifestIngestService');
+const { ingestManifest, createManifestFromFile } = require('../services/manifestIngestService');
 
 async function listManifests(req, res) {
   try {
@@ -61,9 +63,7 @@ async function syncManifestPassengers(req, res) {
   try {
     const manifest = await Manifest.findById(req.params.id);
     if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
-    if (manifest.status === 'synced') {
-      return res.json({ status: 'ok', message: 'Manifest sudah disinkronkan' });
-    }
+    // Allow re-sync even if already synced
     const segments = manifest.parsed_fields?.segments || [];
     if (!segments.length) {
       return res.status(400).json({ status: 'error', message: 'Manifest belum diparse atau tidak ada penumpang' });
@@ -173,6 +173,165 @@ async function exportManifestPassengers(req, res) {
   }
 }
 
+async function ingestSampleManifests(req, res) {
+  try {
+    const samplesDir = path.join(__dirname, '../../uploads/manifests');
+    if (!fs.existsSync(samplesDir)) {
+      return res.status(404).json({ status: 'error', message: 'Folder sample tidak ditemukan' });
+    }
+
+    const folders = fs.readdirSync(samplesDir).filter(f => {
+      const full = path.join(samplesDir, f);
+      return fs.statSync(full).isDirectory();
+    });
+
+    const results = [];
+    for (const folder of folders) {
+      const folderPath = path.join(samplesDir, folder);
+      const files = fs.readdirSync(folderPath).filter(f => /\.(txt)$/i.test(f));
+
+      for (const file of files) {
+        const filePath = path.join(folderPath, file);
+        const existing = await Manifest.findOne({ filename: file, source: 'sample' });
+        if (existing) {
+          results.push({ file, status: 'skipped', reason: 'already exists' });
+          continue;
+        }
+        const buffer = fs.readFileSync(filePath);
+        const manifest = await createManifestFromFile({
+          buffer,
+          filename: file,
+          source: 'sample',
+          uploadedBy: 'system',
+          filePath
+        });
+
+        // Auto-sync passengers
+        const segments = manifest.parsed_fields?.segments || [];
+        const docs = [];
+        segments.forEach((segment, index) => {
+          (segment.passengers || []).forEach(p => {
+            docs.push({
+              manifest_id: manifest._id,
+              flight_number: segment.flight_number,
+              flight_date: segment.flight_date,
+              segment_index: index,
+              status: p.status || 'checked_in',
+              name: p.name,
+              level: p.level,
+              pnr: p.pnr,
+              fare_class: p.fare_class,
+              seq_no: p.seq_no,
+              travel_date: p.travel_date,
+              seat_no: p.seat_no,
+              destination_code: p.destination_code,
+              flight_no: p.flight_no,
+              raw_line: p.raw_line
+            });
+          });
+          (segment.no_shows || []).forEach(p => {
+            docs.push({
+              manifest_id: manifest._id,
+              flight_number: segment.flight_number,
+              flight_date: segment.flight_date,
+              segment_index: index,
+              status: 'no_show',
+              name: p.name,
+              level: p.level,
+              pnr: p.pnr,
+              fare_class: p.fare_class,
+              seq_no: p.seq_no,
+              travel_date: p.travel_date,
+              seat_no: p.seat_no,
+              destination_code: p.destination_code,
+              flight_no: p.flight_no,
+              raw_line: p.raw_line
+            });
+          });
+        });
+
+        if (docs.length) {
+          await ManifestPassenger.insertMany(docs);
+          manifest.status = 'synced';
+          await manifest.save();
+        }
+
+        results.push({ file, status: 'ingested', passengers: docs.length, flight: manifest.flight_number });
+      }
+    }
+
+    res.json({ status: 'ok', data: results });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+async function resyncManifest(req, res) {
+  try {
+    const manifest = await Manifest.findById(req.params.id);
+    if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
+
+    // Re-parse the file if we have a file path and it's a txt
+    if (manifest.file_path && fs.existsSync(manifest.file_path)) {
+      const buffer = fs.readFileSync(manifest.file_path);
+      const { parseManifestText, buildManifestSummary } = require('../services/manifestService');
+      const text = buffer.toString('utf-8');
+      const segments = parseManifestText(text);
+      const summary = buildManifestSummary(segments);
+      manifest.parsed_fields = { segments };
+      manifest.flight_number = summary.flight_number || manifest.flight_number;
+      manifest.flight_date = summary.flight_date || manifest.flight_date;
+      manifest.origin = summary.origin || manifest.origin;
+      manifest.destination = summary.destination || manifest.destination;
+      manifest.carrier = summary.carrier || manifest.carrier;
+    }
+
+    const segments = manifest.parsed_fields?.segments || [];
+    const docs = [];
+    segments.forEach((segment, index) => {
+      (segment.passengers || []).forEach(p => {
+        docs.push({
+          manifest_id: manifest._id,
+          flight_number: segment.flight_number,
+          flight_date: segment.flight_date,
+          segment_index: index,
+          status: p.status || 'checked_in',
+          name: p.name, level: p.level, pnr: p.pnr,
+          fare_class: p.fare_class, seq_no: p.seq_no,
+          travel_date: p.travel_date, seat_no: p.seat_no,
+          destination_code: p.destination_code,
+          flight_no: p.flight_no, raw_line: p.raw_line
+        });
+      });
+      (segment.no_shows || []).forEach(p => {
+        docs.push({
+          manifest_id: manifest._id,
+          flight_number: segment.flight_number,
+          flight_date: segment.flight_date,
+          segment_index: index,
+          status: 'no_show',
+          name: p.name, level: p.level, pnr: p.pnr,
+          fare_class: p.fare_class, seq_no: p.seq_no,
+          travel_date: p.travel_date, seat_no: p.seat_no,
+          destination_code: p.destination_code,
+          flight_no: p.flight_no, raw_line: p.raw_line
+        });
+      });
+    });
+
+    await ManifestPassenger.deleteMany({ manifest_id: manifest._id });
+    if (docs.length) {
+      await ManifestPassenger.insertMany(docs);
+    }
+    manifest.status = docs.length ? 'synced' : 'needs_review';
+    await manifest.save();
+
+    res.json({ status: 'ok', message: 'Manifest berhasil di-resync', total: docs.length });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
 module.exports = {
   listManifests,
   getManifestDetail,
@@ -180,5 +339,7 @@ module.exports = {
   updateManifestStatus,
   syncManifestPassengers,
   listManifestPassengers,
-  exportManifestPassengers
+  exportManifestPassengers,
+  ingestSampleManifests,
+  resyncManifest
 };

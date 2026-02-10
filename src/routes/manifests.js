@@ -20,10 +20,12 @@ const upload = multer({
 const router = express.Router();
 
 router.get('/', manifestController.listManifests);
-router.get('/:id', manifestController.getManifestDetail);
+router.post('/ingest-samples', manifestController.ingestSampleManifests);
 router.post('/upload', upload.single('file'), manifestController.uploadManifest);
+router.get('/:id', manifestController.getManifestDetail);
 router.put('/:id/review', manifestController.updateManifestStatus);
 router.post('/:id/sync', manifestController.syncManifestPassengers);
+router.post('/:id/resync', manifestController.resyncManifest);
 router.get('/:id/passengers', manifestController.listManifestPassengers);
 router.get('/:id/passengers/export', manifestController.exportManifestPassengers);
 

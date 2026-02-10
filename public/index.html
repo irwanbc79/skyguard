@@ -516,15 +516,22 @@
 
         <div id="content-manifest" class="content-section fade-in">
             <div class="grid lg:grid-cols-3 gap-6">
-                <div class="glass-card-solid rounded-2xl p-5 lg:col-span-1">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-inbox text-orange-400"></i> Manifest Inbox</h3>
-                            <p class="text-xs text-gray-400">Daftar manifest terbaru</p>
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="glass-card-solid rounded-2xl p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-inbox text-orange-400"></i> Manifest Inbox</h3>
+                                <p class="text-xs text-gray-400">Daftar manifest terbaru</p>
+                            </div>
+                            <button onclick="loadManifestList()" class="btn-primary px-3 py-2 rounded-lg text-sm" title="Refresh"><i class="fas fa-sync-alt"></i></button>
                         </div>
-                        <button onclick="loadManifestList()" class="btn-primary px-3 py-2 rounded-lg text-sm"><i class="fas fa-sync-alt"></i></button>
+                        <div class="flex gap-2 mb-3">
+                            <button onclick="ingestSampleManifests()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-orange-500/80 hover:bg-orange-500 transition"><i class="fas fa-folder-open mr-1"></i> Load Samples</button>
+                            <button onclick="document.getElementById('manifestUploadInput').click()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-blue-500/80 hover:bg-blue-500 transition"><i class="fas fa-upload mr-1"></i> Upload File</button>
+                            <input type="file" id="manifestUploadInput" accept=".txt,.csv,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="uploadManifestFile(this)">
+                        </div>
+                        <div id="manifestList" class="space-y-2 text-sm max-h-[60vh] overflow-y-auto"></div>
                     </div>
-                    <div id="manifestList" class="space-y-2 text-sm"></div>
                 </div>
                 <div class="glass-card-solid rounded-2xl p-5 lg:col-span-2">
                     <div class="flex items-center justify-between mb-4">
@@ -532,25 +539,28 @@
                             <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-file-signature text-orange-300"></i> Detail Manifest</h3>
                             <p class="text-xs text-gray-400">Preview dan aksi review/sinkronisasi</p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <button id="manifestApproveBtn" onclick="updateManifestStatus('approved')" class="btn-success px-3 py-2 rounded-lg text-xs hidden"><i class="fas fa-check"></i> Approve</button>
                             <button id="manifestRejectBtn" onclick="updateManifestStatus('rejected')" class="px-3 py-2 rounded-lg text-xs bg-red-500/80 hover:bg-red-500 hidden"><i class="fas fa-times"></i> Reject</button>
+                            <button id="manifestResyncBtn" onclick="resyncManifest()" class="px-3 py-2 rounded-lg text-xs bg-yellow-600/80 hover:bg-yellow-600 hidden"><i class="fas fa-redo"></i> Re-sync</button>
                             <button id="manifestSyncBtn" onclick="syncManifest()" class="px-3 py-2 rounded-lg text-xs bg-orange-500/80 hover:bg-orange-500 hidden"><i class="fas fa-database"></i> Sync</button>
                             <button id="manifestExportBtn" onclick="exportManifestPassengers()" class="px-3 py-2 rounded-lg text-xs bg-blue-500/80 hover:bg-blue-500 hidden"><i class="fas fa-file-csv"></i> Export CSV</button>
                         </div>
                     </div>
                     <div id="manifestDetail" class="text-gray-400">Pilih manifest dari daftar untuk melihat detail.</div>
                     <div id="manifestPassengerPreview" class="mt-6 hidden">
-                        <h4 class="text-sm font-semibold mb-2">Preview Penumpang</h4>
-                        <div class="overflow-auto rounded-xl border border-white/10">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-sm font-semibold">Daftar Penumpang <span id="manifestPaxCount" class="text-orange-400"></span></h4>
+                        </div>
+                        <div class="overflow-auto rounded-xl border border-white/10 max-h-[50vh]">
                             <table class="w-full text-sm">
-                                <thead class="bg-white/5 text-gray-300">
+                                <thead class="bg-white/5 text-gray-300 sticky top-0">
                                     <tr>
-                                        <th class="p-2 text-left">Status</th>
+                                        <th class="p-2 text-left w-10">#</th>
                                         <th class="p-2 text-left">Nama</th>
-                                        <th class="p-2 text-left">PNR</th>
                                         <th class="p-2 text-left">Seat</th>
-                                        <th class="p-2 text-left">Flight</th>
+                                        <th class="p-2 text-left">PNR</th>
+                                        <th class="p-2 text-left">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="manifestPassengerRows"></tbody>
@@ -2458,6 +2468,7 @@
                 document.getElementById('manifestApproveBtn').classList.remove('hidden');
                 document.getElementById('manifestRejectBtn').classList.remove('hidden');
                 document.getElementById('manifestSyncBtn').classList.remove('hidden');
+                document.getElementById('manifestResyncBtn').classList.remove('hidden');
                 document.getElementById('manifestExportBtn').classList.remove('hidden');
                 await loadManifestPassengersPreview();
             } catch (e) {
@@ -2507,23 +2518,48 @@
         async function loadManifestPassengersPreview() {
             const preview = document.getElementById('manifestPassengerPreview');
             const rowsEl = document.getElementById('manifestPassengerRows');
+            const countEl = document.getElementById('manifestPaxCount');
             if (!preview || !rowsEl || !selectedManifestId) return;
             try {
-                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=20`);
+                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=500`);
                 const result = await res.json();
                 const passengers = result.data || [];
                 if (!passengers.length) {
-                    preview.classList.add('hidden');
+                    // Try showing from parsed_fields if not synced yet
+                    const detRes = await fetch(`/api/manifests/${selectedManifestId}`);
+                    const detResult = await detRes.json();
+                    const segments = detResult.data?.parsed_fields?.segments || [];
+                    const allPax = [];
+                    segments.forEach(seg => {
+                        (seg.passengers || []).forEach(p => allPax.push(p));
+                        (seg.no_shows || []).forEach(p => allPax.push({ ...p, status: 'no_show' }));
+                    });
+                    if (!allPax.length) {
+                        preview.classList.add('hidden');
+                        return;
+                    }
+                    preview.classList.remove('hidden');
+                    if (countEl) countEl.textContent = `(${allPax.length} penumpang)`;
+                    rowsEl.innerHTML = allPax.map((p, i) => `
+                        <tr class="border-b border-white/5 hover:bg-white/5">
+                            <td class="p-2 text-xs text-gray-500">${i + 1}</td>
+                            <td class="p-2 font-medium">${p.name || '-'}</td>
+                            <td class="p-2 text-xs">${p.seat_no || '-'}</td>
+                            <td class="p-2 text-xs">${p.pnr || '-'}</td>
+                            <td class="p-2 text-xs">${p.status || 'checked_in'}</td>
+                        </tr>
+                    `).join('');
                     return;
                 }
                 preview.classList.remove('hidden');
-                rowsEl.innerHTML = passengers.map(p => `
-                    <tr class="border-b border-white/5">
-                        <td class="p-2 text-xs">${p.status || '-'}</td>
-                        <td class="p-2">${p.name || '-'}</td>
-                        <td class="p-2 text-xs">${p.pnr || '-'}</td>
+                if (countEl) countEl.textContent = `(${passengers.length} penumpang)`;
+                rowsEl.innerHTML = passengers.map((p, i) => `
+                    <tr class="border-b border-white/5 hover:bg-white/5">
+                        <td class="p-2 text-xs text-gray-500">${i + 1}</td>
+                        <td class="p-2 font-medium">${p.name || '-'}</td>
                         <td class="p-2 text-xs">${p.seat_no || '-'}</td>
-                        <td class="p-2 text-xs">${p.flight_no || '-'}</td>
+                        <td class="p-2 text-xs">${p.pnr || '-'}</td>
+                        <td class="p-2 text-xs">${p.status || '-'}</td>
                     </tr>
                 `).join('');
             } catch (e) {
@@ -2534,6 +2570,67 @@
         function exportManifestPassengers() {
             if (!selectedManifestId) return;
             window.location.href = `/api/manifests/${selectedManifestId}/passengers/export`;
+        }
+
+        async function ingestSampleManifests() {
+            try {
+                showToast('Memproses file sample...');
+                const res = await fetch('/api/manifests/ingest-samples', { method: 'POST' });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    const data = result.data || [];
+                    const ingested = data.filter(d => d.status === 'ingested');
+                    showToast(`${ingested.length} manifest baru diproses, ${data.length - ingested.length} sudah ada`);
+                    loadManifestList();
+                } else {
+                    showToast(result.message || 'Gagal', 'error');
+                }
+            } catch (e) {
+                console.error('Ingest samples error:', e);
+                showToast('Gagal memproses sample', 'error');
+            }
+        }
+
+        async function uploadManifestFile(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                showToast('Mengupload ' + file.name + '...');
+                const res = await fetch('/api/manifests/upload', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    showToast('File berhasil diupload');
+                    loadManifestList();
+                    if (result.data?._id) selectManifest(result.data._id);
+                } else {
+                    showToast(result.message || 'Gagal upload', 'error');
+                }
+            } catch (e) {
+                console.error('Upload error:', e);
+                showToast('Gagal upload file', 'error');
+            }
+            input.value = '';
+        }
+
+        async function resyncManifest() {
+            if (!selectedManifestId) return;
+            try {
+                showToast('Re-sync manifest...');
+                const res = await fetch(`/api/manifests/${selectedManifestId}/resync`, { method: 'POST' });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    showToast(`Re-sync berhasil: ${result.total} penumpang`);
+                    loadManifestList();
+                    loadManifestDetail();
+                } else {
+                    showToast(result.message || 'Gagal re-sync', 'error');
+                }
+            } catch (e) {
+                console.error('Resync error:', e);
+                showToast('Gagal re-sync manifest', 'error');
+            }
         }
         loadAllKurs();
         loadLatest();
