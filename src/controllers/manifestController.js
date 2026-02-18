@@ -5,6 +5,7 @@ const ManifestPassenger = require('../models/ManifestPassenger');
 const { ingestManifest } = require('../services/manifestIngestService');
 const { parseManifestText, parseManifestAuto, buildManifestSummary, parsePassengerLine } = require('../services/manifestService');
 const { parseApisText, findApisFile } = require('../services/apisService');
+const Watchlist = require('../models/Watchlist');
 
 async function listManifests(req, res) {
   try {
@@ -168,9 +169,44 @@ async function syncManifestPassengers(req, res) {
       await ManifestPassenger.insertMany(docs);
     }
 
+    // ── Cek watchlist: apakah ada paspor yang masuk daftar pantau ──────────
+    let watchlistHits = [];
+    const docNumbers = [...new Set(docs.map(d => d.doc_number).filter(Boolean))];
+    if (docNumbers.length) {
+      const watchlistMatches = await Watchlist.find({
+        doc_number: { $in: docNumbers.map(n => n.toUpperCase()) },
+        is_active: true
+      });
+      if (watchlistMatches.length) {
+        watchlistHits = watchlistMatches.map(w => ({
+          doc_number: w.doc_number,
+          name: w.name,
+          priority: w.priority,
+          reason: w.reason
+        }));
+        // Update hit_count dan last_hit di watchlist
+        for (const w of watchlistMatches) {
+          const paxHit = docs.find(d => d.doc_number && d.doc_number.toUpperCase() === w.doc_number);
+          await Watchlist.updateOne({ _id: w._id }, {
+            $inc: { hit_count: 1 },
+            $set: {
+              last_hit_flight: paxHit?.flight_number || manifest.flight_number,
+              last_hit_date: paxHit?.flight_date || manifest.flight_date
+            }
+          });
+        }
+      }
+    }
+
     manifest.status = 'synced';
     await manifest.save();
-    res.json({ status: 'ok', message: 'Manifest berhasil disinkronkan', total: docs.length });
+    res.json({
+      status: 'ok',
+      message: 'Manifest berhasil disinkronkan',
+      total: docs.length,
+      watchlist_hits: watchlistHits.length,
+      watchlist_alerts: watchlistHits
+    });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }

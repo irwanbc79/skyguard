@@ -11,6 +11,8 @@
 
 const ManifestPassenger = require('../models/ManifestPassenger');
 const Manifest = require('../models/Manifest');
+const Passenger = require('../models/Passenger');
+const Watchlist = require('../models/Watchlist');
 const { escapeRegex } = require('../utils/helpers');
 
 // ─── Utilitas ─────────────────────────────────────────────────────────────────
@@ -51,20 +53,35 @@ async function searchByPassport(req, res) {
       return res.status(400).json({ status: 'error', message: 'Nomor dokumen minimal 3 karakter' });
     }
 
-    const query = { doc_number: new RegExp(escapeRegex(doc_number.trim()), 'i') };
-    const records = await ManifestPassenger.find(query)
-      .populate('manifest_id', 'origin destination carrier filename')
-      .sort({ flight_date: -1 })
-      .limit(500);
+    const docNum = doc_number.trim().toUpperCase();
+    const query = { doc_number: new RegExp(escapeRegex(docNum), 'i') };
 
-    if (!records.length) {
+    // Jalankan semua query secara paralel
+    const [records, ceisaRecords, watchlistEntry] = await Promise.all([
+      ManifestPassenger.find(query)
+        .populate('manifest_id', 'origin destination carrier filename')
+        .sort({ flight_date: -1 })
+        .limit(500),
+      // Cross-reference dengan data CEISA Bea Cukai
+      Passenger.find({ paspor: new RegExp(escapeRegex(docNum), 'i') })
+        .sort({ tanggal_dokumen: -1 })
+        .limit(100),
+      // Cek status watchlist
+      Watchlist.findOne({ doc_number: docNum, is_active: true })
+    ]);
+
+    if (!records.length && !ceisaRecords.length) {
       return res.json({ status: 'ok', data: null, message: 'Data tidak ditemukan' });
     }
 
-    // Identitas utama dari data terlengkap
+    // Identitas utama dari data APIS (terlengkap)
     const withApis = records.find(r => r.apis_synced) || records[0];
+
     const passport_numbers = [...new Set(records.map(r => r.doc_number).filter(Boolean))];
-    const names_found = [...new Set(records.map(r => [r.full_name_apis, r.name]).flat().filter(Boolean))];
+    const names_found = [...new Set([
+      ...records.map(r => [r.full_name_apis, r.name]).flat(),
+      ...ceisaRecords.map(r => r.nama_lengkap)
+    ].filter(Boolean))];
 
     const flights = records.map(r => ({
       flight_id: r._id,
@@ -88,34 +105,76 @@ async function searchByPassport(req, res) {
       apis_synced: r.apis_synced
     }));
 
+    // Ringkasan data CEISA Bea Cukai
+    const devices_used = [...new Set(
+      ceisaRecords.flatMap(r => [r.hkt1, r.hkt2]).filter(Boolean)
+    )];
+    const billing_count = ceisaRecords.filter(r => r.status_penelitian === 'BILLING').length;
+    const ceisa_summary = {
+      total_records: ceisaRecords.length,
+      billing_count,
+      pembebasan_count: ceisaRecords.filter(r => r.status_penelitian === 'PEMBEBASAN').length,
+      unique_devices: devices_used.length,
+      devices_used,
+      officers: [...new Set(ceisaRecords.map(r => r.nama_petugas).filter(Boolean))],
+      first_arrival_ceisa: ceisaRecords.length ? formatDate(ceisaRecords[ceisaRecords.length - 1]?.tanggal_dokumen) : null,
+      last_arrival_ceisa: ceisaRecords.length ? formatDate(ceisaRecords[0]?.tanggal_dokumen) : null,
+      records: ceisaRecords.map(r => ({
+        qr_code: r.qr_code,
+        tanggal_dokumen: formatDate(r.tanggal_dokumen),
+        waktu_rekam: formatDate(r.waktu_rekam),
+        hkt1: r.hkt1,
+        hkt2: r.hkt2,
+        status: r.status,
+        status_penelitian: r.status_penelitian,
+        nama_petugas: r.nama_petugas,
+        nip_petugas: r.nip_petugas
+      }))
+    };
+
     const profile = {
       // Identitas
-      doc_number: withApis.doc_number,
-      doc_type: withApis.doc_type,
-      nationality: withApis.nationality,
-      residence: withApis.residence,
-      country_of_issue: withApis.country_of_issue,
-      gender: withApis.gender,
-      dob: formatDate(withApis.dob),
-      age: calculateAge(withApis.dob),
-      doc_expiry: formatDate(withApis.doc_expiry),
-      doc_expired: isExpired(withApis.doc_expiry),
+      doc_number: withApis?.doc_number || docNum,
+      doc_type: withApis?.doc_type || 'P',
+      nationality: withApis?.nationality || null,
+      residence: withApis?.residence || null,
+      country_of_issue: withApis?.country_of_issue || null,
+      gender: withApis?.gender || null,
+      dob: formatDate(withApis?.dob),
+      age: calculateAge(withApis?.dob),
+      doc_expiry: formatDate(withApis?.doc_expiry),
+      doc_expired: isExpired(withApis?.doc_expiry),
+
+      // Status Watchlist
+      watchlist: watchlistEntry ? {
+        is_watched: true,
+        priority: watchlistEntry.priority,
+        reason: watchlistEntry.reason,
+        notes: watchlistEntry.notes,
+        case_number: watchlistEntry.case_number,
+        added_by: watchlistEntry.added_by,
+        added_at: formatDate(watchlistEntry.createdAt),
+        hit_count: watchlistEntry.hit_count
+      } : { is_watched: false },
 
       // Intelijen lintas penerbangan
       names_found,
-      passport_numbers,         // >1 = kemungkinan multi-paspor
+      passport_numbers,
       multiple_passports: passport_numbers.length > 1,
       total_flights: flights.length,
       no_show_count: flights.filter(f => f.status === 'no_show').length,
       risk_level: riskLevel(records),
 
-      // Riwayat penerbangan
+      // Riwayat penerbangan (dari manifest)
       flights,
+
+      // Data CEISA Bea Cukai (cross-reference)
+      ceisa: ceisa_summary,
 
       // Statistik tambahan
       routes: [...new Set(flights.map(f => `${f.origin || '?'} → ${f.destination || '?'}`))],
-      first_seen: formatDate(Math.min(...records.map(r => new Date(r.flight_date || 0)))),
-      last_seen: formatDate(Math.max(...records.map(r => new Date(r.flight_date || 0))))
+      first_seen: records.length ? formatDate(Math.min(...records.map(r => new Date(r.flight_date || 0)))) : null,
+      last_seen: records.length ? formatDate(Math.max(...records.map(r => new Date(r.flight_date || 0)))) : null
     };
 
     res.json({ status: 'ok', data: profile });
@@ -439,10 +498,187 @@ async function getFlightIntelligence(req, res) {
   }
 }
 
+// ─── 6. Watchlist CRUD ───────────────────────────────────────────────────────
+
+async function getWatchlist(req, res) {
+  try {
+    const { active_only = 'true', priority } = req.query;
+    const filter = {};
+    if (active_only !== 'false') filter.is_active = true;
+    if (priority) filter.priority = priority.toUpperCase();
+
+    const entries = await Watchlist.find(filter).sort({ priority: 1, createdAt: -1 });
+    res.json({ status: 'ok', total: entries.length, data: entries });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+async function addToWatchlist(req, res) {
+  try {
+    const { doc_number, reason, priority = 'MEDIUM', notes, case_number, added_by, name, nationality } = req.body;
+    if (!doc_number || !reason || !added_by) {
+      return res.status(400).json({ status: 'error', message: 'doc_number, reason, dan added_by wajib diisi' });
+    }
+
+    const docNum = doc_number.trim().toUpperCase();
+
+    // Cek apakah sudah ada
+    const existing = await Watchlist.findOne({ doc_number: docNum });
+    if (existing) {
+      if (existing.is_active) {
+        return res.status(409).json({ status: 'error', message: 'Nomor paspor sudah ada di watchlist' });
+      }
+      // Re-aktifkan jika pernah dinonaktifkan
+      existing.is_active = true;
+      existing.reason = reason;
+      existing.priority = priority;
+      existing.notes = notes || existing.notes;
+      existing.case_number = case_number || existing.case_number;
+      existing.added_by = added_by;
+      if (name) existing.name = name;
+      if (nationality) existing.nationality = nationality;
+      await existing.save();
+      return res.json({ status: 'ok', message: 'Watchlist diaktifkan kembali', data: existing });
+    }
+
+    // Coba ambil data identitas dari APIS jika belum diisi
+    let resolvedName = name;
+    let resolvedNat = nationality;
+    if (!resolvedName || !resolvedNat) {
+      const apisPax = await ManifestPassenger.findOne({ doc_number: docNum, apis_synced: true });
+      if (apisPax) {
+        resolvedName = resolvedName || apisPax.full_name_apis || apisPax.name;
+        resolvedNat = resolvedNat || apisPax.nationality;
+      }
+    }
+
+    const entry = await Watchlist.create({
+      doc_number: docNum,
+      reason,
+      priority,
+      notes,
+      case_number,
+      added_by,
+      name: resolvedName,
+      nationality: resolvedNat
+    });
+
+    res.json({ status: 'ok', message: 'Ditambahkan ke watchlist', data: entry });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+async function updateWatchlist(req, res) {
+  try {
+    const { id } = req.params;
+    const { reason, priority, notes, case_number, is_active } = req.body;
+    const update = {};
+    if (reason !== undefined) update.reason = reason;
+    if (priority !== undefined) update.priority = priority;
+    if (notes !== undefined) update.notes = notes;
+    if (case_number !== undefined) update.case_number = case_number;
+    if (is_active !== undefined) update.is_active = is_active;
+
+    const entry = await Watchlist.findByIdAndUpdate(id, update, { new: true });
+    if (!entry) return res.status(404).json({ status: 'error', message: 'Data tidak ditemukan' });
+    res.json({ status: 'ok', data: entry });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+async function removeFromWatchlist(req, res) {
+  try {
+    const { id } = req.params;
+    const entry = await Watchlist.findByIdAndUpdate(id, { is_active: false }, { new: true });
+    if (!entry) return res.status(404).json({ status: 'error', message: 'Data tidak ditemukan' });
+    res.json({ status: 'ok', message: 'Dihapus dari watchlist aktif', data: entry });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+async function checkWatchlistHits(req, res) {
+  try {
+    // Cari paspor di watchlist yang muncul di manifest dalam N hari terakhir
+    const days = parseInt(req.query.days) || 30;
+    const since = new Date(); since.setDate(since.getDate() - days);
+
+    const activeWatchlist = await Watchlist.find({ is_active: true }).select('doc_number');
+    const watchedNums = activeWatchlist.map(w => w.doc_number);
+
+    if (!watchedNums.length) return res.json({ status: 'ok', data: [], total: 0 });
+
+    const hits = await ManifestPassenger.find({
+      doc_number: { $in: watchedNums },
+      flight_date: { $gte: since }
+    })
+      .populate('manifest_id', 'origin destination carrier')
+      .sort({ flight_date: -1 });
+
+    // Kelompokkan per paspor + update hit_count
+    const grouped = {};
+    for (const hit of hits) {
+      const num = hit.doc_number;
+      if (!grouped[num]) grouped[num] = [];
+      grouped[num].push(hit);
+    }
+
+    // Update hit_count di watchlist
+    for (const [docNum, flightHits] of Object.entries(grouped)) {
+      const latest = flightHits[0];
+      await Watchlist.updateOne({ doc_number: docNum }, {
+        $inc: { hit_count: 0 }, // reset-free, just touch
+        $set: {
+          last_hit_flight: latest.flight_number,
+          last_hit_date: latest.flight_date
+        }
+      });
+    }
+
+    const result = await Promise.all(
+      Object.entries(grouped).map(async ([docNum, flightHits]) => {
+        const wl = await Watchlist.findOne({ doc_number: docNum });
+        return {
+          watchlist: {
+            id: wl._id,
+            doc_number: docNum,
+            name: wl.name,
+            priority: wl.priority,
+            reason: wl.reason,
+            added_by: wl.added_by
+          },
+          hits: flightHits.map(h => ({
+            flight_number: h.flight_number,
+            flight_date: formatDate(h.flight_date),
+            seat_no: h.seat_no,
+            pnr: h.pnr,
+            status: h.status,
+            name_on_manifest: h.full_name_apis || h.name,
+            origin: h.manifest_id?.origin,
+            destination: h.manifest_id?.destination
+          }))
+        };
+      })
+    );
+
+    res.json({ status: 'ok', total: result.length, data: result });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
 module.exports = {
   searchByPassport,
   searchByName,
   advancedSearch,
   getIntelStats,
-  getFlightIntelligence
+  getFlightIntelligence,
+  getWatchlist,
+  addToWatchlist,
+  updateWatchlist,
+  removeFromWatchlist,
+  checkWatchlistHits
 };

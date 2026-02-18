@@ -543,6 +543,8 @@
                         </div>
                     </div>
                     <div id="manifestDetail" class="text-gray-400">Pilih manifest dari daftar untuk melihat detail.</div>
+                    <!-- Watchlist alerts setelah sync -->
+                    <div id="manifest-watchlist-alerts" class="mt-3 space-y-2"></div>
                     <div id="manifestPassengerPreview" class="mt-6 hidden">
                         <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
                             <h4 class="text-sm font-semibold" id="manifestPassengerPreviewTitle">Daftar Penumpang</h4>
@@ -578,6 +580,9 @@
                 </button>
                 <button onclick="intelTab('statistik')" id="inteltab-statistik" class="px-4 py-2 rounded-xl text-sm font-semibold bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-all">
                     <i class="fas fa-chart-bar mr-1"></i> Statistik Global
+                </button>
+                <button onclick="intelTab('watchlist')" id="inteltab-watchlist" class="px-4 py-2 rounded-xl text-sm font-semibold bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-all">
+                    <i class="fas fa-eye mr-1"></i> Watchlist <span id="watchlist-badge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-xs bg-red-500 text-white">0</span>
                 </button>
             </div>
 
@@ -648,6 +653,60 @@
                         <i class="fas fa-spinner fa-spin text-2xl mb-2"></i><br>Memuat statistik...
                     </div>
                 </div>
+            </div>
+
+            <!-- TAB: Watchlist -->
+            <div id="intel-watchlist" class="intel-tab-content hidden">
+                <!-- Form Tambah Watchlist -->
+                <div class="glass-card-solid rounded-2xl p-6 mb-4">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-plus-circle text-red-400"></i> Tambah ke Daftar Pantau
+                    </h3>
+                    <div class="grid md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nomor Paspor *</label>
+                            <input id="wlPassport" type="text" placeholder="A72050530" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm uppercase focus:outline-none focus:border-red-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Alasan *</label>
+                            <input id="wlReason" type="text" placeholder="Alasan pemantauan..." class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Prioritas</label>
+                            <select id="wlPriority" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400">
+                                <option value="HIGH">HIGH – Prioritas Tinggi</option>
+                                <option value="MEDIUM" selected>MEDIUM – Perlu Pantau</option>
+                                <option value="LOW">LOW – Informasi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nomor Kasus (opsional)</label>
+                            <input id="wlCase" type="text" placeholder="BCK-2026-001" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Catatan Tambahan</label>
+                            <input id="wlNotes" type="text" placeholder="Catatan investigasi..." class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nama Petugas *</label>
+                            <input id="wlOfficer" type="text" placeholder="Nama / NIP petugas" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400">
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="wlAdd()" class="px-6 py-2 rounded-xl text-sm font-semibold bg-red-500 hover:bg-red-600 transition-all">
+                            <i class="fas fa-plus mr-1"></i> Tambah ke Watchlist
+                        </button>
+                        <button onclick="wlCheckHits()" class="px-6 py-2 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 transition-all">
+                            <i class="fas fa-radar mr-1"></i> Cek Hit Manifest (30 hari)
+                        </button>
+                    </div>
+                </div>
+                <!-- Daftar Watchlist Aktif -->
+                <div id="wl-list" class="space-y-3">
+                    <div class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin"></i> Memuat...</div>
+                </div>
+                <!-- Area Hits -->
+                <div id="wl-hits" class="mt-4"></div>
             </div>
         </div>
 
@@ -2615,7 +2674,25 @@
                 const res = await fetch(`/api/manifests/${selectedManifestId}/sync`, { method: 'POST' });
                 const result = await res.json();
                 if (result.status === 'ok') {
-                    showToast(`Sync berhasil — ${result.total ?? ''} penumpang`);
+                    if (result.watchlist_hits > 0) {
+                        const names = result.watchlist_alerts.map(w => `${w.doc_number} (${w.priority})`).join(', ');
+                        showToast(`⚠ WATCHLIST HIT: ${result.watchlist_hits} paspor ditemukan! ${names}`, 'error');
+                        // Tampilkan detail alert di panel
+                        setTimeout(() => {
+                            const alertHtml = result.watchlist_alerts.map(w =>
+                                `<div class="bg-red-900/40 border border-red-500/50 rounded-xl p-3 flex justify-between items-center">
+                                    <div><div class="font-bold text-red-300"><i class="fas fa-eye mr-1"></i>WATCHLIST HIT</div>
+                                    <div class="text-sm">Paspor: <span class="font-mono text-red-200">${w.doc_number}</span>${w.name ? ' — ' + w.name : ''}</div>
+                                    <div class="text-xs text-red-400">${w.priority} | ${w.reason}</div></div>
+                                    <button onclick="document.getElementById('intelPassport').value='${w.doc_number}';setMainMenu('intelijen');setTimeout(intelSearchPassport,200)" class="px-3 py-1 rounded-lg text-xs bg-red-500 hover:bg-red-600 ml-3">Lihat Profil</button>
+                                </div>`
+                            ).join('');
+                            const panel = document.getElementById('manifest-watchlist-alerts');
+                            if (panel) panel.innerHTML = alertHtml;
+                        }, 500);
+                    } else {
+                        showToast(`Sync berhasil — ${result.total ?? ''} penumpang, tidak ada watchlist hit`);
+                    }
                     await loadManifestDetail();
                     await loadManifestList();
                 } else {
@@ -2756,6 +2833,7 @@
             const activeBtn = document.getElementById('inteltab-' + tab);
             if (activeBtn) activeBtn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition-all';
             if (tab === 'statistik') loadIntelStats();
+            if (tab === 'watchlist') wlLoad();
         }
 
         async function intelSearchPassport() {
@@ -2775,11 +2853,44 @@
         }
 
         function renderPassportProfile(p) {
-            const expiredAlert = p.doc_expired ? '<div class="bg-red-500/20 border border-red-500/30 rounded-xl p-3 mb-4 flex items-center gap-2 text-red-300"><i class="fas fa-exclamation-triangle"></i> <strong>PASPOR KEDALUWARSA</strong> – Dokumen berakhir ' + p.doc_expiry + '</div>' : '';
-            const multiAlert = p.multiple_passports ? '<div class="bg-orange-500/20 border border-orange-500/30 rounded-xl p-3 mb-4 flex items-center gap-2 text-orange-300"><i class="fas fa-exclamation-circle"></i> <strong>MULTI PASPOR TERDETEKSI</strong> – Ditemukan ' + p.passport_numbers.length + ' nomor paspor berbeda: ' + p.passport_numbers.join(', ') + '</div>' : '';
+            const expiredAlert = p.doc_expired ? '<div class="bg-red-500/20 border border-red-500/30 rounded-xl p-3 mb-3 flex items-center gap-2 text-red-300"><i class="fas fa-exclamation-triangle"></i> <strong>PASPOR KEDALUWARSA</strong> – Dokumen berakhir ' + p.doc_expiry + '</div>' : '';
+            const multiAlert = p.multiple_passports ? '<div class="bg-orange-500/20 border border-orange-500/30 rounded-xl p-3 mb-3 flex items-center gap-2 text-orange-300"><i class="fas fa-exclamation-circle"></i> <strong>MULTI PASPOR TERDETEKSI</strong> – Ditemukan ' + p.passport_numbers.length + ' nomor paspor berbeda: ' + p.passport_numbers.join(', ') + '</div>' : '';
+            const watchlistAlert = p.watchlist && p.watchlist.is_watched
+                ? `<div class="bg-red-900/40 border-2 border-red-500/60 rounded-xl p-4 mb-3 flex items-start justify-between gap-3"><div class="flex items-start gap-3"><i class="fas fa-eye text-red-400 text-xl mt-0.5"></i><div><div class="font-bold text-red-300 text-lg">DAFTAR PANTAU (WATCHLIST)</div><div class="text-sm text-red-200 mt-1"><b>Prioritas:</b> ${p.watchlist.priority} | <b>Alasan:</b> ${p.watchlist.reason}</div>${p.watchlist.case_number ? '<div class="text-xs text-red-300 mt-1">No. Kasus: ' + p.watchlist.case_number + '</div>' : ''}${p.watchlist.notes ? '<div class="text-xs text-red-300/70 mt-1 italic">' + p.watchlist.notes + '</div>' : ''}<div class="text-xs text-red-400/60 mt-1">Oleh: ${p.watchlist.added_by} (${p.watchlist.added_at}) | Terdeteksi: ${p.watchlist.hit_count}x</div></div></div><span class="px-3 py-1 rounded-full text-sm font-bold bg-red-500 text-white shrink-0">${p.watchlist.priority}</span></div>`
+                : '';
+            const addWlBtn = p.watchlist && p.watchlist.is_watched ? '' : `<button onclick="wlPrefill('${p.doc_number}','${(p.names_found||[])[0]||''}','${p.nationality||''}')" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all ml-auto"><i class="fas fa-eye mr-1"></i>Tambah ke Watchlist</button>`;
+
+            // Render data CEISA Bea Cukai (cross-reference)
+            const ceisaSection = p.ceisa && p.ceisa.total_records > 0 ? `
+            <div class="glass-card-solid rounded-2xl p-5 mb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="font-bold flex items-center gap-2"><i class="fas fa-stamp text-yellow-400"></i> Data CEISA Bea Cukai (${p.ceisa.total_records} rekaman)</h4>
+                    <div class="flex gap-2 text-xs">
+                        <span class="px-2 py-1 rounded-full bg-green-500/20 text-green-400 font-bold">${p.ceisa.pembebasan_count} Pembebasan</span>
+                        <span class="px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 font-bold">${p.ceisa.billing_count} Billing</span>
+                        <span class="px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 font-bold">${p.ceisa.unique_devices} Devices</span>
+                    </div>
+                </div>
+                ${p.ceisa.devices_used.length ? '<div class="mb-3 text-sm"><span class="text-gray-400">Perangkat pernah dibawa: </span><span class="text-white font-mono">' + p.ceisa.devices_used.join(' | ') + '</span></div>' : ''}
+                <div class="overflow-x-auto"><table class="w-full text-sm">
+                    <thead><tr class="text-xs text-gray-400 border-b border-white/10">
+                        <th class="text-left py-2 pr-3">Tgl Dokumen</th><th class="text-left py-2 pr-3">HKT 1</th><th class="text-left py-2 pr-3">HKT 2</th>
+                        <th class="text-left py-2 pr-3">Status</th><th class="text-left py-2">Petugas</th>
+                    </tr></thead>
+                    <tbody>${p.ceisa.records.map(r => `<tr class="border-b border-white/5 hover:bg-white/5">
+                        <td class="py-2 pr-3 text-gray-300">${r.tanggal_dokumen || '-'}</td>
+                        <td class="py-2 pr-3 text-xs font-mono">${r.hkt1 || '-'}</td>
+                        <td class="py-2 pr-3 text-xs font-mono">${r.hkt2 || '-'}</td>
+                        <td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${r.status_penelitian === 'BILLING' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}">${r.status_penelitian || r.status || '-'}</span></td>
+                        <td class="py-2 text-xs text-gray-400">${r.nama_petugas || '-'}</td>
+                    </tr>`).join('')}
+                    </tbody>
+                </table></div>
+            </div>` : (p.ceisa && p.ceisa.total_records === 0 ? '<div class="glass-card-solid rounded-xl p-4 mb-4 text-sm text-gray-500 flex items-center gap-2"><i class="fas fa-stamp"></i> Tidak ada rekaman CEISA Bea Cukai untuk paspor ini</div>' : '');
 
             return `
-            ${expiredAlert}${multiAlert}
+            ${watchlistAlert}${expiredAlert}${multiAlert}
+            <div class="flex justify-end mb-2">${addWlBtn}</div>
             <div class="grid md:grid-cols-3 gap-4 mb-4">
                 <div class="glass-card-solid rounded-2xl p-5">
                     <div class="flex items-center gap-3 mb-3">
@@ -2861,7 +2972,8 @@
                         </tbody>
                     </table>
                 </div>
-            </div>`;
+            </div>
+            ${ceisaSection}`;
         }
 
         async function intelSearchName() {
@@ -3116,6 +3228,134 @@
                 el.innerHTML = '<div class="text-red-400 p-4">Gagal memuat statistik: ' + e.message + '</div>';
             }
         }
+
+        // ==================== WATCHLIST FUNCTIONS ====================
+
+        const wlPriorityBadge = p => {
+            const cfg = { HIGH: 'bg-red-500/20 text-red-400', MEDIUM: 'bg-yellow-500/20 text-yellow-400', LOW: 'bg-blue-500/20 text-blue-400' };
+            return `<span class="px-2 py-0.5 rounded-full text-xs font-bold ${cfg[p] || cfg.LOW}">${p}</span>`;
+        };
+
+        async function wlLoad() {
+            const el = document.getElementById('wl-list');
+            if (!el) return;
+            el.innerHTML = '<div class="text-center py-4 text-gray-500"><i class="fas fa-spinner fa-spin"></i></div>';
+            try {
+                const res = await fetch('/api/intelligence/watchlist');
+                const data = await res.json();
+                // Update badge count
+                const badge = document.getElementById('watchlist-badge');
+                if (badge) { badge.textContent = data.total; badge.classList.toggle('hidden', data.total === 0); }
+                if (!data.data || !data.data.length) {
+                    el.innerHTML = '<div class="glass-card-solid rounded-xl p-6 text-center text-gray-400"><i class="fas fa-eye-slash text-2xl mb-2"></i><br>Watchlist kosong</div>';
+                    return;
+                }
+                el.innerHTML = data.data.map(w => `
+                <div class="glass-card-solid rounded-xl p-4 flex items-start justify-between gap-4 ${w.priority === 'HIGH' ? 'border border-red-500/30' : ''}">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            ${wlPriorityBadge(w.priority)}
+                            <span class="font-mono font-bold text-white">${w.doc_number}</span>
+                            ${w.name ? '<span class="text-gray-300">— ' + w.name + '</span>' : ''}
+                            ${w.nationality ? '<span class="text-xs text-gray-400">(' + w.nationality + ')</span>' : ''}
+                        </div>
+                        <div class="text-sm text-gray-300"><i class="fas fa-exclamation-circle text-yellow-400 mr-1"></i>${w.reason}</div>
+                        ${w.case_number ? '<div class="text-xs text-gray-500 mt-0.5">No. Kasus: ' + w.case_number + '</div>' : ''}
+                        ${w.notes ? '<div class="text-xs text-gray-500 italic mt-0.5">' + w.notes + '</div>' : ''}
+                        <div class="text-xs text-gray-500 mt-1">Oleh: ${w.added_by} | Hit: <span class="text-purple-400 font-bold">${w.hit_count}</span>x
+                            ${w.last_hit_date ? ' | Terakhir: ' + new Date(w.last_hit_date).toLocaleDateString('id-ID') + ' ' + (w.last_hit_flight || '') : ''}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="document.getElementById('intelPassport').value='${w.doc_number}'; intelTab('cari'); setTimeout(intelSearchPassport,100)" class="px-3 py-1.5 rounded-lg text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-all"><i class="fas fa-search mr-1"></i>Profil</button>
+                        <button onclick="wlRemove('${w._id}')" class="px-3 py-1.5 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"><i class="fas fa-trash mr-1"></i>Hapus</button>
+                    </div>
+                </div>`).join('');
+            } catch(e) { el.innerHTML = '<div class="text-red-400 p-4">Error: ' + e.message + '</div>'; }
+        }
+
+        async function wlAdd() {
+            const passport = document.getElementById('wlPassport').value.trim().toUpperCase();
+            const reason = document.getElementById('wlReason').value.trim();
+            const priority = document.getElementById('wlPriority').value;
+            const caseNum = document.getElementById('wlCase').value.trim();
+            const notes = document.getElementById('wlNotes').value.trim();
+            const officer = document.getElementById('wlOfficer').value.trim();
+            if (!passport || !reason || !officer) return showToast('Paspor, alasan, dan nama petugas wajib diisi', 'warning');
+            try {
+                const res = await fetch('/api/intelligence/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ doc_number: passport, reason, priority, notes: notes || undefined, case_number: caseNum || undefined, added_by: officer })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast('Berhasil ditambahkan ke watchlist');
+                    ['wlPassport','wlReason','wlCase','wlNotes','wlOfficer'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+                    wlLoad();
+                } else {
+                    showToast(data.message || 'Gagal menambahkan', 'error');
+                }
+            } catch(e) { showToast('Error: ' + e.message, 'error'); }
+        }
+
+        async function wlRemove(id) {
+            if (!confirm('Hapus paspor ini dari watchlist?')) return;
+            try {
+                const res = await fetch(`/api/intelligence/watchlist/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'ok') { showToast('Dihapus dari watchlist'); wlLoad(); }
+                else showToast(data.message || 'Gagal', 'error');
+            } catch(e) { showToast('Error: ' + e.message, 'error'); }
+        }
+
+        function wlPrefill(docNum, name, nat) {
+            intelTab('watchlist');
+            document.getElementById('wlPassport').value = docNum;
+            document.getElementById('wlPassport').focus();
+            showToast('Form watchlist sudah diisi, lengkapi alasan dan nama petugas');
+        }
+
+        async function wlCheckHits() {
+            const el = document.getElementById('wl-hits');
+            el.innerHTML = '<div class="text-center py-4 text-gray-500"><i class="fas fa-spinner fa-spin"></i> Memeriksa hit manifest 30 hari terakhir...</div>';
+            try {
+                const res = await fetch('/api/intelligence/watchlist/hits?days=30');
+                const data = await res.json();
+                if (!data.data || !data.data.length) {
+                    el.innerHTML = '<div class="glass-card-solid rounded-xl p-4 text-center text-gray-400 mt-3"><i class="fas fa-check-circle text-green-400 mr-2"></i>Tidak ada hit watchlist dalam 30 hari terakhir</div>';
+                    return;
+                }
+                el.innerHTML = `<div class="glass-card-solid rounded-2xl p-5 mt-3">
+                    <h4 class="font-bold mb-4 text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-triangle"></i>${data.total} Watchlist Hit (30 hari terakhir)</h4>
+                    <div class="space-y-4">
+                    ${data.data.map(h => `<div class="border border-red-500/30 rounded-xl p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            ${wlPriorityBadge(h.watchlist.priority)}
+                            <span class="font-mono font-bold text-red-300">${h.watchlist.doc_number}</span>
+                            ${h.watchlist.name ? '— ' + h.watchlist.name : ''}
+                        </div>
+                        <div class="text-sm text-gray-400 mb-3">${h.watchlist.reason} | Ditambahkan oleh: ${h.watchlist.added_by}</div>
+                        <div class="space-y-1">
+                        ${h.hits.map(f => `<div class="flex justify-between text-sm bg-white/5 rounded-lg px-3 py-2">
+                            <span class="font-bold text-blue-300">${f.flight_number}</span>
+                            <span>${f.flight_date}</span>
+                            <span>${f.origin || '?'} → ${f.destination || '?'}</span>
+                            <span class="font-mono">Seat ${f.seat_no || '-'}</span>
+                            <span>${statusBadge(f.status)}</span>
+                        </div>`).join('')}
+                        </div>
+                    </div>`).join('')}
+                    </div>
+                </div>`;
+            } catch(e) { el.innerHTML = '<div class="text-red-400 p-4">Error: ' + e.message + '</div>'; }
+        }
+
+        // Load watchlist badge count saat halaman dimuat
+        fetch('/api/intelligence/watchlist').then(r => r.json()).then(d => {
+            const badge = document.getElementById('watchlist-badge');
+            if (badge && d.total > 0) { badge.textContent = d.total; badge.classList.remove('hidden'); }
+        }).catch(() => {});
 
         loadAllKurs();
         loadLatest();

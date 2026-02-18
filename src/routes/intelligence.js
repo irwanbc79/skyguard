@@ -2,19 +2,18 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/intelligenceController');
 
-// Cari riwayat penerbangan berdasarkan nomor paspor
-router.get('/passport/:doc_number', ctrl.searchByPassport);
+// ── Pencarian Intelijen ───────────────────────────────────────────────────────
+router.get('/passport/:doc_number', ctrl.searchByPassport);   // Profil lengkap + CEISA
+router.get('/search/name', ctrl.searchByName);                 // Cari by nama
+router.get('/search', ctrl.advancedSearch);                    // Multi-kriteria
+router.get('/stats', ctrl.getIntelStats);                      // Statistik global
+router.get('/flight', ctrl.getFlightIntelligence);             // Profil satu penerbangan
 
-// Cari berdasarkan nama
-router.get('/search/name', ctrl.searchByName);
-
-// Pencarian lanjutan multi-kriteria
-router.get('/search', ctrl.advancedSearch);
-
-// Statistik intelijen global
-router.get('/stats', ctrl.getIntelStats);
-
-// Profil intelijen satu penerbangan
-router.get('/flight', ctrl.getFlightIntelligence);
+// ── Watchlist Paspor ─────────────────────────────────────────────────────────
+router.get('/watchlist', ctrl.getWatchlist);                   // Daftar watchlist
+router.post('/watchlist', ctrl.addToWatchlist);                // Tambah ke watchlist
+router.put('/watchlist/:id', ctrl.updateWatchlist);            // Edit watchlist
+router.delete('/watchlist/:id', ctrl.removeFromWatchlist);     // Nonaktifkan
+router.get('/watchlist/hits', ctrl.checkWatchlistHits);        // Cek manifest hits
 
 module.exports = router;
