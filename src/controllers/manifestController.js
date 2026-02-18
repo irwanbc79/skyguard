@@ -61,9 +61,6 @@ async function syncManifestPassengers(req, res) {
   try {
     const manifest = await Manifest.findById(req.params.id);
     if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
-    if (manifest.status === 'synced') {
-      return res.json({ status: 'ok', message: 'Manifest sudah disinkronkan' });
-    }
     const segments = manifest.parsed_fields?.segments || [];
     if (!segments.length) {
       return res.status(400).json({ status: 'error', message: 'Manifest belum diparse atau tidak ada penumpang' });

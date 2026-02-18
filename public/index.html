@@ -541,7 +541,7 @@
                     </div>
                     <div id="manifestDetail" class="text-gray-400">Pilih manifest dari daftar untuk melihat detail.</div>
                     <div id="manifestPassengerPreview" class="mt-6 hidden">
-                        <h4 class="text-sm font-semibold mb-2">Preview Penumpang</h4>
+                        <h4 class="text-sm font-semibold mb-2" id="manifestPassengerPreviewTitle">Preview Penumpang</h4>
                         <div class="overflow-auto rounded-xl border border-white/10">
                             <table class="w-full text-sm">
                                 <thead class="bg-white/5 text-gray-300">
@@ -606,6 +606,7 @@
         let currentSubMenu = '';
         let selectedDevices = { 1: null, 2: null };
         let selectedManifestId = null;
+        let currentManifest = null;
 
         // ==================== MENU CONFIG ====================
         const menuConfig = {
@@ -2432,32 +2433,54 @@
                     return;
                 }
                 const manifest = result.data;
+                currentManifest = manifest;
                 const detail = document.getElementById('manifestDetail');
                 const totals = manifest.parsed_fields?.segments?.[0]?.totals || {};
+                const segments = manifest.parsed_fields?.segments || [];
+                const totalPax = segments.reduce((acc, s) => acc + (s.passengers?.length || 0) + (s.no_shows?.length || 0), 0);
+                const statusColors = {
+                    received: 'bg-gray-500/30 text-gray-300',
+                    parsed: 'bg-blue-500/30 text-blue-300',
+                    needs_review: 'bg-yellow-500/30 text-yellow-300',
+                    approved: 'bg-green-500/30 text-green-300',
+                    rejected: 'bg-red-500/30 text-red-300',
+                    synced: 'bg-purple-500/30 text-purple-300',
+                    failed: 'bg-red-700/30 text-red-400'
+                };
+                const statusClass = statusColors[manifest.status] || 'bg-white/10 text-white';
                 detail.innerHTML = `
                     <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <p class="text-xs text-gray-400">Flight</p>
-                            <p class="text-lg font-semibold">${manifest.flight_number || '-'}</p>
-                            <p class="text-xs text-gray-400 mt-2">Route</p>
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="text-lg font-semibold">${manifest.flight_number || manifest.filename || '-'}</p>
+                                <span class="text-xs px-2 py-1 rounded-full ${statusClass}">${manifest.status || 'received'}</span>
+                            </div>
+                            <p class="text-xs text-gray-400">Route</p>
                             <p>${manifest.origin || '-'} &rarr; ${manifest.destination || '-'}</p>
                             <p class="text-xs text-gray-400 mt-2">Carrier</p>
                             <p>${manifest.carrier || '-'}</p>
+                            <p class="text-xs text-gray-400 mt-2">Source</p>
+                            <p class="text-xs">${manifest.source || '-'} &bull; ${manifest.uploaded_by || '-'}</p>
                         </div>
                         <div class="bg-white/5 rounded-xl p-4">
-                            <p class="text-xs text-gray-400">Totals</p>
-                            <div class="grid grid-cols-2 gap-2 text-sm mt-2">
-                                <div>Manifested: <strong>${totals.total_manifested ?? '-'}</strong></div>
+                            <p class="text-xs text-gray-400 mb-2">Totals</p>
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div>Manifested: <strong>${totals.total_manifested ?? (totalPax || '-')}</strong></div>
                                 <div>Checked-in: <strong>${totals.total_checked_in ?? '-'}</strong></div>
                                 <div>No Shows: <strong>${totals.no_shows ?? '-'}</strong></div>
                                 <div>Bags: <strong>${totals.total_bag_checked ?? '-'}</strong></div>
                             </div>
+                            ${totalPax > 0 ? `<p class="text-xs text-gray-400 mt-3">${totalPax} penumpang parsed</p>` : ''}
                         </div>
                     </div>
                 `;
                 document.getElementById('manifestApproveBtn').classList.remove('hidden');
                 document.getElementById('manifestRejectBtn').classList.remove('hidden');
-                document.getElementById('manifestSyncBtn').classList.remove('hidden');
+                const syncBtn = document.getElementById('manifestSyncBtn');
+                syncBtn.classList.remove('hidden');
+                syncBtn.innerHTML = manifest.status === 'synced'
+                    ? '<i class="fas fa-sync"></i> Re-sync'
+                    : '<i class="fas fa-database"></i> Sync';
                 document.getElementById('manifestExportBtn').classList.remove('hidden');
                 await loadManifestPassengersPreview();
             } catch (e) {
@@ -2476,8 +2499,10 @@
                 });
                 const result = await res.json();
                 if (result.status === 'ok') {
-                    showToast('Status manifest diperbarui');
-                    loadManifestList();
+                    const label = { approved: 'Approved', rejected: 'Rejected', needs_review: 'Perlu review' }[status] || status;
+                    showToast(`Status diperbarui: ${label}`);
+                    await loadManifestDetail();
+                    await loadManifestList();
                 } else {
                     showToast(result.message || 'Gagal update status', 'error');
                 }
@@ -2489,19 +2514,41 @@
 
         async function syncManifest() {
             if (!selectedManifestId) return;
+            const btn = document.getElementById('manifestSyncBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...'; }
             try {
                 const res = await fetch(`/api/manifests/${selectedManifestId}/sync`, { method: 'POST' });
                 const result = await res.json();
                 if (result.status === 'ok') {
-                    showToast('Manifest tersinkronisasi');
-                    loadManifestPassengersPreview();
+                    showToast(`Sync berhasil — ${result.total ?? ''} penumpang`);
+                    await loadManifestDetail();
+                    await loadManifestList();
                 } else {
                     showToast(result.message || 'Gagal sync manifest', 'error');
                 }
             } catch (e) {
                 console.error('Sync manifest error:', e);
                 showToast('Gagal sync manifest', 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-database"></i> Sync'; }
             }
+        }
+
+        function renderPassengerRows(passengers) {
+            return passengers.slice(0, 50).map(p => {
+                const statusBadge = p.status === 'no_show'
+                    ? '<span class="px-1 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300">NO SHOW</span>'
+                    : '<span class="px-1 py-0.5 rounded text-[10px] bg-green-500/20 text-green-300">OK</span>';
+                return `
+                    <tr class="border-b border-white/5 hover:bg-white/5">
+                        <td class="p-2 text-xs">${statusBadge}</td>
+                        <td class="p-2 font-medium">${p.name || '-'}</td>
+                        <td class="p-2 text-xs font-mono">${p.pnr || '-'}</td>
+                        <td class="p-2 text-xs">${p.seat_no || '-'}</td>
+                        <td class="p-2 text-xs">${p.flight_no || p.flight_number || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function loadManifestPassengersPreview() {
@@ -2509,23 +2556,39 @@
             const rowsEl = document.getElementById('manifestPassengerRows');
             if (!preview || !rowsEl || !selectedManifestId) return;
             try {
-                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=20`);
+                // Coba ambil dari ManifestPassenger (sudah di-sync)
+                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=50`);
                 const result = await res.json();
-                const passengers = result.data || [];
-                if (!passengers.length) {
+                let passengers = result.data || [];
+
+                const titleEl = document.getElementById('manifestPassengerPreviewTitle');
+                if (passengers.length > 0) {
+                    // Sudah sync — tampilkan dari DB
+                    if (titleEl) titleEl.textContent = `Daftar Penumpang (${passengers.length} dari DB)`;
+                    preview.classList.remove('hidden');
+                    rowsEl.innerHTML = renderPassengerRows(passengers);
+                    return;
+                }
+
+                // Belum sync — baca langsung dari parsed_fields.segments
+                const segments = currentManifest?.parsed_fields?.segments || [];
+                if (!segments.length) {
                     preview.classList.add('hidden');
                     return;
                 }
+                const parsedPassengers = [];
+                segments.forEach(seg => {
+                    (seg.passengers || []).forEach(p => parsedPassengers.push({ ...p, status: 'checked_in', flight_number: seg.flight_number }));
+                    (seg.no_shows || []).forEach(p => parsedPassengers.push({ ...p, status: 'no_show', flight_number: seg.flight_number }));
+                });
+
+                if (!parsedPassengers.length) {
+                    preview.classList.add('hidden');
+                    return;
+                }
+                if (titleEl) titleEl.textContent = `Preview Penumpang (${parsedPassengers.length} parsed — belum di-sync)`;
                 preview.classList.remove('hidden');
-                rowsEl.innerHTML = passengers.map(p => `
-                    <tr class="border-b border-white/5">
-                        <td class="p-2 text-xs">${p.status || '-'}</td>
-                        <td class="p-2">${p.name || '-'}</td>
-                        <td class="p-2 text-xs">${p.pnr || '-'}</td>
-                        <td class="p-2 text-xs">${p.seat_no || '-'}</td>
-                        <td class="p-2 text-xs">${p.flight_no || '-'}</td>
-                    </tr>
-                `).join('');
+                rowsEl.innerHTML = renderPassengerRows(parsedPassengers);
             } catch (e) {
                 console.error('Manifest passenger preview error:', e);
             }
