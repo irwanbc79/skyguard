@@ -541,16 +541,19 @@
                     </div>
                     <div id="manifestDetail" class="text-gray-400">Pilih manifest dari daftar untuk melihat detail.</div>
                     <div id="manifestPassengerPreview" class="mt-6 hidden">
-                        <h4 class="text-sm font-semibold mb-2" id="manifestPassengerPreviewTitle">Preview Penumpang</h4>
-                        <div class="overflow-auto rounded-xl border border-white/10">
+                        <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                            <h4 class="text-sm font-semibold" id="manifestPassengerPreviewTitle">Daftar Penumpang</h4>
+                            <input id="passengerSearchInput" type="text" placeholder="Cari nama / PNR / seat..." class="bg-white/10 border border-white/10 rounded-lg px-3 py-1 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-white/30 w-64" oninput="filterPassengerRows()" />
+                        </div>
+                        <div class="overflow-auto rounded-xl border border-white/10" style="max-height:420px">
                             <table class="w-full text-sm">
-                                <thead class="bg-white/5 text-gray-300">
+                                <thead class="bg-white/5 text-gray-300 sticky top-0">
                                     <tr>
-                                        <th class="p-2 text-left">Status</th>
+                                        <th class="p-2 text-left w-8">#</th>
                                         <th class="p-2 text-left">Nama</th>
-                                        <th class="p-2 text-left">PNR</th>
                                         <th class="p-2 text-left">Seat</th>
-                                        <th class="p-2 text-left">Flight</th>
+                                        <th class="p-2 text-left">PNR</th>
+                                        <th class="p-2 text-left">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="manifestPassengerRows"></tbody>
@@ -2534,21 +2537,45 @@
             }
         }
 
+        let allPassengersCache = [];
+
         function renderPassengerRows(passengers) {
-            return passengers.slice(0, 50).map(p => {
+            allPassengersCache = passengers;
+            return buildPassengerRowsHtml(passengers);
+        }
+
+        function buildPassengerRowsHtml(passengers) {
+            if (!passengers.length) return '<tr><td colspan="5" class="p-4 text-center text-gray-400">Tidak ada data penumpang</td></tr>';
+            return passengers.map((p, i) => {
                 const statusBadge = p.status === 'no_show'
                     ? '<span class="px-1 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300">NO SHOW</span>'
                     : '<span class="px-1 py-0.5 rounded text-[10px] bg-green-500/20 text-green-300">OK</span>';
                 return `
                     <tr class="border-b border-white/5 hover:bg-white/5">
-                        <td class="p-2 text-xs">${statusBadge}</td>
+                        <td class="p-2 text-xs text-gray-400">${i + 1}</td>
                         <td class="p-2 font-medium">${p.name || '-'}</td>
-                        <td class="p-2 text-xs font-mono">${p.pnr || '-'}</td>
                         <td class="p-2 text-xs">${p.seat_no || '-'}</td>
-                        <td class="p-2 text-xs">${p.flight_no || p.flight_number || '-'}</td>
+                        <td class="p-2 text-xs font-mono">${p.pnr || '-'}</td>
+                        <td class="p-2 text-xs">${statusBadge}</td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        function filterPassengerRows() {
+            const q = (document.getElementById('passengerSearchInput')?.value || '').toLowerCase().trim();
+            const rowsEl = document.getElementById('manifestPassengerRows');
+            if (!rowsEl) return;
+            if (!q) {
+                rowsEl.innerHTML = buildPassengerRowsHtml(allPassengersCache);
+                return;
+            }
+            const filtered = allPassengersCache.filter(p =>
+                (p.name || '').toLowerCase().includes(q) ||
+                (p.pnr || '').toLowerCase().includes(q) ||
+                (p.seat_no || '').toLowerCase().includes(q)
+            );
+            rowsEl.innerHTML = buildPassengerRowsHtml(filtered);
         }
 
         async function loadManifestPassengersPreview() {
@@ -2557,7 +2584,7 @@
             if (!preview || !rowsEl || !selectedManifestId) return;
             try {
                 // Coba ambil dari ManifestPassenger (sudah di-sync)
-                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=50`);
+                const res = await fetch(`/api/manifests/${selectedManifestId}/passengers?limit=500`);
                 const result = await res.json();
                 let passengers = result.data || [];
 

@@ -2,7 +2,7 @@ const fs = require('fs');
 const Manifest = require('../models/Manifest');
 const ManifestPassenger = require('../models/ManifestPassenger');
 const { ingestManifest } = require('../services/manifestIngestService');
-const { parseManifestText, buildManifestSummary } = require('../services/manifestService');
+const { parseManifestText, buildManifestSummary, parsePassengerLine } = require('../services/manifestService');
 
 async function listManifests(req, res) {
   try {
@@ -91,10 +91,22 @@ async function syncManifestPassengers(req, res) {
       return res.status(400).json({ status: 'error', message: 'Manifest belum diparse atau tidak ada penumpang' });
     }
 
+    // Helper: jika data dari DB lama (nama kosong), coba re-parse dari raw_line
+    const resolvePassenger = (p) => {
+      if (!p.name && p.raw_line) {
+        const reparsed = parsePassengerLine(p.raw_line);
+        if (reparsed && reparsed.name) {
+          return { ...p, ...reparsed };
+        }
+      }
+      return p;
+    };
+
     const docs = [];
     segments.forEach((segment, index) => {
       const passengers = segment.passengers || [];
-      passengers.forEach((p) => {
+      passengers.forEach((raw) => {
+        const p = resolvePassenger(raw);
         docs.push({
           manifest_id: manifest._id,
           flight_number: segment.flight_number,
@@ -114,7 +126,8 @@ async function syncManifestPassengers(req, res) {
         });
       });
       const noShows = segment.no_shows || [];
-      noShows.forEach((p) => {
+      noShows.forEach((raw) => {
+        const p = resolvePassenger(raw);
         docs.push({
           manifest_id: manifest._id,
           flight_number: segment.flight_number,

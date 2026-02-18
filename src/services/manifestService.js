@@ -174,5 +174,6 @@ function buildManifestSummary(segments = []) {
 module.exports = {
   getFileType,
   parseManifestText,
-  buildManifestSummary
+  buildManifestSummary,
+  parsePassengerLine
 };
