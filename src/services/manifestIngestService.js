@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Manifest = require('../models/Manifest');
-const { buildManifestSummary, getFileType, parseManifestText } = require('./manifestService');
+const { buildManifestSummary, getFileType, parseManifestAuto } = require('./manifestService');
 
 const MANIFEST_DIR = path.join(__dirname, '../../uploads/manifests');
 
@@ -31,7 +31,7 @@ async function createManifestFromFile({ buffer, filename, source, uploadedBy, se
 
   if (fileType === 'txt') {
     const text = buffer.toString('utf-8');
-    const segments = parseManifestText(text);
+    const segments = parseManifestAuto(text);
     const summary = buildManifestSummary(segments);
     manifest.parsed_fields = { segments };
     manifest.status = segments.length ? 'parsed' : 'needs_review';

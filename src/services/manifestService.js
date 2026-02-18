@@ -171,9 +171,157 @@ function buildManifestSummary(segments = []) {
   };
 }
 
+// ─── GSPM Lion Air / JT Format Parser ────────────────────────────────────────
+
+const MONTHS_STR = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+
+function parseGspmDate(token) {
+  // Format: 09FEB26
+  const m = String(token).match(/^(\d{2})([A-Za-z]{3})(\d{2})$/);
+  if (!m) return null;
+  const [, dd, mon, yy] = m;
+  const idx = MONTHS_STR[mon.toLowerCase()];
+  if (idx === undefined) return null;
+  return new Date(2000 + Number(yy), idx, Number(dd));
+}
+
+/**
+ * Parse manifest format Lion Air GSPM
+ * Header: "GSPM133/09FEBPEN" atau "FLIGHT/DATE - JT  0133 09FEB26"
+ * Baris penumpang: " 26F  F  ABIDIN LINA MRS                         ID X1356564"
+ *
+ * Returns array of segments (format sama dengan parseManifestText)
+ */
+function parseGspmText(rawText = '') {
+  const lines = rawText.split(/\r?\n/);
+  let flightNumber = null;
+  let flightDate = null;
+  let origin = null;
+  let destination = null;
+  let airline = 'Lion Air';
+  const passengers = [];
+  let inPassengerSection = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Header: "FLIGHT/DATE - JT  0133 09FEB26"
+    const fltMatch = line.match(/FLIGHT\/DATE\s*-\s*([A-Z]{2})\s*(\d+)\s+(\d{2}[A-Za-z]{3}\d{2})/);
+    if (fltMatch) {
+      const carrier = fltMatch[1];
+      const num = fltMatch[2].replace(/^0+/, '');
+      flightNumber = `${carrier} ${num}`;
+      flightDate = parseGspmDate(fltMatch[3]);
+    }
+
+    // Rute origin: "FROM  PENANG-MALAYSIA" → cari kode IATA dari database sederhana
+    if (/^FROM\s+/i.test(line)) {
+      const cityMatch = line.match(/FROM\s+(.+)/i);
+      if (cityMatch) origin = resolveIata(cityMatch[1].trim());
+    }
+
+    // Rute destination setelah FROM (baris berikutnya biasanya kota tujuan)
+    if (/^TO\s+/i.test(line)) {
+      const cityMatch = line.match(/^TO\s+(.+)/i);
+      if (cityMatch) destination = resolveIata(cityMatch[1].trim());
+    }
+
+    // Deteksi awal section penumpang
+    if (/^SEAT\s+GEN\s+NAME/i.test(line)) {
+      inPassengerSection = true;
+      continue;
+    }
+
+    // Setelah header SEAT GEN NAME, parse baris penumpang
+    if (!inPassengerSection) continue;
+    if (!line.trim()) continue;
+
+    // Baris penumpang: " 26F  F  ABIDIN LINA MRS      ID X1356564"
+    // Infant bisa: " 12A  I  HARVEY LOUIS            IDNX4813727"
+    const paxMatch = line.match(
+      /^\s{0,3}(\d{1,3}[A-Z])\s+(M|F|I)\s{2}(.+?)\s{3,}([A-Z]{2,3})\s*([A-Z0-9]+)\s*[¥*#]?\s*$/
+    );
+    if (!paxMatch) continue;
+
+    const [, seat, gender, nameFull, natCode, docNumber] = paxMatch;
+    const cleanName = nameFull
+      .replace(/\b(MR|MRS|MS|MISS|MSTR|DR|PROF)\b\.?/gi, '')
+      .replace(/[¥*#]/g, '')
+      .trim()
+      .toUpperCase();
+
+    const nationality = natCode.length === 3 ? natCode.slice(0, 2) : natCode;
+
+    passengers.push({
+      name: cleanName,
+      pnr: null,
+      fare_class: null,
+      level: null,
+      seq_no: passengers.length + 1,
+      travel_date: null,
+      seat_no: seat,
+      destination_code: null,
+      flight_no: flightNumber,
+      raw_line: line.trim(),
+      row_index: passengers.length + 1,
+      status: 'checked_in',
+      // APIS fields dari manifest GSPM
+      gender,
+      nationality,
+      doc_number: docNumber.trim(),
+      doc_type: 'P',
+      apis_synced: true
+    });
+  }
+
+  if (!passengers.length) return [];
+
+  return [{
+    airline,
+    flight_number: flightNumber,
+    origin,
+    destination,
+    flight_date: flightDate,
+    passengers,
+    no_shows: [],
+    raw_text: rawText
+  }];
+}
+
+/**
+ * Peta sederhana nama kota → kode IATA (untuk GSPM yang tidak mencantumkan IATA)
+ */
+function resolveIata(cityText) {
+  const map = {
+    'PENANG': 'PEN', 'MEDAN': 'KNO', 'KUALA NAMU': 'KNO', 'JAKARTA': 'CGK',
+    'SURABAYA': 'SUB', 'BALI': 'DPS', 'SINGAPORE': 'SIN', 'KUALA LUMPUR': 'KUL',
+    'BANGKOK': 'BKK', 'HONG KONG': 'HKG', 'TOKYO': 'NRT', 'SYDNEY': 'SYD',
+    'TAIPEI': 'TPE', 'GUANGZHOU': 'CAN', 'DUBAI': 'DXB', 'DOHA': 'DOH'
+  };
+  const upper = cityText.toUpperCase();
+  for (const [key, code] of Object.entries(map)) {
+    if (upper.includes(key)) return code;
+  }
+  return null;
+}
+
+/**
+ * Auto-detect format dan parse teks manifest
+ * Mendukung: AirAsia/QZ format dan Lion Air GSPM format
+ */
+function parseManifestAuto(rawText = '') {
+  const firstLines = rawText.slice(0, 500);
+  if (/^GSPM\d+/m.test(firstLines) || (/LION\s+AIR/i.test(firstLines) && /SEAT\s+GEN\s+NAME/i.test(rawText))) {
+    return parseGspmText(rawText);
+  }
+  return parseManifestText(rawText);
+}
+
 module.exports = {
   getFileType,
   parseManifestText,
+  parseGspmText,
+  parseManifestAuto,
   buildManifestSummary,
   parsePassengerLine
 };

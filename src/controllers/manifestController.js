@@ -1,8 +1,10 @@
 const fs = require('fs');
+const path = require('path');
 const Manifest = require('../models/Manifest');
 const ManifestPassenger = require('../models/ManifestPassenger');
 const { ingestManifest } = require('../services/manifestIngestService');
-const { parseManifestText, buildManifestSummary, parsePassengerLine } = require('../services/manifestService');
+const { parseManifestText, parseManifestAuto, buildManifestSummary, parsePassengerLine } = require('../services/manifestService');
+const { parseApisText, findApisFile } = require('../services/apisService');
 
 async function listManifests(req, res) {
   try {
@@ -66,11 +68,12 @@ async function syncManifestPassengers(req, res) {
 
     // Re-parse dari file asli jika tersedia (memastikan parser terbaru digunakan)
     let segments = manifest.parsed_fields?.segments || [];
+    let manifestText = null;
     if (manifest.file_path && manifest.file_type === 'txt') {
       try {
         if (fs.existsSync(manifest.file_path)) {
-          const text = fs.readFileSync(manifest.file_path, 'utf-8');
-          const freshSegments = parseManifestText(text);
+          manifestText = fs.readFileSync(manifest.file_path, 'utf-8');
+          const freshSegments = parseManifestAuto(manifestText);
           if (freshSegments.length > 0) {
             segments = freshSegments;
             const summary = buildManifestSummary(freshSegments);
@@ -102,50 +105,62 @@ async function syncManifestPassengers(req, res) {
       return p;
     };
 
+    // ── Cari dan parse file APIS pendamping ──────────────────────────────────
+    // apisMap: { pnr → { doc_number, nationality, gender, dob, doc_expiry, ... } }
+    const apisMap = new Map();
+    if (manifest.file_path) {
+      try {
+        const apisFilePath = findApisFile(manifest.file_path);
+        if (apisFilePath && fs.existsSync(apisFilePath)) {
+          const apisText = fs.readFileSync(apisFilePath, 'utf-8');
+          const apisPax = parseApisText(apisText);
+          apisPax.forEach(ap => {
+            if (ap.pnr) apisMap.set(ap.pnr.toUpperCase(), ap);
+          });
+        }
+      } catch {
+        // APIS file tidak bisa dibaca – lanjut tanpa data APIS
+      }
+    }
+
     const docs = [];
+    const buildDoc = (raw, status, segmentIndex, segment) => {
+      const p = resolvePassenger(raw);
+      // Merge data APIS jika tersedia (via PNR)
+      const apis = p.pnr ? apisMap.get(p.pnr.toUpperCase()) : null;
+      return {
+        manifest_id: manifest._id,
+        flight_number: segment.flight_number,
+        flight_date: segment.flight_date,
+        segment_index: segmentIndex,
+        status,
+        name: p.name,
+        level: p.level,
+        pnr: p.pnr,
+        fare_class: p.fare_class,
+        seq_no: p.seq_no,
+        travel_date: p.travel_date,
+        seat_no: p.seat_no || p.seat_no,
+        destination_code: p.destination_code,
+        flight_no: p.flight_no,
+        raw_line: p.raw_line,
+        // APIS / Paspor fields — dari file APIS atau embedded (GSPM)
+        doc_number: (apis ? apis.doc_number : null) || p.doc_number || null,
+        doc_type: (apis ? apis.doc_type : null) || p.doc_type || null,
+        doc_expiry: (apis ? apis.doc_expiry : null) || p.doc_expiry || null,
+        nationality: (apis ? apis.nationality : null) || p.nationality || null,
+        residence: apis ? apis.residence : null,
+        gender: (apis ? apis.gender : null) || p.gender || null,
+        dob: apis ? apis.dob : null,
+        country_of_issue: apis ? apis.country_of_issue : null,
+        full_name_apis: apis ? apis.full_name_apis : null,
+        apis_synced: !!(apis || p.apis_synced)
+      };
+    };
+
     segments.forEach((segment, index) => {
-      const passengers = segment.passengers || [];
-      passengers.forEach((raw) => {
-        const p = resolvePassenger(raw);
-        docs.push({
-          manifest_id: manifest._id,
-          flight_number: segment.flight_number,
-          flight_date: segment.flight_date,
-          segment_index: index,
-          status: 'checked_in',
-          name: p.name,
-          level: p.level,
-          pnr: p.pnr,
-          fare_class: p.fare_class,
-          seq_no: p.seq_no,
-          travel_date: p.travel_date,
-          seat_no: p.seat_no,
-          destination_code: p.destination_code,
-          flight_no: p.flight_no,
-          raw_line: p.raw_line
-        });
-      });
-      const noShows = segment.no_shows || [];
-      noShows.forEach((raw) => {
-        const p = resolvePassenger(raw);
-        docs.push({
-          manifest_id: manifest._id,
-          flight_number: segment.flight_number,
-          flight_date: segment.flight_date,
-          segment_index: index,
-          status: 'no_show',
-          name: p.name,
-          level: p.level,
-          pnr: p.pnr,
-          fare_class: p.fare_class,
-          seq_no: p.seq_no,
-          travel_date: p.travel_date,
-          seat_no: p.seat_no,
-          destination_code: p.destination_code,
-          flight_no: p.flight_no,
-          raw_line: p.raw_line
-        });
-      });
+      (segment.passengers || []).forEach(raw => docs.push(buildDoc(raw, 'checked_in', index, segment)));
+      (segment.no_shows || []).forEach(raw => docs.push(buildDoc(raw, 'no_show', index, segment)));
     });
 
     if (docs.length) {

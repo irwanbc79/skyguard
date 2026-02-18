@@ -1,0 +1,448 @@
+/**
+ * intelligenceController.js
+ * Endpoint investigatif untuk petugas pengawas Bea Cukai
+ *
+ * Fitur utama:
+ * - Cari riwayat penerbangan berdasarkan nomor paspor
+ * - Cari berdasarkan nama
+ * - Statistik intelijen (kewarganegaraan, frekuensi, paspor kedaluwarsa, dll.)
+ * - Profil penumpang lintas penerbangan
+ */
+
+const ManifestPassenger = require('../models/ManifestPassenger');
+const Manifest = require('../models/Manifest');
+const { escapeRegex } = require('../utils/helpers');
+
+// ─── Utilitas ─────────────────────────────────────────────────────────────────
+
+function formatDate(d) {
+  if (!d) return null;
+  try { return new Date(d).toISOString().split('T')[0]; } catch { return null; }
+}
+
+function calculateAge(dob) {
+  if (!dob) return null;
+  const agems = Date.now() - new Date(dob).getTime();
+  return Math.floor(agems / (365.25 * 24 * 3600 * 1000));
+}
+
+function isExpired(expiry) {
+  if (!expiry) return null;
+  return new Date(expiry) < new Date();
+}
+
+function riskLevel(records) {
+  const flights = records.length;
+  const expired = records.some(r => isExpired(r.doc_expiry));
+  const multiplePassports = new Set(records.map(r => r.doc_number).filter(Boolean)).size > 1;
+  const noShows = records.filter(r => r.status === 'no_show').length;
+
+  if (expired || multiplePassports) return 'HIGH';
+  if (flights >= 10 || noShows >= 3) return 'MEDIUM';
+  return 'LOW';
+}
+
+// ─── 1. Cari berdasarkan nomor paspor ────────────────────────────────────────
+
+async function searchByPassport(req, res) {
+  try {
+    const { doc_number } = req.params;
+    if (!doc_number || doc_number.trim().length < 3) {
+      return res.status(400).json({ status: 'error', message: 'Nomor dokumen minimal 3 karakter' });
+    }
+
+    const query = { doc_number: new RegExp(escapeRegex(doc_number.trim()), 'i') };
+    const records = await ManifestPassenger.find(query)
+      .populate('manifest_id', 'origin destination carrier filename')
+      .sort({ flight_date: -1 })
+      .limit(500);
+
+    if (!records.length) {
+      return res.json({ status: 'ok', data: null, message: 'Data tidak ditemukan' });
+    }
+
+    // Identitas utama dari data terlengkap
+    const withApis = records.find(r => r.apis_synced) || records[0];
+    const passport_numbers = [...new Set(records.map(r => r.doc_number).filter(Boolean))];
+    const names_found = [...new Set(records.map(r => [r.full_name_apis, r.name]).flat().filter(Boolean))];
+
+    const flights = records.map(r => ({
+      flight_id: r._id,
+      flight_number: r.flight_number || r.flight_no,
+      flight_date: formatDate(r.flight_date),
+      origin: r.manifest_id?.origin || null,
+      destination: r.manifest_id?.destination || r.destination_code || null,
+      carrier: r.manifest_id?.carrier || null,
+      seat_no: r.seat_no,
+      pnr: r.pnr,
+      fare_class: r.fare_class,
+      status: r.status,
+      name_on_manifest: r.name,
+      name_on_apis: r.full_name_apis,
+      nationality: r.nationality,
+      gender: r.gender,
+      dob: formatDate(r.dob),
+      age: calculateAge(r.dob),
+      doc_expiry: formatDate(r.doc_expiry),
+      doc_expired: isExpired(r.doc_expiry),
+      apis_synced: r.apis_synced
+    }));
+
+    const profile = {
+      // Identitas
+      doc_number: withApis.doc_number,
+      doc_type: withApis.doc_type,
+      nationality: withApis.nationality,
+      residence: withApis.residence,
+      country_of_issue: withApis.country_of_issue,
+      gender: withApis.gender,
+      dob: formatDate(withApis.dob),
+      age: calculateAge(withApis.dob),
+      doc_expiry: formatDate(withApis.doc_expiry),
+      doc_expired: isExpired(withApis.doc_expiry),
+
+      // Intelijen lintas penerbangan
+      names_found,
+      passport_numbers,         // >1 = kemungkinan multi-paspor
+      multiple_passports: passport_numbers.length > 1,
+      total_flights: flights.length,
+      no_show_count: flights.filter(f => f.status === 'no_show').length,
+      risk_level: riskLevel(records),
+
+      // Riwayat penerbangan
+      flights,
+
+      // Statistik tambahan
+      routes: [...new Set(flights.map(f => `${f.origin || '?'} → ${f.destination || '?'}`))],
+      first_seen: formatDate(Math.min(...records.map(r => new Date(r.flight_date || 0)))),
+      last_seen: formatDate(Math.max(...records.map(r => new Date(r.flight_date || 0))))
+    };
+
+    res.json({ status: 'ok', data: profile });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+// ─── 2. Cari berdasarkan nama ─────────────────────────────────────────────────
+
+async function searchByName(req, res) {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ status: 'error', message: 'Kata kunci minimal 2 karakter' });
+    }
+
+    const regex = new RegExp(escapeRegex(q.trim()), 'i');
+    const records = await ManifestPassenger.find({
+      $or: [{ name: regex }, { full_name_apis: regex }]
+    })
+      .populate('manifest_id', 'origin destination carrier')
+      .sort({ flight_date: -1 })
+      .limit(200);
+
+    // Kelompokkan per nomor paspor (atau per nama jika belum ada paspor)
+    const grouped = new Map();
+    records.forEach(r => {
+      const key = r.doc_number || `NAME:${(r.full_name_apis || r.name || '').toUpperCase()}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(r);
+    });
+
+    const results = [];
+    for (const [key, recs] of grouped) {
+      const latest = recs[0];
+      results.push({
+        doc_number: latest.doc_number || null,
+        nationality: latest.nationality || null,
+        name: latest.full_name_apis || latest.name,
+        gender: latest.gender,
+        dob: formatDate(latest.dob),
+        doc_expiry: formatDate(latest.doc_expiry),
+        doc_expired: isExpired(latest.doc_expiry),
+        total_flights: recs.length,
+        no_show_count: recs.filter(r => r.status === 'no_show').length,
+        risk_level: riskLevel(recs),
+        last_flight: formatDate(latest.flight_date),
+        last_flight_number: latest.flight_number,
+        apis_synced: recs.some(r => r.apis_synced)
+      });
+    }
+
+    res.json({ status: 'ok', total: results.length, data: results });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+// ─── 3. Cari multi-kriteria ───────────────────────────────────────────────────
+
+async function advancedSearch(req, res) {
+  try {
+    const { passport, name, nationality, flight, date_from, date_to, risk, expired_only } = req.query;
+    const filter = {};
+
+    if (passport) filter.doc_number = new RegExp(escapeRegex(passport.trim()), 'i');
+    if (name) filter.$or = [
+      { name: new RegExp(escapeRegex(name.trim()), 'i') },
+      { full_name_apis: new RegExp(escapeRegex(name.trim()), 'i') }
+    ];
+    if (nationality) filter.nationality = nationality.trim().toUpperCase();
+    if (flight) filter.flight_number = new RegExp(escapeRegex(flight.trim()), 'i');
+    if (date_from || date_to) {
+      filter.flight_date = {};
+      if (date_from) filter.flight_date.$gte = new Date(date_from);
+      if (date_to) filter.flight_date.$lte = new Date(date_to);
+    }
+    if (expired_only === 'true') {
+      filter.doc_expiry = { $lt: new Date() };
+      filter.doc_expiry.$exists = true;
+    }
+
+    const records = await ManifestPassenger.find(filter)
+      .populate('manifest_id', 'origin destination carrier')
+      .sort({ flight_date: -1 })
+      .limit(500);
+
+    const results = records.map(r => ({
+      _id: r._id,
+      name: r.full_name_apis || r.name,
+      doc_number: r.doc_number,
+      doc_type: r.doc_type,
+      nationality: r.nationality,
+      gender: r.gender,
+      dob: formatDate(r.dob),
+      age: calculateAge(r.dob),
+      doc_expiry: formatDate(r.doc_expiry),
+      doc_expired: isExpired(r.doc_expiry),
+      flight_number: r.flight_number,
+      flight_date: formatDate(r.flight_date),
+      origin: r.manifest_id?.origin,
+      destination: r.manifest_id?.destination || r.destination_code,
+      seat_no: r.seat_no,
+      pnr: r.pnr,
+      status: r.status,
+      apis_synced: r.apis_synced
+    }));
+
+    res.json({ status: 'ok', total: results.length, data: results });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+// ─── 4. Statistik Intelijen ───────────────────────────────────────────────────
+
+async function getIntelStats(req, res) {
+  try {
+    const [
+      totalPassengers,
+      totalWithPassport,
+      totalExpired,
+      nationalityStats,
+      topFrequent,
+      noShowStats,
+      multiPassport,
+      recentFlights
+    ] = await Promise.all([
+      // Total penumpang dengan data APIS
+      ManifestPassenger.countDocuments({ apis_synced: true }),
+
+      // Total yang punya data paspor
+      ManifestPassenger.countDocuments({ doc_number: { $exists: true, $ne: null } }),
+
+      // Paspor kedaluwarsa
+      ManifestPassenger.countDocuments({
+        doc_expiry: { $lt: new Date(), $exists: true },
+        doc_number: { $ne: null }
+      }),
+
+      // Top 15 kewarganegaraan
+      ManifestPassenger.aggregate([
+        { $match: { nationality: { $ne: null } } },
+        { $group: { _id: '$nationality', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 15 }
+      ]),
+
+      // Top 20 penumpang paling sering (by nomor paspor)
+      ManifestPassenger.aggregate([
+        { $match: { doc_number: { $ne: null } } },
+        {
+          $group: {
+            _id: '$doc_number',
+            name: { $first: { $ifNull: ['$full_name_apis', '$name'] } },
+            nationality: { $first: '$nationality' },
+            flights: { $sum: 1 },
+            no_shows: { $sum: { $cond: [{ $eq: ['$status', 'no_show'] }, 1, 0] } },
+            last_flight: { $max: '$flight_date' },
+            doc_expiry: { $first: '$doc_expiry' }
+          }
+        },
+        { $sort: { flights: -1 } },
+        { $limit: 20 }
+      ]),
+
+      // Statistik no-show per penerbangan
+      ManifestPassenger.aggregate([
+        { $match: { status: 'no_show', doc_number: { $ne: null } } },
+        {
+          $group: {
+            _id: '$doc_number',
+            name: { $first: { $ifNull: ['$full_name_apis', '$name'] } },
+            nationality: { $first: '$nationality' },
+            no_show_count: { $sum: 1 },
+            last_flight: { $max: '$flight_date' }
+          }
+        },
+        { $match: { no_show_count: { $gte: 2 } } },
+        { $sort: { no_show_count: -1 } },
+        { $limit: 10 }
+      ]),
+
+      // Penumpang dengan >1 nomor paspor berbeda (indikasi multi-identitas)
+      ManifestPassenger.aggregate([
+        { $match: { doc_number: { $ne: null }, name: { $ne: null } } },
+        {
+          $group: {
+            _id: { $toUpper: { $trim: { input: { $ifNull: ['$full_name_apis', '$name'] } } } },
+            passports: { $addToSet: '$doc_number' },
+            nationalities: { $addToSet: '$nationality' },
+            total_flights: { $sum: 1 }
+          }
+        },
+        { $match: { $expr: { $gt: [{ $size: '$passports' }, 1] } } },
+        { $sort: { total_flights: -1 } },
+        { $limit: 10 }
+      ]),
+
+      // Penerbangan terakhir yang tersinkron
+      Manifest.find({ status: 'synced' })
+        .select('flight_number flight_date origin destination carrier')
+        .sort({ flight_date: -1 })
+        .limit(10)
+    ]);
+
+    res.json({
+      status: 'ok',
+      data: {
+        summary: {
+          total_pax_with_apis: totalPassengers,
+          total_pax_with_passport: totalWithPassport,
+          expired_passports: totalExpired,
+          coverage_pct: totalPassengers > 0
+            ? Math.round((totalWithPassport / totalPassengers) * 100)
+            : 0
+        },
+        nationality_breakdown: nationalityStats.map(n => ({
+          nationality: n._id,
+          count: n.count
+        })),
+        frequent_flyers: topFrequent.map(p => ({
+          passport: p._id,
+          name: p.name,
+          nationality: p.nationality,
+          total_flights: p.flights,
+          no_shows: p.no_shows,
+          last_flight: formatDate(p.last_flight),
+          doc_expired: isExpired(p.doc_expiry)
+        })),
+        repeat_no_shows: noShowStats.map(p => ({
+          passport: p._id,
+          name: p.name,
+          nationality: p.nationality,
+          no_show_count: p.no_show_count,
+          last_flight: formatDate(p.last_flight)
+        })),
+        multi_passport_suspects: multiPassport.map(p => ({
+          name: p._id,
+          passports: p.passports,
+          nationalities: p.nationalities,
+          total_flights: p.total_flights
+        })),
+        recent_synced_flights: recentFlights
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+// ─── 5. Profil penerbangan lengkap ───────────────────────────────────────────
+
+async function getFlightIntelligence(req, res) {
+  try {
+    const { flight_number, date } = req.query;
+    if (!flight_number) {
+      return res.status(400).json({ status: 'error', message: 'Parameter flight_number wajib diisi' });
+    }
+
+    const filter = { flight_number: new RegExp(escapeRegex(flight_number.trim()), 'i') };
+    if (date) {
+      const d = new Date(date);
+      const next = new Date(d); next.setDate(next.getDate() + 1);
+      filter.flight_date = { $gte: d, $lt: next };
+    }
+
+    const records = await ManifestPassenger.find(filter)
+      .populate('manifest_id', 'origin destination carrier filename')
+      .sort({ seq_no: 1 });
+
+    if (!records.length) {
+      return res.json({ status: 'ok', data: null, message: 'Penerbangan tidak ditemukan' });
+    }
+
+    const first = records[0];
+    const manifest = first.manifest_id;
+
+    const passengers = records.map(r => ({
+      seq_no: r.seq_no,
+      seat_no: r.seat_no,
+      name: r.full_name_apis || r.name,
+      pnr: r.pnr,
+      status: r.status,
+      gender: r.gender,
+      nationality: r.nationality,
+      dob: formatDate(r.dob),
+      age: calculateAge(r.dob),
+      doc_number: r.doc_number,
+      doc_expiry: formatDate(r.doc_expiry),
+      doc_expired: isExpired(r.doc_expiry),
+      apis_synced: r.apis_synced
+    }));
+
+    const nationalities = {};
+    passengers.forEach(p => {
+      if (p.nationality) nationalities[p.nationality] = (nationalities[p.nationality] || 0) + 1;
+    });
+
+    res.json({
+      status: 'ok',
+      data: {
+        flight_number: first.flight_number,
+        flight_date: formatDate(first.flight_date),
+        origin: manifest?.origin,
+        destination: manifest?.destination,
+        carrier: manifest?.carrier,
+        total_pax: passengers.length,
+        checked_in: passengers.filter(p => p.status === 'checked_in').length,
+        no_shows: passengers.filter(p => p.status === 'no_show').length,
+        expired_passports: passengers.filter(p => p.doc_expired).length,
+        nationality_breakdown: Object.entries(nationalities)
+          .sort((a, b) => b[1] - a[1])
+          .map(([nat, count]) => ({ nationality: nat, count })),
+        passengers
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+}
+
+module.exports = {
+  searchByPassport,
+  searchByName,
+  advancedSearch,
+  getIntelStats,
+  getFlightIntelligence
+};

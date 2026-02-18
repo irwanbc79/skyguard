@@ -26,6 +26,7 @@ app.use('/api/cargo', cargoRoutes);
 app.use('/api/kurs', kursRoutes);
 app.use('/api/passenger', passengerRoutes);
 app.use('/api/manifests', manifestRoutes);
+app.use('/api/intelligence', require('./routes/intelligence'));
 
 // HS Codes route
 app.use('/api/hs-codes', require('./routes/hscodes'));
