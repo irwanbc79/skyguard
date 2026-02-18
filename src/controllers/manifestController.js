@@ -39,7 +39,8 @@ async function uploadManifest(req, res) {
     });
     res.json({ status: 'ok', data: manifest });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    const status = error.code === 'APIS_FILE_REJECTED' ? 400 : 500;
+    res.status(status).json({ status: 'error', message: error.message });
   }
 }
 

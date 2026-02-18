@@ -49,6 +49,14 @@ async function createManifestFromFile({ buffer, filename, source, uploadedBy, se
 }
 
 async function ingestManifest({ buffer, filename, source = 'manual', uploadedBy = 'system', sender = null, emailSubject = null }) {
+  // Tolak file APIS — bukan manifest penumpang
+  if (/^apis[\s_-]?\d+/i.test(filename.trim())) {
+    throw Object.assign(
+      new Error('File ini adalah data APIS, bukan manifest penumpang. File APIS (apis XXX.txt) akan otomatis dibaca saat sync manifest utama.'),
+      { code: 'APIS_FILE_REJECTED' }
+    );
+  }
+
   ensureManifestDir();
   const filePath = buildFilePath(filename);
   fs.writeFileSync(filePath, buffer);

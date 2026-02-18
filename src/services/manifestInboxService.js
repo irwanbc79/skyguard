@@ -42,14 +42,22 @@ async function processMessage(client, message) {
   for (const attachment of attachments) {
     if (!attachmentAllowed(attachment.filename)) continue;
     const buffer = attachment.content;
-    await ingestManifest({
-      buffer,
-      filename: attachment.filename || `manifest_${Date.now()}.txt`,
-      source: 'email',
-      uploadedBy: 'email',
-      sender: from,
-      emailSubject: subject
-    });
+    try {
+      await ingestManifest({
+        buffer,
+        filename: attachment.filename || `manifest_${Date.now()}.txt`,
+        source: 'email',
+        uploadedBy: 'email',
+        sender: from,
+        emailSubject: subject
+      });
+    } catch (err) {
+      if (err.code === 'APIS_FILE_REJECTED') {
+        console.log(`[Inbox] Skip file APIS: ${attachment.filename}`);
+      } else {
+        throw err;
+      }
+    }
   }
 }
 
