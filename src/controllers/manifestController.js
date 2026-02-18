@@ -1,6 +1,8 @@
+const fs = require('fs');
 const Manifest = require('../models/Manifest');
 const ManifestPassenger = require('../models/ManifestPassenger');
 const { ingestManifest } = require('../services/manifestIngestService');
+const { parseManifestText, buildManifestSummary } = require('../services/manifestService');
 
 async function listManifests(req, res) {
   try {
@@ -61,7 +63,30 @@ async function syncManifestPassengers(req, res) {
   try {
     const manifest = await Manifest.findById(req.params.id);
     if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
-    const segments = manifest.parsed_fields?.segments || [];
+
+    // Re-parse dari file asli jika tersedia (memastikan parser terbaru digunakan)
+    let segments = manifest.parsed_fields?.segments || [];
+    if (manifest.file_path && manifest.file_type === 'txt') {
+      try {
+        if (fs.existsSync(manifest.file_path)) {
+          const text = fs.readFileSync(manifest.file_path, 'utf-8');
+          const freshSegments = parseManifestText(text);
+          if (freshSegments.length > 0) {
+            segments = freshSegments;
+            const summary = buildManifestSummary(freshSegments);
+            manifest.parsed_fields = { segments: freshSegments };
+            manifest.flight_number = summary.flight_number || manifest.flight_number;
+            manifest.flight_date = summary.flight_date || manifest.flight_date;
+            manifest.origin = summary.origin || manifest.origin;
+            manifest.destination = summary.destination || manifest.destination;
+            manifest.carrier = summary.carrier || manifest.carrier;
+          }
+        }
+      } catch (parseErr) {
+        // jika gagal re-parse, lanjutkan dengan data yang ada
+      }
+    }
+
     if (!segments.length) {
       return res.status(400).json({ status: 'error', message: 'Manifest belum diparse atau tidak ada penumpang' });
     }

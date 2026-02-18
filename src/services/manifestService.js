@@ -60,21 +60,28 @@ function parsePassengerLine(line) {
   if (!trimmed) return null;
   if (trimmed.startsWith('TKT:') || trimmed.startsWith('INFT:')) return null;
   if (/^Cnt\s+Name/i.test(trimmed) || /^---/.test(trimmed)) return null;
-  const match = trimmed.match(/^(\d+)\s+(.+?)\s+([A-Z0-9]{5,6})\s+([A-Z])\s+(\d+)\s+(\d{2}[A-Za-z]{3}\d{2})\s+([0-9A-Z]+)\s+([0-9A-Z]{3})\s+(\d+)\s*$/);
+
+  // AirAsia/Malindo format:
+  // <cnt>  <Name,[Name]>   [LVL]  <PNR(6)>  <FareClass>  <SeqNo>  <Date>  <Seat>  <0CDst(4)>  <FltNo>
+  // Example: "1   Ab Samah,Norazam           P   ACW44T I         27 07Feb26     3C 0KNO  397 "
+  // Example: "2   Alicia,Felice                  A7WSXV E         58 07Dec25     9A 0KNO  397 "
+  const match = trimmed.match(
+    /^(\d+)\s+(.+?)\s{2,}(?:([A-Z])\s+)?([A-Z0-9]{6})\s+([A-Z])\s+(\d+)\s+(\d{2}[A-Za-z]{3}\d{2})\s+(\d{1,3}[A-Z])\s+([0-9][A-Z]{3})\s+(\d+)\s*$/
+  );
   if (!match) return { raw_line: trimmed };
-  const [, seq, name, pnr, fareClass, seqNo, travelDate, seatNo, destinationCode, flightNo] = match;
+  const [, cnt, name, level, pnr, fareClass, seqNo, travelDate, seatNo, destinationCode, flightNo] = match;
   return {
     name: name.trim(),
     pnr: pnr.trim(),
     fare_class: fareClass.trim(),
+    level: level ? level.trim() : null,
     seq_no: Number(seqNo),
     travel_date: travelDate.trim(),
     seat_no: seatNo.trim(),
     destination_code: destinationCode.trim(),
     flight_no: flightNo.trim(),
     raw_line: trimmed,
-    level: null,
-    row_index: Number(seq)
+    row_index: Number(cnt)
   };
 }
 
