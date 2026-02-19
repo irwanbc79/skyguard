@@ -31,7 +31,7 @@ let metaCache = null;
 // Initialize database dengan default data jika kosong
 async function initKurs() {
   try {
-    const count = await Kurs.countDocuments();
+    const count = await Kurs.estimatedDocumentCount();
     if (count === 0) {
       console.log('Initializing kurs data...');
       await Kurs.insertMany(defaultKurs);
