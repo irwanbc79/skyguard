@@ -16,7 +16,17 @@ const manifestPassengerSchema = new mongoose.Schema(
     seat_no: String,
     destination_code: String,
     flight_no: String,
-    raw_line: String
+    raw_line: String,
+    // Data paspor (dari APIS / Lion Air MANIFEST)
+    passport_number: { type: String, index: true },
+    nationality: String,
+    gender: String,
+    date_of_birth: String,
+    passport_expiry: String,
+    doc_type: String,
+    // Hasil crosscheck dengan CEISA
+    ceisa_match: { type: Boolean, default: null },
+    ceisa_records_count: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

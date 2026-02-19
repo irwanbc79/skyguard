@@ -164,8 +164,217 @@ function buildManifestSummary(segments = []) {
   };
 }
 
+// ==================== APIS PARSER ====================
+// Format: "Pax Verification Summary Report" dari AirAsia/AirAsia Indonesia
+// Tiap penumpang 2 baris:
+//   1) seq) PNR  LastName  FirstName  MiddleName
+//   2)      G DOB Nat Res WL Ver Sb DocType Number Exp Cy
+
+function parseAPISText(rawText = '') {
+  const lines = rawText.split(/\r?\n/);
+  const passengers = [];
+
+  // Cari header baris untuk tahu apakah ini APIS format
+  const isAPIS = lines.some(l => /Pax Verification Summary Report/i.test(l));
+  if (!isAPIS) return null;
+
+  // Ekstrak info penerbangan
+  let flightNumber = null;
+  let flightDate = null;
+  let cityPair = null;
+
+  for (const line of lines) {
+    const headerMatch = line.match(/Flight#:\s*([A-Z0-9\s]+?)\s+City Pair:([A-Z]{6})/i);
+    if (headerMatch) {
+      flightNumber = headerMatch[1].trim();
+      cityPair = headerMatch[2].trim();
+    }
+    const dateMatch = line.match(/Date:\s*(\d{2}[A-Za-z]{3}\d{2})/i);
+    if (dateMatch) {
+      flightDate = parseFlightDate(dateMatch[1]);
+    }
+  }
+
+  // Parse blok tiap penumpang (pola: angka diikuti ")")
+  const paxBlockRegex = /^\s*(\d+)\)\s+([A-Z0-9]{5,6})\s+(.+?)\s{2,}(.+?)\s{2,}(.*?)\s*$/;
+  const docLineRegex = /^\s+([MFmf])\s+(\d{6})\s+([A-Z]{2})\s+([A-Z]{2})\s+\S*\s+([YN])\s+([YN])\s+([A-Z])\s+(\S+)\s*$/;
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const paxMatch = line.match(/^\s*(\d+)\)\s+([A-Z0-9]{5,6})\s+(.+)/);
+    if (paxMatch) {
+      const seqNo = Number(paxMatch[1]);
+      const pnr = paxMatch[2].trim();
+      // Sisa baris: "LastName  FirstName  MiddleName" (spasi ganda sebagai pemisah)
+      const nameParts = paxMatch[3].trim().split(/\s{2,}/);
+      const lastName = (nameParts[0] || '').trim();
+      const firstName = (nameParts[1] || '').trim();
+      const middleName = (nameParts[2] || '').trim();
+      const fullName = [lastName, firstName, middleName].filter(Boolean).join(' ');
+
+      let gender = null, dob = null, nationality = null, docType = null;
+      let docNumber = null, expiry = null, country = null;
+
+      // Baris kedua penumpang (info dokumen)
+      if (i + 1 < lines.length) {
+        const docLine = lines[i + 1];
+        // Format: "   G DOB    Nat Res WL Ver Sb DocType Number    Exp   Cy"
+        const docMatch = docLine.match(/^\s+([MFmf])\s+(\d{6})\s+([A-Z]{2})\s+([A-Z]{2})\s+\S*\s+([YN])\s+([YN])\s+([A-Z])\s+(\S+)\s+(\S+)\s+([A-Z]{2})/);
+        if (docMatch) {
+          gender = docMatch[1].toUpperCase();
+          dob = docMatch[2];
+          nationality = docMatch[3];
+          docType = docMatch[7];
+          docNumber = docMatch[8].trim();
+          expiry = docMatch[9];
+          country = docMatch[10];
+          i += 1; // skip baris kedua
+        }
+      }
+
+      passengers.push({
+        seq_no: seqNo,
+        pnr,
+        name: fullName,
+        gender,
+        date_of_birth: dob,
+        nationality,
+        doc_type: docType,
+        passport_number: docNumber,
+        passport_expiry: expiry,
+        status: 'checked_in',
+        raw_line: line.trim()
+      });
+    }
+    i += 1;
+  }
+
+  if (!passengers.length) return null;
+
+  const origin = cityPair ? cityPair.slice(0, 3) : null;
+  const destination = cityPair ? cityPair.slice(3) : null;
+
+  return {
+    format: 'apis',
+    flight_number: flightNumber,
+    flight_date: flightDate,
+    origin,
+    destination,
+    passengers,
+    no_shows: []
+  };
+}
+
+// ==================== LION AIR MANIFEST PARSER ====================
+// Format: "PASSENGER MANIFEST" dari Lion Air / Batik Air
+// Contoh baris: " 26F  F  ABIDIN LINA MRS   ID X1356564"
+
+function parseLionAirManifest(rawText = '') {
+  const lines = rawText.split(/\r?\n/);
+  const isLionManifest = lines.some(l => /PASSENGER MANIFEST/i.test(l)) &&
+                         lines.some(l => /LION AIRLINES|BATIK AIR|MALINDO/i.test(l));
+  if (!isLionManifest) return null;
+
+  let flightNumber = null;
+  let flightDate = null;
+  let origin = null;
+  let destination = null;
+  let carrier = null;
+
+  for (const line of lines) {
+    if (/LION AIRLINES/i.test(line)) carrier = 'Lion Air';
+    if (/BATIK AIR/i.test(line)) carrier = 'Batik Air';
+    if (/MALINDO/i.test(line)) carrier = 'Malindo';
+
+    const fltMatch = line.match(/FLIGHT\/DATE\s*-\s*([A-Z0-9]{2})\s*(\d{3,4})\s+(\d{2}[A-Za-z]{3}\d{2})/i);
+    if (fltMatch) {
+      flightNumber = `${fltMatch[1]} ${fltMatch[2]}`;
+      flightDate = parseFlightDate(fltMatch[3]);
+    }
+    const fromMatch = line.match(/^FROM\s+(.+?)(?:\s{5,}|$)/i);
+    if (fromMatch && !origin) origin = fromMatch[1].trim().slice(0, 3);
+    const toMatch = line.match(/^TO\s+(.+?)(?:\s{5,}|$)/i);
+    if (toMatch && !destination) destination = toMatch[1].trim().slice(0, 3);
+  }
+
+  const passengers = [];
+  let inPaxSection = false;
+
+  for (const line of lines) {
+    if (/SEAT\s+GEN\s+NAME/i.test(line)) { inPaxSection = true; continue; }
+    if (!inPaxSection) continue;
+    if (!line.trim()) continue;
+
+    // Format: " 26F  F  ABIDIN LINA MRS                         ID X1356564"
+    const paxMatch = line.match(/^\s*(\d+[A-Z])\s+([MFImfi])\s+(.+?)\s{3,}([A-Z]{2})\s*([A-Z0-9]+)\s*[¥*]?\s*$/);
+    if (paxMatch) {
+      const seat = paxMatch[1].trim();
+      const gender = paxMatch[2].toUpperCase() === 'I' ? 'I' : paxMatch[2].toUpperCase();
+      const name = paxMatch[3].replace(/\s+(MR|MRS|MISS|MS|MSTR|DR)\.?\s*$/i, '').trim();
+      const nationality = paxMatch[4].trim();
+      const docNumber = paxMatch[5].trim();
+      const status = gender === 'I' ? 'checked_in' : 'checked_in';
+
+      passengers.push({
+        seat_no: seat,
+        gender,
+        name,
+        nationality,
+        passport_number: docNumber,
+        doc_type: 'P',
+        status,
+        raw_line: line.trim()
+      });
+    }
+  }
+
+  if (!passengers.length) return null;
+
+  return {
+    format: 'lion_manifest',
+    flight_number: flightNumber,
+    flight_date: flightDate,
+    origin,
+    destination,
+    carrier,
+    passengers,
+    no_shows: []
+  };
+}
+
+// ==================== FORMAT DETECTOR ====================
+
+function detectAndParseText(rawText = '') {
+  // Coba APIS dulu (paling informatif)
+  const apis = parseAPISText(rawText);
+  if (apis) return apis;
+
+  // Coba Lion Air Manifest
+  const lion = parseLionAirManifest(rawText);
+  if (lion) return lion;
+
+  // Fallback ke AirAsia PAX format (sudah ada)
+  const segments = parseManifestText(rawText);
+  if (segments.length) {
+    const summary = buildManifestSummary(segments);
+    return {
+      format: 'airasia_pax',
+      ...summary,
+      segments,
+      passengers: segments.flatMap(s => s.passengers || []),
+      no_shows: segments.flatMap(s => s.no_shows || [])
+    };
+  }
+
+  return null;
+}
+
 module.exports = {
   getFileType,
   parseManifestText,
-  buildManifestSummary
+  buildManifestSummary,
+  parseAPISText,
+  parseLionAirManifest,
+  detectAndParseText
 };

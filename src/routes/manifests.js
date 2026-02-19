@@ -26,5 +26,6 @@ router.put('/:id/review', manifestController.updateManifestStatus);
 router.post('/:id/sync', manifestController.syncManifestPassengers);
 router.get('/:id/passengers', manifestController.listManifestPassengers);
 router.get('/:id/passengers/export', manifestController.exportManifestPassengers);
+router.get('/:id/crosscheck', manifestController.crosscheckManifestHandler);
 
 module.exports = router;
