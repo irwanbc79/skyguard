@@ -43,7 +43,11 @@ async function initKurs() {
       console.log('Kurs data initialized');
     }
     await refreshCache();
-  } catch (err) { console.error('Init kurs error:', err); }
+  } catch (err) {
+    console.warn('[KURS] DB tidak tersedia, pakai data default:', err.message);
+    kursCache = defaultKurs;
+    metaCache = { periode: '04 Feb 2026 - 10 Feb 2026', kmk_number: 'KMK 5/MK/EF.2/2026', source: 'default', updated_at: new Date() };
+  }
 }
 
 // Refresh cache dari database
@@ -51,7 +55,10 @@ async function refreshCache() {
   try {
     kursCache = await Kurs.find().lean();
     metaCache = await KursMeta.findById('current').lean();
-  } catch (err) { console.error('Refresh cache error:', err); }
+  } catch (err) {
+    console.warn('[KURS] Refresh cache gagal, tetap pakai cache sebelumnya:', err.message);
+    if (!kursCache) kursCache = defaultKurs;
+  }
 }
 
 // Get all kurs
