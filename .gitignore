@@ -6,3 +6,19 @@ node_modules/
 *.bak
 *.bak.*
 *.xlsx
+
+# Data files - jangan commit ke repo
+*.csv
+*.diff
+*.patch
+
+# Backup HTML & JS artifacts
+*.backup_*
+*.pre_cargo
+
+# Backup source directories
+src/backup_*/
+
+# Upload runtime files (data operasional, bukan source code)
+uploads/cargo/
+uploads/manifests/

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Manifest = require('../models/Manifest');
-const { buildManifestSummary, getFileType, parseManifestText } = require('./manifestService');
+const { getFileType, detectAndParseText } = require('./manifestService');
 
 const MANIFEST_DIR = path.join(__dirname, '../../uploads/manifests');
 
@@ -14,6 +14,20 @@ function ensureManifestDir() {
 function buildFilePath(filename) {
   const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   return path.join(MANIFEST_DIR, `${Date.now()}_${sanitized}`);
+}
+
+async function extractText(buffer, fileType) {
+  if (fileType === 'pdf') {
+    try {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(buffer);
+      return data.text || '';
+    } catch (err) {
+      console.warn('[Manifest Ingest] PDF parse gagal:', err.message);
+      return '';
+    }
+  }
+  return buffer.toString('utf-8');
 }
 
 async function createManifestFromFile({ buffer, filename, source, uploadedBy, sender, emailSubject, filePath }) {
@@ -29,19 +43,32 @@ async function createManifestFromFile({ buffer, filename, source, uploadedBy, se
     status: 'received'
   });
 
-  if (fileType === 'txt') {
-    const text = buffer.toString('utf-8');
-    const segments = parseManifestText(text);
-    const summary = buildManifestSummary(segments);
-    manifest.parsed_fields = { segments };
-    manifest.status = segments.length ? 'parsed' : 'needs_review';
-    manifest.flight_number = summary.flight_number;
-    manifest.flight_date = summary.flight_date;
-    manifest.origin = summary.origin;
-    manifest.destination = summary.destination;
-    manifest.carrier = summary.carrier;
+  const isTextBased = ['txt', 'csv', 'pdf'].includes(fileType);
+
+  if (isTextBased) {
+    const rawText = await extractText(buffer, fileType);
+    const parsed = detectAndParseText(rawText);
+
+    if (parsed) {
+      manifest.parsed_fields = {
+        format: parsed.format,
+        segments: parsed.segments || [],
+        passengers: parsed.passengers || [],
+        no_shows: parsed.no_shows || []
+      };
+      manifest.status = 'parsed';
+      manifest.flight_number = parsed.flight_number || null;
+      manifest.flight_date = parsed.flight_date || null;
+      manifest.origin = parsed.origin || null;
+      manifest.destination = parsed.destination || null;
+      manifest.carrier = parsed.carrier || null;
+    } else {
+      manifest.status = 'needs_review';
+      manifest.parsing_notes = `Format tidak dikenali (${fileType}). Perlu review manual.`;
+    }
   } else {
     manifest.status = 'needs_review';
+    manifest.parsing_notes = `Format ${fileType} tidak didukung untuk parsing otomatis.`;
   }
 
   await manifest.save();
