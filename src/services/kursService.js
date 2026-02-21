@@ -43,6 +43,7 @@ async function initKurs() {
       console.log('Kurs data initialized');
     }
     await refreshCache();
+    startKursScheduler();
   } catch (err) { console.error('Init kurs error:', err); }
 }
 
@@ -87,13 +88,14 @@ async function setKurs(code, rate) {
 // Bulk update kurs (untuk admin)
 async function bulkUpdateKurs(kursArray, periode, kmkNumber, updatedBy = 'admin') {
   try {
-    for (const k of kursArray) {
-      await Kurs.findOneAndUpdate(
-        { code: k.code },
-        { rate: k.rate, name: k.name || undefined, updated_at: new Date() },
-        { upsert: true }
-      );
-    }
+    const ops = kursArray.map(k => ({
+      updateOne: {
+        filter: { code: k.code },
+        update: { $set: { rate: k.rate, name: k.name || undefined, updated_at: new Date() } },
+        upsert: true
+      }
+    }));
+    await Kurs.bulkWrite(ops);
     await KursMeta.findOneAndUpdate(
       { _id: 'current' },
       { periode, kmk_number: kmkNumber, source: 'admin', updated_at: new Date(), updated_by: updatedBy },
@@ -109,37 +111,35 @@ async function bulkUpdateKurs(kursArray, periode, kmkNumber, updatedBy = 'admin'
 
 // Scrape kurs dari Kemenkeu (basic)
 async function scrapeKurs() {
-  return new Promise(async (resolve) => {
-    const options = {
-      hostname: 'fiskal.kemenkeu.go.id',
-      path: '/informasi-publik/kurs-pajak',
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-    };
-    
-    https.get(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', async () => {
-        try {
-          // Parse USD rate
-          const usdMatch = data.match(/USD[^0-9]*?([\d.,]+)/i);
-          if (usdMatch) {
-            const rate = parseFloat(usdMatch[1].replace(/\./g, '').replace(',', '.'));
-            if (rate > 10000 && rate < 25000) {
-              await Kurs.findOneAndUpdate({ code: 'USD' }, { rate, updated_at: new Date() });
-              await KursMeta.findOneAndUpdate({ _id: 'current' }, { source: 'auto-scrape', updated_at: new Date() });
-              await refreshCache();
-              console.log(`Auto-scraped USD: ${rate}`);
-            }
-          }
-        } catch (e) { console.error('Scrape parse error:', e); }
-        resolve(await getAllKurs());
-      });
-    }).on('error', async (err) => {
-      console.error('Scrape error:', err);
-      resolve(await getAllKurs());
+  try {
+    const data = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'fiskal.kemenkeu.go.id',
+        path: '/informasi-publik/kurs-pajak',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      };
+      https.get(options, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve(body));
+      }).on('error', reject);
     });
-  });
+    
+    // Parse USD rate
+    const usdMatch = data.match(/USD[^0-9]*?([\d.,]+)/i);
+    if (usdMatch) {
+      const rate = parseFloat(usdMatch[1].replace(/\./g, '').replace(',', '.'));
+      if (rate > 10000 && rate < 25000) {
+        await Kurs.findOneAndUpdate({ code: 'USD' }, { rate, updated_at: new Date() });
+        await KursMeta.findOneAndUpdate({ _id: 'current' }, { source: 'auto-scrape', updated_at: new Date() });
+        await refreshCache();
+        console.log(`Auto-scraped USD: ${rate}`);
+      }
+    }
+  } catch (e) {
+    console.error('Scrape error:', e.message);
+  }
+  return await getAllKurs();
 }
 
 // Hitung pajak
@@ -172,13 +172,17 @@ async function hitungPajak(fobUsd, jumlahUnit = 1, currency = 'USD') {
   };
 }
 
-// Scheduler: Auto scrape setiap Rabu jam 10:00 WIB
-cron.schedule('0 1 * * 3', async () => {
-  console.log('Running scheduled kurs scrape (Wednesday 01:00 WIB)...');
-  await scrapeKurs();
-}, { timezone: 'Asia/Jakarta' });
-
-console.log('Kurs scheduler initialized - Auto scrape every Wednesday 01:00 WIB');
+// Scheduler is initialized via initKurs() — not at require() time
+let cronScheduled = false;
+function startKursScheduler() {
+  if (cronScheduled) return;
+  cronScheduled = true;
+  cron.schedule('0 1 * * 3', async () => {
+    console.log('Running scheduled kurs scrape (Wednesday 01:00 WIB)...');
+    await scrapeKurs();
+  }, { timezone: 'Asia/Jakarta' });
+  console.log('Kurs scheduler initialized - Auto scrape every Wednesday 01:00 WIB');
+}
 
 module.exports = { 
   initKurs, 

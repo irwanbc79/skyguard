@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cargoService = require('../services/cargoService');
+const { requireAuth } = require('../middleware/auth');
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
@@ -11,7 +12,7 @@ const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = '/root/skyguard/uploads/cargo';
+    const dir = path.join(__dirname, '../../uploads/cargo');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -66,7 +67,7 @@ router.get('/detail/:nomorAju', async (req, res) => {
 });
 
 // POST /api/cargo/upload - Upload CN-PIBK CSV/Excel
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     
@@ -74,7 +75,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const stats = await cargoService.importCnpibk(req.file.path, uploadedBy);
     
     // Cleanup uploaded file
-    fs.unlinkSync(req.file.path);
+    try { fs.unlinkSync(req.file.path); } catch(_) {}
     
     res.json({
       success: true,

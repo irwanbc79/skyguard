@@ -1,6 +1,7 @@
 const Manifest = require('../models/Manifest');
 const ManifestPassenger = require('../models/ManifestPassenger');
 const { ingestManifest } = require('../services/manifestIngestService');
+const { sanitizeCsv } = require('../utils/helpers');
 
 async function listManifests(req, res) {
   try {
@@ -140,9 +141,12 @@ async function listManifestPassengers(req, res) {
 
 async function exportManifestPassengers(req, res) {
   try {
+    const manifest = await Manifest.findById(req.params.id);
     const passengers = await ManifestPassenger.find({ manifest_id: req.params.id })
       .sort({ seq_no: 1 });
     const headers = [
+      'flight_number',
+      'flight_date',
       'status',
       'name',
       'pnr',
@@ -154,6 +158,8 @@ async function exportManifestPassengers(req, res) {
       'flight_no'
     ];
     const rows = passengers.map(p => [
+      manifest?.flight_number || '',
+      manifest?.flight_date ? new Date(manifest.flight_date).toISOString().split('T')[0] : '',
       p.status,
       p.name,
       p.pnr,
@@ -164,9 +170,10 @@ async function exportManifestPassengers(req, res) {
       p.destination_code,
       p.flight_no
     ]);
-    const csv = [headers.join(','), ...rows.map(row => row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map(row => row.map(val => `"${sanitizeCsv(String(val || '').replace(/"/g, '""'))}"`).join(','))].join('\n');
+    const fname = `manifest_${manifest?.flight_number || 'unknown'}_passengers.csv`;
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="manifest_passengers.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     res.send(csv);
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });

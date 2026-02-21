@@ -51,16 +51,22 @@ async function createManifestFromFile({ buffer, filename, source, uploadedBy, se
 async function ingestManifest({ buffer, filename, source = 'manual', uploadedBy = 'system', sender = null, emailSubject = null }) {
   ensureManifestDir();
   const filePath = buildFilePath(filename);
-  fs.writeFileSync(filePath, buffer);
-  return createManifestFromFile({
-    buffer,
-    filename,
-    source,
-    uploadedBy,
-    sender,
-    emailSubject,
-    filePath
-  });
+  await fs.promises.writeFile(filePath, buffer);
+  try {
+    return await createManifestFromFile({
+      buffer,
+      filename,
+      source,
+      uploadedBy,
+      sender,
+      emailSubject,
+      filePath
+    });
+  } catch (err) {
+    // Cleanup file if DB save fails
+    try { await fs.promises.unlink(filePath); } catch (_) {}
+    throw err;
+  }
 }
 
 module.exports = {

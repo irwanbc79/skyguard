@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ps = require('../services/passengerService');
+const { requireAuth } = require('../middleware/auth');
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
@@ -48,7 +49,7 @@ router.get('/:paspor', async (req, res) => {
   } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
   req.setTimeout(600000);
   res.setTimeout(600000);
   

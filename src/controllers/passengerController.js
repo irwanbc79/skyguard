@@ -142,31 +142,42 @@ exports.matchDevice = async (req, res) => {
     let model = parts.slice(1).join(' ');
     
     // Map common brand names
-    if (brand === 'APPLE') brand = 'Apple';
-    if (brand === 'SAMSUNG') brand = 'Samsung';
+    const brandMap = {
+      'APPLE': 'Apple', 'SAMSUNG': 'Samsung', 'XIAOMI': 'Xiaomi',
+      'OPPO': 'Oppo', 'VIVO': 'Vivo', 'HUAWEI': 'Huawei',
+      'REALME': 'Realme', 'GOOGLE': 'Google', 'SONY': 'Sony',
+      'NOKIA': 'Nokia', 'ASUS': 'Asus', 'ONEPLUS': 'OnePlus',
+      'NOTHING': 'Nothing', 'INFINIX': 'Infinix', 'TECNO': 'Tecno'
+    };
+    brand = brandMap[brand] || brand;
     
-    // Search in device database
-    const devices = await Device.find({
-      brand: new RegExp(brand, 'i'),
-      model: new RegExp(model.replace(/\s+/g, '.*'), 'i')
-    });
+    // Search in device database with aggregation to get prices in one query
+    const results = await Device.aggregate([
+      { $match: {
+        brand: new RegExp(brand, 'i'),
+        model: new RegExp(model.replace(/\s+/g, '.*'), 'i')
+      }},
+      { $lookup: {
+        from: 'price_references',
+        let: { deviceId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $and: [{ $eq: ['$device_id', '$$deviceId'] }, { $eq: ['$is_latest', true] }] } } },
+          { $limit: 1 }
+        ],
+        as: 'price'
+      }},
+      { $project: {
+        brand: 1, model: 1, capacity: 1,
+        price_usd: { $ifNull: [{ $arrayElemAt: ['$price.price_usd', 0] }, 0] },
+        tax_idr: { $ifNull: [{ $arrayElemAt: ['$price.tax_idr', 0] }, 0] }
+      }}
+    ]);
     
-    if (devices.length === 0) {
+    if (results.length === 0) {
       return res.json({ status: 'ok', data: null, message: 'Device tidak ditemukan di database', suggestion: 'Tambahkan device baru' });
     }
     
-    // Get prices for matched devices
-    const results = [];
-    for (const device of devices) {
-      const price = await PriceReference.findOne({ device_id: device._id, is_latest: true });
-      results.push({
-        device,
-        price_usd: price?.price_usd || 0,
-        tax_idr: price?.tax_idr || 0
-      });
-    }
-    
-    res.json({ status: 'ok', data: results });
+    res.json({ status: 'ok', data: results.map(d => ({ device: { _id: d._id, brand: d.brand, model: d.model, capacity: d.capacity }, price_usd: d.price_usd, tax_idr: d.tax_idr })) });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }

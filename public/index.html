@@ -561,27 +561,58 @@
             </div>
         </div>
         <div id="content-dashboard" class="content-section fade-in">
-            <div class="glass-card-solid rounded-2xl p-8 text-center">
-                <i class="fas fa-chart-line text-6xl text-teal-400/30 mb-4"></i>
-                <h2 class="text-2xl font-bold mb-2">Executive Dashboard</h2>
-                <p class="text-gray-400 mb-6">Fitur dalam tahap pengembangan</p>
-                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-chart-bar text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Statistik Harian</p>
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold flex items-center gap-3"><i class="fas fa-chart-line text-teal-400"></i> Executive Dashboard</h2>
+                <p class="text-gray-400 text-sm mt-1">Ringkasan operasional SkyGuard Intelligence</p>
+            </div>
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="stat-card rounded-xl p-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center"><i class="fas fa-users text-blue-400"></i></div><div><p class="text-2xl font-bold" id="dashTotalPassengers">-</p><p class="text-xs text-gray-400">Total Penumpang</p></div></div></div>
+                <div class="stat-card rounded-xl p-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center"><i class="fas fa-mobile-alt text-green-400"></i></div><div><p class="text-2xl font-bold" id="dashTotalDevices">-</p><p class="text-xs text-gray-400">Database IMEI</p></div></div></div>
+                <div class="stat-card rounded-xl p-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center"><i class="fas fa-ship text-purple-400"></i></div><div><p class="text-2xl font-bold" id="dashTotalCargo">-</p><p class="text-xs text-gray-400">Total Cargo</p></div></div></div>
+                <div class="stat-card rounded-xl p-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center"><i class="fas fa-file-alt text-orange-400"></i></div><div><p class="text-2xl font-bold" id="dashTotalManifest">-</p><p class="text-xs text-gray-400">Manifest</p></div></div></div>
+            </div>
+            <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                <!-- Passenger Risk Overview -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-shield-alt text-yellow-400"></i> Risk Overview Penumpang</h3>
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center"><p class="text-xl font-bold text-green-400" id="dashRiskGreen">-</p><p class="text-xs text-gray-400">GREEN</p></div>
+                        <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-center"><p class="text-xl font-bold text-yellow-400" id="dashRiskYellow">-</p><p class="text-xs text-gray-400">YELLOW</p></div>
+                        <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center"><p class="text-xl font-bold text-red-400" id="dashRiskRed">-</p><p class="text-xs text-gray-400">RED</p></div>
                     </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-trophy text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Top Komoditas</p>
+                    <div id="dashBillingBar" class="space-y-2"></div>
+                </div>
+                <!-- Cargo Overview -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-ship text-teal-400"></i> Cargo Overview</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-teal-500/10 border border-teal-500/20 rounded-xl p-3 text-center"><p class="text-xl font-bold text-teal-400" id="dashTotalCIF">-</p><p class="text-xs text-gray-400">Total CIF</p></div>
+                        <div class="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 text-center"><p class="text-xl font-bold text-orange-400" id="dashHighValue">-</p><p class="text-xs text-gray-400">High Value (>$500)</p></div>
                     </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-coins text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Revenue Tracking</p>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-chart-area text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Trend Analysis</p>
-                    </div>
+                    <div id="dashTopPJT" class="space-y-2"></div>
+                </div>
+            </div>
+            <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                <!-- Monthly Trend -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-400"></i> Trend Penumpang 12 Bulan</h3>
+                    <div id="dashMonthlyTrend" class="h-40 flex items-end gap-1"></div>
+                </div>
+                <!-- Kurs Info -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-dollar-sign text-green-400"></i> Kurs Pajak Aktif</h3>
+                    <div id="dashKursInfo" class="space-y-2"></div>
+                </div>
+            </div>
+            <!-- High Risk Passengers -->
+            <div class="glass-card-solid rounded-2xl p-6">
+                <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-exclamation-triangle text-red-400"></i> Penumpang Berisiko Tinggi</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead><tr class="text-left text-gray-400 border-b border-white/10"><th class="pb-2">Paspor</th><th class="pb-2">Nama</th><th class="pb-2 text-center">Kunjungan</th><th class="pb-2 text-center">Devices</th><th class="pb-2 text-center">Billing</th><th class="pb-2 text-center">Risk</th></tr></thead>
+                        <tbody id="dashHighRiskTable"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -744,6 +775,7 @@
                 else if (subId === 'input') { container.innerHTML = getInputContent(); }
             } else if (menu === 'penumpang') { loadPenumpangSubContent(subId); } else if (menu === 'barang') { const container = document.getElementById('content-barang'); if (subId === 'hscode') { loadBarangContent('hscode'); } else if (subId === 'tarif') { container.innerHTML = getTarifContent(); } else if (subId === 'kalkulatorbm') { container.innerHTML = getKalkulatorBMContent(); } else if (subId === 'komoditas') { container.innerHTML = getKomoditasContent(); }
             } else if (menu === 'cargo') { loadCargoSubContent(subId); }
+            else if (menu === 'dashboard') { loadDashboard(); }
         }
 
         // ==================== IMEI CONTENT TEMPLATES ====================
@@ -1408,7 +1440,7 @@
             try {
                 const res = await fetch('/api/kurs/all');
                 const data = await res.json();
-                allKursData = data.data;
+                allKursData = data;
                 const usd = allKursData.currencies.find(c => c.code === 'USD');
                 if (usd) { currentKurs = usd.rate; document.getElementById('homeKursUSD').textContent = usd.rate.toLocaleString('id-ID'); }
                 const eur = allKursData.currencies.find(c => c.code === 'EUR');
@@ -1553,32 +1585,7 @@
             }
         }
         
-        async function loadAlerts() {
-            try {
-                const res = await fetch('/api/passengers/alerts');
-                const data = await res.json();
-                const container = document.getElementById('alertsList');
-                
-                if (!data.data || data.data.length === 0) {
-                    container.innerHTML = '<p class="text-gray-400 text-center py-8">Tidak ada alert</p>';
-                    return;
-                }
-                
-                container.innerHTML = data.data.map(p => {
-                    const flags = [];
-                    if (p.total_arrivals >= 3) flags.push('<span class="px-2 py-1 rounded text-xs bg-blue-500/30 text-blue-300">Frequent</span>');
-                    if (p.total_devices >= 4) flags.push('<span class="px-2 py-1 rounded text-xs bg-red-500/30 text-red-300">IMEI Collector</span>');
-                    
-                    return '<div class="result-row p-4 rounded-xl cursor-pointer" onclick="document.getElementById(\'passportInput\').value=\'' + p.passport + '\'; setSubMenu(\'lookup\'); lookupPassenger();">' +
-                        '<div class="flex justify-between items-center">' +
-                        '<div><p class="font-bold text-white">' + p.passport + '</p><div class="flex gap-2 mt-1">' + flags.join('') + '</div></div>' +
-                        '<div class="text-right"><p class="text-lg font-bold text-yellow-400">' + p.total_devices + ' <span class="text-xs text-gray-400">IMEI</span></p><p class="text-xs text-gray-400">' + p.total_arrivals + ' kedatangan</p></div>' +
-                        '</div></div>';
-                }).join('');
-            } catch (err) {
-                showToast('Error loading alerts', 'error');
-            }
-        }
+        // loadAlerts is defined below in the penumpang section (using /api/passenger/repeaters)
         
         async function searchTransactions() {
             const q = document.getElementById('searchTransInput')?.value?.trim();
@@ -2309,9 +2316,97 @@
             } catch(e) { console.error('Search error:', e); }
         }
 
-        function showCargoDetail(nomorAju) {
-            // TODO: Implement detail modal
-            alert('Detail: ' + nomorAju);
+        async function showCargoDetail(nomorAju) {
+            try {
+                const res = await fetch('/api/cargo/detail/' + encodeURIComponent(nomorAju));
+                const d = await res.json();
+                if (d.error) { showToast(d.error, 'error'); return; }
+                const fmtDate = (v) => v ? new Date(v).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) : '-';
+                const fmtMoney = (v) => v ? '$' + Number(v).toLocaleString(undefined,{minimumFractionDigits:2}) : '$0';
+                const statusColor = (s) => {
+                    if (!s) return 'bg-gray-500/20 text-gray-400';
+                    if (s.includes('DILUNASI') || s.includes('SPPB')) return 'bg-green-500/20 text-green-400';
+                    if (s.includes('BILLING') || s.includes('SPTNP')) return 'bg-red-500/20 text-red-400';
+                    return 'bg-yellow-500/20 text-yellow-400';
+                };
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] fade-in';
+                modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+                modal.innerHTML = `
+                    <div class="glass-card-solid rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-white"><i class="fas fa-file-invoice text-teal-400 mr-2"></i>Detail CN-PIBK</h3>
+                                <p class="text-xs font-mono text-gray-400 mt-1">${d.nomor_aju||'-'}</p>
+                            </div>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-white text-xl"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusColor(d.current_status)}">${d.current_status||'N/A'}</span>
+                                <span class="text-xs text-gray-500">HAWB: ${fmtDate(d.tanggal_hawb)}</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-white/5 rounded-xl p-4">
+                                    <p class="text-xs text-gray-400 mb-2"><i class="fas fa-user mr-1"></i>PENERIMA</p>
+                                    <p class="font-semibold text-white">${d.nama_penerima||'-'}</p>
+                                    <p class="text-xs text-gray-400 mt-1">${d.nomor_identitas_penerima||'-'}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${d.alamat_penerima||'-'}</p>
+                                </div>
+                                <div class="bg-white/5 rounded-xl p-4">
+                                    <p class="text-xs text-gray-400 mb-2"><i class="fas fa-paper-plane mr-1"></i>PENGIRIM</p>
+                                    <p class="font-semibold text-white">${d.nama_pengirim||'-'}</p>
+                                    <p class="text-xs text-gray-400 mt-1">${d.nomor_identitas_pengirim||'-'}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${d.alamat_pengirim||'-'}</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+                                    <p class="text-xs text-gray-400">CIF Awal</p>
+                                    <p class="font-bold text-blue-400">${fmtMoney(d.cif_awal)}</p>
+                                </div>
+                                <div class="bg-teal-500/10 border border-teal-500/20 rounded-xl p-3 text-center">
+                                    <p class="text-xs text-gray-400">CIF Akhir</p>
+                                    <p class="font-bold text-teal-400">${fmtMoney(d.cif_akhir)}</p>
+                                </div>
+                                <div class="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
+                                    <p class="text-xs text-gray-400">FOB Awal</p>
+                                    <p class="font-bold text-purple-400">${fmtMoney(d.fob_awal)}</p>
+                                </div>
+                                <div class="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 text-center">
+                                    <p class="text-xs text-gray-400">FOB Akhir</p>
+                                    <p class="font-bold text-orange-400">${fmtMoney(d.fob_akhir)}</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-white/5 rounded-xl p-4">
+                                    <p class="text-xs text-gray-400 mb-2"><i class="fas fa-building mr-1"></i>PJT (Pemberitahu)</p>
+                                    <p class="font-semibold">${d.nama_pemberitahu||'-'}</p>
+                                    <p class="text-xs text-gray-400 mt-1">NPWP: ${d.npwp_pemberitahu||'-'}</p>
+                                </div>
+                                <div class="bg-white/5 rounded-xl p-4">
+                                    <p class="text-xs text-gray-400 mb-2"><i class="fas fa-user-tie mr-1"></i>PDTT</p>
+                                    <p class="font-semibold">${d.nama_pdtt||'-'}</p>
+                                    <p class="text-xs text-gray-400 mt-1">NIP: ${d.nip_pdtt||'-'}</p>
+                                </div>
+                            </div>
+                            <div class="bg-white/5 rounded-xl p-4">
+                                <p class="text-xs text-gray-400 mb-2"><i class="fas fa-info-circle mr-1"></i>INFORMASI DOKUMEN</p>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <div><span class="text-gray-400">No. PIBK:</span> <span class="text-white">${d.nomor_pibk||'-'}</span></div>
+                                    <div><span class="text-gray-400">Tgl PIBK:</span> <span class="text-white">${fmtDate(d.tanggal_pibk)}</span></div>
+                                    <div><span class="text-gray-400">No. Kantong:</span> <span class="text-white">${d.nomor_kantong||'-'}</span></div>
+                                    <div><span class="text-gray-400">Gudang:</span> <span class="text-white">${d.nama_gudang||'-'}</span></div>
+                                    <div><span class="text-gray-400">SPPB:</span> <span class="text-white">${d.nomor_sppb||'-'} ${fmtDate(d.tanggal_sppb)}</span></div>
+                                    <div><span class="text-gray-400">SPPBMCP:</span> <span class="text-white">${d.nomor_sppbmcp||'-'} ${fmtDate(d.tanggal_sppbmcp)}</span></div>
+                                    <div><span class="text-gray-400">Billing:</span> <span class="text-white">${d.kode_billing||'-'}</span></div>
+                                    <div><span class="text-gray-400">Billing SPTNP:</span> <span class="text-white">${d.kode_billing_sptnp||'-'}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                document.body.appendChild(modal);
+            } catch(e) { showToast('Error loading detail: ' + e.message, 'error'); }
         }
 
         let cargoSelectedFile = null;
@@ -2535,6 +2630,240 @@
             if (!selectedManifestId) return;
             window.location.href = `/api/manifests/${selectedManifestId}/passengers/export`;
         }
+
+        // ==================== BARANG CONTENT FUNCTIONS ====================
+        function getTarifContent() {
+            return `
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-percentage text-purple-400"></i> Tarif & Lartas</h3>
+                    <p class="text-gray-400 mb-6">Informasi tarif bea masuk dan larangan/pembatasan impor barang bawaan penumpang</p>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-white/5 rounded-xl p-5">
+                            <h4 class="font-bold text-white mb-3 flex items-center gap-2"><i class="fas fa-box text-yellow-400"></i> Barang Bawaan Penumpang</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Pembebasan FOB</span><span class="text-green-400 font-bold">USD 500 / orang</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Bea Masuk (BM)</span><span class="text-blue-400 font-bold">10% flat</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">PPN</span><span class="text-purple-400 font-bold">11%</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Maks IMEI per paspor</span><span class="text-orange-400 font-bold">2 unit</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white/5 rounded-xl p-5">
+                            <h4 class="font-bold text-white mb-3 flex items-center gap-2"><i class="fas fa-ban text-red-400"></i> Barang Kena Cukai (BKC)</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Sigaret</span><span class="text-white">maks 200 batang</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Cerutu</span><span class="text-white">maks 25 batang</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Tembakau iris</span><span class="text-white">maks 100 gram</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">MMEA</span><span class="text-white">maks 1 liter</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-white/5 rounded-xl p-5">
+                        <h4 class="font-bold text-white mb-3 flex items-center gap-2"><i class="fas fa-exclamation-triangle text-red-400"></i> Larangan & Pembatasan (Lartas)</h4>
+                        <div class="grid md:grid-cols-3 gap-4 text-sm">
+                            <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                <p class="font-semibold text-red-400 mb-1">Dilarang</p>
+                                <ul class="text-gray-300 space-y-1"><li>• Narkotika & psikotropika</li><li>• Senjata api & amunisi</li><li>• Bahan peledak</li><li>• Pornografi</li></ul>
+                            </div>
+                            <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                                <p class="font-semibold text-yellow-400 mb-1">Dibatasi</p>
+                                <ul class="text-gray-300 space-y-1"><li>• Obat-obatan (resep dokter)</li><li>• Tanaman & hewan (CITES)</li><li>• Produk pangan (BPOM)</li><li>• Elektronik tertentu</li></ul>
+                            </div>
+                            <div class="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                                <p class="font-semibold text-blue-400 mb-1">Wajib Lapor</p>
+                                <ul class="text-gray-300 space-y-1"><li>• Uang tunai ≥ Rp100 juta</li><li>• Instrumen negosiasi</li><li>• Logam mulia ≥ 250 gram</li><li>• Batu permata</li></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-gray-500 flex items-center gap-2"><i class="fas fa-info-circle"></i> Berdasarkan PMK No. 34/PMK.04/2025 & peraturan terkait</div>
+                </div>`;
+        }
+
+        function getKalkulatorBMContent() {
+            return `
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-calculator text-purple-400"></i> Kalkulator Bea Masuk</h3>
+                    <p class="text-gray-400 mb-6">Hitung estimasi bea masuk & pajak untuk barang bawaan penumpang</p>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm text-gray-400 block mb-1">Nilai FOB (USD)</label>
+                                <input type="number" id="bmFobInput" class="input-modern w-full rounded-xl px-4 py-3 text-white" placeholder="Contoh: 1500" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-400 block mb-1">Jumlah Barang</label>
+                                <input type="number" id="bmQtyInput" class="input-modern w-full rounded-xl px-4 py-3 text-white" placeholder="1" min="1" value="1">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-400 block mb-1">Mata Uang</label>
+                                <select id="bmCurrencyInput" class="input-modern w-full rounded-xl px-4 py-3 text-white">
+                                    <option value="USD">USD - Dolar AS</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                    <option value="SGD">SGD - Dolar Singapura</option>
+                                    <option value="MYR">MYR - Ringgit Malaysia</option>
+                                    <option value="JPY">JPY - Yen Jepang</option>
+                                    <option value="CNY">CNY - Yuan Tiongkok</option>
+                                    <option value="GBP">GBP - Poundsterling</option>
+                                    <option value="AUD">AUD - Dolar Australia</option>
+                                    <option value="SAR">SAR - Riyal Saudi</option>
+                                </select>
+                            </div>
+                            <button onclick="hitungBM()" class="btn-primary w-full py-3 rounded-xl font-bold"><i class="fas fa-calculator mr-2"></i>Hitung Sekarang</button>
+                        </div>
+                        <div id="bmResult" class="bg-white/5 rounded-xl p-5">
+                            <p class="text-center text-gray-500 py-8"><i class="fas fa-calculator text-3xl mb-2 block opacity-30"></i>Masukkan nilai FOB untuk mulai menghitung</p>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        async function hitungBM() {
+            const fob = parseFloat(document.getElementById('bmFobInput')?.value) || 0;
+            const qty = parseInt(document.getElementById('bmQtyInput')?.value) || 1;
+            const currency = document.getElementById('bmCurrencyInput')?.value || 'USD';
+            if (fob <= 0) { showToast('Masukkan nilai FOB', 'error'); return; }
+            try {
+                const res = await fetch('/api/kurs/hitung', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fob_usd: fob, jumlah_unit: qty, currency }) });
+                const data = await res.json();
+                const p = data.perhitungan;
+                document.getElementById('bmResult').innerHTML = `
+                    <h4 class="font-bold text-white mb-3"><i class="fas fa-receipt text-green-400 mr-2"></i>Hasil Perhitungan</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">FOB</span><span class="text-white">${currency} ${fob.toLocaleString()}</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Pembebasan</span><span class="text-green-400">- USD ${p.pembebasan_usd}</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Kena Pajak</span><span class="text-yellow-400">USD ${p.kena_pajak_usd.toLocaleString()}</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Kurs</span><span class="text-white">Rp ${data.kurs.rate.toLocaleString()}</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">Nilai Pabean</span><span class="text-white">Rp ${p.nilai_pabean_idr.toLocaleString()}</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">BM (${p.bm_persen})</span><span class="text-blue-400">Rp ${p.bm_idr.toLocaleString()}</span></div>
+                        <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-gray-400">PPN (${p.ppn_persen})</span><span class="text-purple-400">Rp ${p.ppn_idr.toLocaleString()}</span></div>
+                        <div class="flex justify-between pt-2 border-t border-white/20"><span class="font-bold text-white">TOTAL PAJAK</span><span class="font-bold text-xl text-teal-400">Rp ${p.total_pajak_idr.toLocaleString()}</span></div>
+                    </div>
+                    ${data.catatan ? '<div class="mt-3 bg-red-500/20 border border-red-500/30 rounded-lg p-2 text-xs text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i>'+data.catatan+'</div>' : ''}
+                `;
+            } catch(e) { showToast('Error: ' + e.message, 'error'); }
+        }
+
+        function getKomoditasContent() {
+            return `
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-database text-purple-400"></i> Database Komoditas</h3>
+                    <p class="text-gray-400 mb-6">Referensi komoditas yang sering ditemukan di pengawasan bandara</p>
+                    <div class="grid md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 rounded-xl p-5 text-center">
+                            <i class="fas fa-mobile-alt text-3xl text-blue-400 mb-2"></i>
+                            <p class="font-bold text-white">Elektronik</p>
+                            <p class="text-xs text-gray-400 mt-1">HP, Laptop, Tablet, Smartwatch</p>
+                            <p class="text-sm text-blue-400 mt-2 cursor-pointer" onclick="setMainMenu('imei'); setTimeout(()=>setSubMenu('harga'),100)"><i class="fas fa-arrow-right mr-1"></i>Lihat Database IMEI</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/20 rounded-xl p-5 text-center">
+                            <i class="fas fa-gem text-3xl text-purple-400 mb-2"></i>
+                            <p class="font-bold text-white">Fashion & Luxury</p>
+                            <p class="text-xs text-gray-400 mt-1">Tas, Jam, Perhiasan, Parfum</p>
+                            <p class="text-sm text-purple-400 mt-2 opacity-50"><i class="fas fa-clock mr-1"></i>Segera hadir</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/20 rounded-xl p-5 text-center">
+                            <i class="fas fa-pills text-3xl text-green-400 mb-2"></i>
+                            <p class="font-bold text-white">Kesehatan & BKC</p>
+                            <p class="text-xs text-gray-400 mt-1">Obat, Suplemen, Rokok, MMEA</p>
+                            <p class="text-sm text-green-400 mt-2 opacity-50"><i class="fas fa-clock mr-1"></i>Segera hadir</p>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 rounded-xl p-5">
+                        <h4 class="font-bold text-white mb-3"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Tips Pengawasan</h4>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm text-gray-300">
+                            <div class="flex items-start gap-2"><i class="fas fa-check text-green-400 mt-1 flex-shrink-0"></i><span>Periksa kesesuaian jumlah IMEI yang didaftarkan vs yang dibawa fisik</span></div>
+                            <div class="flex items-start gap-2"><i class="fas fa-check text-green-400 mt-1 flex-shrink-0"></i><span>Bandingkan harga device dengan database referensi SkyGuard</span></div>
+                            <div class="flex items-start gap-2"><i class="fas fa-check text-green-400 mt-1 flex-shrink-0"></i><span>Perhatikan pola penumpang <em>frequent traveler</em> dengan banyak device</span></div>
+                            <div class="flex items-start gap-2"><i class="fas fa-check text-green-400 mt-1 flex-shrink-0"></i><span>Cek apakah barang termasuk lartas melalui menu HS Code</span></div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // ==================== DASHBOARD FUNCTIONS ====================
+        async function loadDashboard() {
+            try {
+                const [passengerRes, cargoRes, kursRes, devicesRes, manifestRes] = await Promise.all([
+                    fetch('/api/passenger/stats/advanced').then(r => r.json()).catch(() => ({ data: {} })),
+                    fetch('/api/cargo/stats').then(r => r.json()).catch(() => ({})),
+                    fetch('/api/kurs/all').then(r => r.json()).catch(() => ({ currencies: [] })),
+                    fetch('/api/devices?limit=1').then(r => r.json()).catch(() => ({ total: 0 })),
+                    fetch('/api/manifests').then(r => r.json()).catch(() => ({ data: [] }))
+                ]);
+
+                const p = passengerRes.data || {};
+                const c = cargoRes;
+
+                // KPI Cards
+                document.getElementById('dashTotalPassengers').textContent = (p.totalPassengers || 0).toLocaleString();
+                document.getElementById('dashTotalDevices').textContent = (devicesRes.total || devicesRes.data?.length || 0).toLocaleString();
+                document.getElementById('dashTotalCargo').textContent = (c.totalRecords || 0).toLocaleString();
+                document.getElementById('dashTotalManifest').textContent = (manifestRes.data?.length || 0).toLocaleString();
+
+                // Risk Overview
+                const green = (p.totalPassengers || 0) - (p.frequentTravelers || 0);
+                const yellow = (p.frequentTravelers || 0) - (p.highRiskPassengers?.length || 0);
+                const red = p.highRiskPassengers?.length || 0;
+                document.getElementById('dashRiskGreen').textContent = Math.max(0, green).toLocaleString();
+                document.getElementById('dashRiskYellow').textContent = Math.max(0, yellow).toLocaleString();
+                document.getElementById('dashRiskRed').textContent = red.toLocaleString();
+
+                // Billing bar
+                const billingEl = document.getElementById('dashBillingBar');
+                if (billingEl && p.billingRate) {
+                    const br = parseFloat(p.billingRate);
+                    billingEl.innerHTML = `
+                        <div class="flex items-center justify-between text-sm"><span class="text-gray-400">Billing Rate</span><span class="font-bold text-yellow-400">${br}%</span></div>
+                        <div class="w-full bg-white/10 rounded-full h-3"><div class="bg-gradient-to-r from-yellow-500 to-red-500 h-3 rounded-full transition-all" style="width:${Math.min(br*2,100)}%"></div></div>
+                        <p class="text-xs text-gray-500">Rata-rata harian: ${p.dailyAverage||0} penumpang</p>`;
+                }
+
+                // Cargo CIF
+                document.getElementById('dashTotalCIF').textContent = '$' + (c.totalCIF || 0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0});
+                document.getElementById('dashHighValue').textContent = (c.highValueTransactions?.length || 0).toLocaleString();
+
+                // Top PJT
+                const topPJTEl = document.getElementById('dashTopPJT');
+                if(topPJTEl && c.topPJT?.length) {
+                    topPJTEl.innerHTML = '<p class="text-xs text-gray-400 mb-2">Top 5 PJT</p>' + c.topPJT.slice(0,5).map((t,i) => 
+                        '<div class="flex justify-between text-sm py-1 border-b border-white/5"><span class="text-gray-300">'+(i+1)+'. '+(t._id||'-')+'</span><span class="text-teal-400 font-bold">'+t.count+'</span></div>'
+                    ).join('');
+                }
+
+                // Monthly Trend
+                const trendEl = document.getElementById('dashMonthlyTrend');
+                if(trendEl && p.monthlyTrend?.length) {
+                    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+                    const maxC = Math.max(...p.monthlyTrend.map(m => m.count), 1);
+                    trendEl.innerHTML = p.monthlyTrend.slice(0,12).map(m => {
+                        const h = Math.max((m.count/maxC)*100, 5);
+                        return '<div class="flex-1 flex flex-col items-center gap-1"><div class="text-xs text-gray-400">'+m.count+'</div><div class="w-full bg-blue-500/60 rounded-t hover:bg-blue-400/80 transition-all" style="height:'+h+'%"></div><div class="text-xs text-gray-500">'+months[(m._id?.month||1)-1]+'</div></div>';
+                    }).join('');
+                }
+
+                // Kurs
+                const kursEl = document.getElementById('dashKursInfo');
+                if(kursEl && kursRes.currencies?.length) {
+                    const mainCurr = ['USD','EUR','SGD','MYR','JPY','CNY','SAR','AUD'];
+                    kursEl.innerHTML = '<p class="text-xs text-gray-400 mb-2">Periode: '+(kursRes.periode||'-')+'</p>' + 
+                        kursRes.currencies.filter(c => mainCurr.includes(c.code)).map(c => 
+                            '<div class="flex justify-between text-sm py-1 border-b border-white/5"><span class="text-gray-300">'+c.code+' - '+c.name+'</span><span class="text-green-400 font-bold">Rp '+(c.rate||0).toLocaleString()+'</span></div>'
+                        ).join('');
+                }
+
+                // High Risk Table
+                const hrTable = document.getElementById('dashHighRiskTable');
+                if(hrTable && p.highRiskPassengers?.length) {
+                    hrTable.innerHTML = p.highRiskPassengers.slice(0,10).map(r => {
+                        const level = r.riskScore >= 30 ? 'RED' : 'YELLOW';
+                        const color = level === 'RED' ? 'text-red-400 bg-red-500/20' : 'text-yellow-400 bg-yellow-500/20';
+                        return '<tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="document.getElementById(\'pasporInput\').value=\''+r._id+'\';setMainMenu(\'penumpang\');setSubMenu(\'lookup\');setTimeout(searchPaspor,200)"><td class="py-2 font-mono text-sm">'+r._id+'</td><td class="py-2 text-sm">'+(r.nama||'-')+'</td><td class="py-2 text-center">'+r.visits+'</td><td class="py-2 text-center">'+r.deviceCount+'</td><td class="py-2 text-center">'+(r.billingCount||0)+'</td><td class="py-2 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold '+color+'">'+level+'</span></td></tr>';
+                    }).join('');
+                } else if(hrTable) {
+                    hrTable.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">Tidak ada penumpang berisiko tinggi</td></tr>';
+                }
+            } catch(e) { console.error('Dashboard error:', e); }
+        }
+
         loadAllKurs();
         loadLatest();
         loadAllDevices();
