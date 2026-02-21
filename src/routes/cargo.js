@@ -11,7 +11,7 @@ const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = '/root/skyguard/uploads/cargo';
+    const dir = path.join(__dirname, '../../uploads/cargo');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -74,7 +74,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const stats = await cargoService.importCnpibk(req.file.path, uploadedBy);
     
     // Cleanup uploaded file
-    fs.unlinkSync(req.file.path);
+    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore cleanup error */ }
     
     res.json({
       success: true,

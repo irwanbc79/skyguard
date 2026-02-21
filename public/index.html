@@ -571,26 +571,96 @@
             </div>
         </div>
         <div id="content-dashboard" class="content-section fade-in">
-            <div class="glass-card-solid rounded-2xl p-8 text-center">
-                <i class="fas fa-chart-line text-6xl text-teal-400/30 mb-4"></i>
-                <h2 class="text-2xl font-bold mb-2">Executive Dashboard</h2>
-                <p class="text-gray-400 mb-6">Fitur dalam tahap pengembangan</p>
-                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-chart-bar text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Statistik Harian</p>
+            <!-- KPI Cards Row -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashboardKPI">
+                <div class="glass-card-solid rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-400 uppercase tracking-wide">Total IMEI</span>
+                        <i class="fas fa-mobile-alt text-teal-400"></i>
                     </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-trophy text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Top Komoditas</p>
+                    <p class="text-3xl font-bold" id="kpiDevices">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Perangkat terdaftar</p>
+                </div>
+                <div class="glass-card-solid rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-400 uppercase tracking-wide">Penumpang</span>
+                        <i class="fas fa-users text-blue-400"></i>
                     </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-coins text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Revenue Tracking</p>
+                    <p class="text-3xl font-bold" id="kpiPassengers">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Data rekam penumpang</p>
+                </div>
+                <div class="glass-card-solid rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-400 uppercase tracking-wide">Cargo (PIBK)</span>
+                        <i class="fas fa-box text-amber-400"></i>
                     </div>
-                    <div class="bg-white/5 rounded-xl p-4">
-                        <i class="fas fa-chart-area text-teal-400 text-xl mb-2"></i>
-                        <p class="font-semibold text-sm">Trend Analysis</p>
+                    <p class="text-3xl font-bold" id="kpiCargo">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Dokumen CN/PIBK</p>
+                </div>
+                <div class="glass-card-solid rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-400 uppercase tracking-wide">Kurs USD</span>
+                        <i class="fas fa-dollar-sign text-green-400"></i>
+                    </div>
+                    <p class="text-3xl font-bold" id="kpiKursUSD">-</p>
+                    <p class="text-xs text-gray-500 mt-1" id="kpiKursPeriode">Periode berlaku</p>
+                </div>
+            </div>
+
+            <!-- Second Row: Risk Overview + Cargo Distribution -->
+            <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                <!-- Risk Overview -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-shield-alt text-red-400"></i> Profil Risiko Penumpang</h3>
+                    <div id="dashRiskBars" class="space-y-3">
+                        <p class="text-gray-500 text-sm">Memuat data...</p>
+                    </div>
+                </div>
+                <!-- Cargo Stats -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-amber-400"></i> Ringkasan Cargo</h3>
+                    <div id="dashCargoStats" class="space-y-3">
+                        <p class="text-gray-500 text-sm">Memuat data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Third Row: Recent High-Risk Passengers + Kurs Table -->
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- High Risk Passengers -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-exclamation-triangle text-yellow-400"></i> Penumpang Risiko Tinggi</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-400 border-b border-white/10">
+                                    <th class="pb-2">Nama</th>
+                                    <th class="pb-2">Kebangsaan</th>
+                                    <th class="pb-2">Skor</th>
+                                    <th class="pb-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashHighRiskRows">
+                                <tr><td colspan="4" class="text-gray-500 py-4 text-center">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Kurs Utama -->
+                <div class="glass-card-solid rounded-2xl p-6">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-coins text-green-400"></i> Kurs Pajak Utama</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-400 border-b border-white/10">
+                                    <th class="pb-2">Mata Uang</th>
+                                    <th class="pb-2 text-right">Kurs (IDR)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashKursRows">
+                                <tr><td colspan="2" class="text-gray-500 py-4 text-center">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -711,6 +781,9 @@
             }
             if (menu === 'manifest') {
                 loadManifestList();
+            }
+            if (menu === 'dashboard') {
+                loadDashboard();
             }
         }
 
@@ -2390,6 +2463,138 @@
                     </tr>
                 `).join('') || '<tr><td colspan="7" class="text-center py-4 text-gray-500">Belum ada riwayat upload</td></tr>';
             } catch(e) { console.error('Upload logs error:', e); }
+        }
+
+        // ==================== DASHBOARD FUNCTIONS ====================
+        async function loadDashboard() {
+            try {
+                // Fetch all data in parallel
+                const [devRes, paxRes, cargoRes, kursRes, highRiskRes] = await Promise.allSettled([
+                    fetch('/api/devices/all').then(r => r.json()),
+                    fetch('/api/passenger/stats').then(r => r.json()),
+                    fetch('/api/cargo/stats').then(r => r.json()),
+                    fetch('/api/kurs/all').then(r => r.json()),
+                    fetch('/api/passengers/stats').then(r => r.json())
+                ]);
+
+                // KPI: Devices
+                if (devRes.status === 'fulfilled' && devRes.value.total) {
+                    document.getElementById('kpiDevices').textContent = Number(devRes.value.total).toLocaleString('id-ID');
+                }
+
+                // KPI: Passengers
+                if (paxRes.status === 'fulfilled' && paxRes.value.data) {
+                    const paxData = paxRes.value.data;
+                    const total = paxData.total || paxData.totalPassengers || 0;
+                    document.getElementById('kpiPassengers').textContent = Number(total).toLocaleString('id-ID');
+
+                    // Risk bars
+                    const riskContainer = document.getElementById('dashRiskBars');
+                    const riskLevels = paxData.riskLevels || paxData.risk_levels || {};
+                    if (Object.keys(riskLevels).length > 0) {
+                        const maxRisk = Math.max(...Object.values(riskLevels), 1);
+                        const riskColors = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-green-500' };
+                        const riskLabels = { high: 'Tinggi', medium: 'Sedang', low: 'Rendah' };
+                        riskContainer.innerHTML = Object.entries(riskLevels).map(([level, count]) => `
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span>${riskLabels[level] || level}</span>
+                                    <span class="text-gray-400">${count}</span>
+                                </div>
+                                <div class="w-full bg-white/10 rounded-full h-2">
+                                    <div class="${riskColors[level] || 'bg-teal-500'} h-2 rounded-full transition-all" style="width: ${Math.round(count/maxRisk*100)}%"></div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        riskContainer.innerHTML = '<p class="text-gray-500 text-sm">Belum ada data profil risiko</p>';
+                    }
+                }
+
+                // KPI: Cargo
+                if (cargoRes.status === 'fulfilled' && cargoRes.value.data) {
+                    const cData = cargoRes.value.data;
+                    const cargoTotal = cData.total || cData.totalDocuments || 0;
+                    document.getElementById('kpiCargo').textContent = Number(cargoTotal).toLocaleString('id-ID');
+
+                    // Cargo stats
+                    const cargoContainer = document.getElementById('dashCargoStats');
+                    const statItems = [];
+                    if (cData.totalFOB) statItems.push({ label: 'Total FOB', value: 'USD ' + Number(cData.totalFOB).toLocaleString('en-US', {minimumFractionDigits: 2}) });
+                    if (cData.totalBM) statItems.push({ label: 'Total BM', value: 'Rp ' + Number(cData.totalBM).toLocaleString('id-ID') });
+                    if (cData.totalPPN) statItems.push({ label: 'Total PPN', value: 'Rp ' + Number(cData.totalPPN).toLocaleString('id-ID') });
+                    if (cData.totalPPh) statItems.push({ label: 'Total PPh', value: 'Rp ' + Number(cData.totalPPh).toLocaleString('id-ID') });
+                    if (cData.averageFOB) statItems.push({ label: 'Rata-rata FOB', value: 'USD ' + Number(cData.averageFOB).toFixed(2) });
+                    
+                    if (statItems.length > 0) {
+                        cargoContainer.innerHTML = statItems.map(s => `
+                            <div class="flex justify-between items-center py-2 border-b border-white/5">
+                                <span class="text-gray-400 text-sm">${s.label}</span>
+                                <span class="font-semibold">${s.value}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        cargoContainer.innerHTML = `
+                            <div class="flex justify-between items-center py-2 border-b border-white/5">
+                                <span class="text-gray-400 text-sm">Total Dokumen</span>
+                                <span class="font-semibold">${Number(cargoTotal).toLocaleString('id-ID')}</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                // KPI + Table: Kurs
+                if (kursRes.status === 'fulfilled' && kursRes.value.data) {
+                    const kData = kursRes.value.data;
+                    const kurs = kData.kurs || kData;
+                    const meta = kData.meta || {};
+                    const usd = Array.isArray(kurs) ? kurs.find(k => k.code === 'USD') : null;
+                    if (usd) {
+                        document.getElementById('kpiKursUSD').textContent = 'Rp ' + Number(usd.rate).toLocaleString('id-ID');
+                    }
+                    if (meta.periode) {
+                        document.getElementById('kpiKursPeriode').textContent = meta.periode;
+                    }
+
+                    // Top currencies table
+                    const topCodes = ['USD', 'EUR', 'SGD', 'MYR', 'JPY', 'CNY', 'AUD', 'GBP'];
+                    const kursRows = document.getElementById('dashKursRows');
+                    if (Array.isArray(kurs)) {
+                        const filtered = kurs.filter(k => topCodes.includes(k.code));
+                        kursRows.innerHTML = filtered.map(k => `
+                            <tr class="border-b border-white/5 hover:bg-white/5">
+                                <td class="py-2"><span class="font-mono">${k.code}</span> <span class="text-gray-500 text-xs">${k.name || ''}</span></td>
+                                <td class="py-2 text-right font-semibold">${Number(k.rate).toLocaleString('id-ID')}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                // High Risk Passengers
+                if (highRiskRes.status === 'fulfilled' && highRiskRes.value.data) {
+                    const hrData = highRiskRes.value.data;
+                    const hrPassengers = hrData.highRisk || hrData.high_risk || [];
+                    const hrRows = document.getElementById('dashHighRiskRows');
+                    if (hrPassengers.length > 0) {
+                        hrRows.innerHTML = hrPassengers.slice(0, 10).map(p => {
+                            const scoreBadge = (p.risk_score || 0) >= 70 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400';
+                            return `
+                                <tr class="border-b border-white/5 hover:bg-white/5">
+                                    <td class="py-2">${p.nama || p.name || '-'}</td>
+                                    <td class="py-2">${p.kebangsaan || p.nationality || '-'}</td>
+                                    <td class="py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${scoreBadge}">${p.risk_score || '-'}</span></td>
+                                    <td class="py-2">${p.penetapan || p.status || '-'}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        hrRows.innerHTML = '<tr><td colspan="4" class="text-gray-500 py-4 text-center">Tidak ada penumpang risiko tinggi</td></tr>';
+                    }
+                }
+
+            } catch (err) {
+                console.error('Dashboard load error:', err);
+            }
         }
 
         // ==================== MANIFEST FUNCTIONS ====================

@@ -1,4 +1,31 @@
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-module.exports = { escapeRegex };
+
+// Sanitize HTML to prevent XSS
+function sanitizeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// Sanitize CSV field to prevent formula injection
+function sanitizeCsv(val) {
+  if (!val) return '';
+  const s = String(val);
+  if (/^[=+\-@\t\r]/.test(s)) return "'" + s;
+  return s;
+}
+
+// Parse pagination params safely
+function parsePagination(query, defaults = {}) {
+  const page = Math.max(1, parseInt(query.page) || defaults.page || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(query.limit) || defaults.limit || 50));
+  return { page, limit, skip: (page - 1) * limit };
+}
+
+module.exports = { escapeRegex, sanitizeHtml, sanitizeCsv, parsePagination };

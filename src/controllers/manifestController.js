@@ -2,6 +2,7 @@ const Manifest = require('../models/Manifest');
 const ManifestPassenger = require('../models/ManifestPassenger');
 const { ingestManifest } = require('../services/manifestIngestService');
 const { crosscheckManifest } = require('../services/crosscheckService');
+const { sanitizeCsv } = require('../utils/helpers');
 
 async function listManifests(req, res) {
   try {
@@ -165,7 +166,7 @@ async function exportManifestPassengers(req, res) {
       p.destination_code,
       p.flight_no
     ]);
-    const csv = [headers.join(','), ...rows.map(row => row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map(row => row.map(val => `"${sanitizeCsv(String(val || '')).replace(/"/g, '""')}"`).join(','))].join('\n');
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="manifest_passengers.csv"');
     res.send(csv);

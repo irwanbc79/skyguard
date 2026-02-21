@@ -48,6 +48,9 @@ async function importCnpibk(filePath, uploadedBy = 'system') {
   
   stats.total = rows.length;
   
+  const BATCH_SIZE = 500;
+  let bulkOps = [];
+  
   for (const row of rows) {
     try {
       // Map kolom dari CSV (header dengan semicolon separator sudah di-parse xlsx)
@@ -90,22 +93,31 @@ async function importCnpibk(filePath, uploadedBy = 'system') {
         uploaded_at: new Date()
       };
       
-      // Upsert berdasarkan nomor_aju (deduplikasi)
-      const result = await Cnpibk.findOneAndUpdate(
-        { nomor_aju: doc.nomor_aju },
-        { $set: doc },
-        { upsert: true, new: true, rawResult: true }
-      );
+      bulkOps.push({
+        updateOne: {
+          filter: { nomor_aju: doc.nomor_aju },
+          update: { $set: doc },
+          upsert: true
+        }
+      });
       
-      if (result.lastErrorObject?.updatedExisting) {
-        stats.duplicate++;
-      } else {
-        stats.new++;
+      if (bulkOps.length >= BATCH_SIZE) {
+        const result = await Cnpibk.bulkWrite(bulkOps, { ordered: false });
+        stats.new += result.upsertedCount;
+        stats.duplicate += result.modifiedCount;
+        bulkOps = [];
       }
     } catch (e) {
       console.error('Row error:', e.message);
       stats.error++;
     }
+  }
+  
+  // Flush remaining
+  if (bulkOps.length > 0) {
+    const result = await Cnpibk.bulkWrite(bulkOps, { ordered: false });
+    stats.new += result.upsertedCount;
+    stats.duplicate += result.modifiedCount;
   }
   
   // Log upload

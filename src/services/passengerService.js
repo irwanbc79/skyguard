@@ -255,6 +255,9 @@ async function importExcel(buffer, uploadedBy, filename) {
   const hasQrCode = dataSheet[0].qrCode !== undefined;
   console.log('[IMPORT] Has qrCode column:', hasQrCode);
   
+  const BATCH_SIZE = 500;
+  let bulkOps = [];
+  
   for (let i = 0; i < dataSheet.length; i++) {
     const row = dataSheet[i];
     const qrCode = row.qrCode || row.qr_code || row.QrCode || row.QRCODE;
@@ -280,13 +283,31 @@ async function importExcel(buffer, uploadedBy, filename) {
         upload_batch: uploadBatch
       };
       
-      const result = await Passenger.updateOne({ qr_code: doc.qr_code }, { $set: doc }, { upsert: true });
-      if (result.upsertedCount > 0) newRecords++;
-      else duplicateRecords++;
+      bulkOps.push({
+        updateOne: {
+          filter: { qr_code: doc.qr_code },
+          update: { $set: doc },
+          upsert: true
+        }
+      });
+      
+      if (bulkOps.length >= BATCH_SIZE) {
+        const result = await Passenger.bulkWrite(bulkOps, { ordered: false });
+        newRecords += result.upsertedCount;
+        duplicateRecords += result.modifiedCount;
+        bulkOps = [];
+      }
     } catch (err) {
       if (err.code === 11000) duplicateRecords++;
       else errorRecords++;
     }
+  }
+  
+  // Flush remaining
+  if (bulkOps.length > 0) {
+    const result = await Passenger.bulkWrite(bulkOps, { ordered: false });
+    newRecords += result.upsertedCount;
+    duplicateRecords += result.modifiedCount;
   }
   
   await UploadLog.create({
@@ -302,6 +323,8 @@ async function importExcel(buffer, uploadedBy, filename) {
 async function importCSV(lines, uploadedBy, filename) {
   const uploadBatch = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   let newRecords = 0, duplicateRecords = 0;
+  const BATCH_SIZE = 500;
+  let bulkOps = [];
   
   for (let i = 1; i < lines.length; i++) {
     const f = lines[i].replace(/^\uFEFF/, '').replace(/\r/g, '').split(';').map(x => x.trim());
@@ -316,10 +339,28 @@ async function importCSV(lines, uploadedBy, filename) {
         status_penelitian: f[12] || '', upload_batch: uploadBatch
       };
       
-      const result = await Passenger.updateOne({ qr_code: doc.qr_code }, { $set: doc }, { upsert: true });
-      if (result.upsertedCount > 0) newRecords++;
-      else duplicateRecords++;
+      bulkOps.push({
+        updateOne: {
+          filter: { qr_code: doc.qr_code },
+          update: { $set: doc },
+          upsert: true
+        }
+      });
+      
+      if (bulkOps.length >= BATCH_SIZE) {
+        const result = await Passenger.bulkWrite(bulkOps, { ordered: false });
+        newRecords += result.upsertedCount;
+        duplicateRecords += result.modifiedCount;
+        bulkOps = [];
+      }
     } catch (err) { if (err.code === 11000) duplicateRecords++; }
+  }
+  
+  // Flush remaining
+  if (bulkOps.length > 0) {
+    const result = await Passenger.bulkWrite(bulkOps, { ordered: false });
+    newRecords += result.upsertedCount;
+    duplicateRecords += result.modifiedCount;
   }
   
   await UploadLog.create({ uploaded_by: uploadedBy, filename, total_records: lines.length - 1, new_records: newRecords, duplicate_records: duplicateRecords });
@@ -332,6 +373,8 @@ async function getUploadLogs(limit = 20) { return UploadLog.find().sort({ upload
 // Import Data Penetapan CSV - update nama_lengkap berdasarkan qrCode
 async function importPenetapanCSV(lines, uploadedBy, filename) {
   let updatedRecords = 0, notFoundRecords = 0;
+  const BATCH_SIZE = 500;
+  let bulkOps = [];
   
   for (let i = 1; i < lines.length; i++) {
     const f = lines[i].replace(/^\uFEFF/, '').replace(/\r/g, '').split(';').map(x => x.trim());
@@ -343,18 +386,26 @@ async function importPenetapanCSV(lines, uploadedBy, filename) {
     
     if (!qrCode || !namaLengkap) continue;
     
-    try {
-      // Update record yang sudah ada berdasarkan qrCode
-      const result = await Passenger.updateOne(
-        { qr_code: qrCode },
-        { $set: { nama_lengkap: namaLengkap } }
-      );
-      
-      if (result.matchedCount > 0) updatedRecords++;
-      else notFoundRecords++;
-    } catch (err) {
-      console.error('[PENETAPAN] Error:', err.message);
+    bulkOps.push({
+      updateOne: {
+        filter: { qr_code: qrCode },
+        update: { $set: { nama_lengkap: namaLengkap } }
+      }
+    });
+    
+    if (bulkOps.length >= BATCH_SIZE) {
+      const result = await Passenger.bulkWrite(bulkOps, { ordered: false });
+      updatedRecords += result.modifiedCount;
+      notFoundRecords += (bulkOps.length - result.matchedCount);
+      bulkOps = [];
     }
+  }
+  
+  // Flush remaining
+  if (bulkOps.length > 0) {
+    const result = await Passenger.bulkWrite(bulkOps, { ordered: false });
+    updatedRecords += result.modifiedCount;
+    notFoundRecords += (bulkOps.length - result.matchedCount);
   }
   
   await UploadLog.create({
