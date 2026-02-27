@@ -14987,8 +14987,10 @@
           }
 
           _notifCache.notifications = json.notifications;
+          _notifCache.dataMap = {};
           body.innerHTML = json.notifications
             .map(function (n) {
+              _notifCache.dataMap[n._id] = n.data || {};
               var cfg = NOTIF_TYPES[n.type] || NOTIF_TYPES.SYSTEM;
               var isCritical =
                 n.priority === "CRITICAL" || n.priority === "HIGH";
@@ -15009,9 +15011,7 @@
                 n._id +
                 "', '" +
                 n.type +
-                "', " +
-                JSON.stringify(JSON.stringify(n.data || {})) +
-                ')">' +
+                "')">' +
                 '<div class="notif-icon ' +
                 cfg.bg +
                 '"><i class="fas ' +
@@ -15044,7 +15044,7 @@
         }
       }
 
-      async function handleNotifClick(notifId, type, dataStr) {
+      async function handleNotifClick(notifId, type) {
         // Mark as read
         try {
           await fetch("/api/notifications/" + notifId + "/read", {
@@ -15054,11 +15054,8 @@
           /* silent */
         }
 
-        // Parse data
-        var data = {};
-        try {
-          data = JSON.parse(dataStr);
-        } catch (e) {}
+        // Lookup data from cached map
+        var data = (_notifCache.dataMap && _notifCache.dataMap[notifId]) || {};
 
         // Close dropdown
         document.getElementById("notifDropdown").classList.remove("show");
