@@ -6,6 +6,42 @@ const Device = require("../models/Device");
 const Manifest = require("../models/Manifest");
 const UploadLog = require("../models/UploadLog");
 
+// New models for enhanced dashboard (graceful fallback)
+let ImeiDetail, ImeiRegistration, ScraperSession, Suspect, Notification;
+try {
+  ImeiDetail = require("../models/ImeiDetail");
+} catch (e) {
+  /* optional */
+}
+try {
+  ImeiRegistration = require("../models/ImeiRegistration");
+} catch (e) {
+  /* optional */
+}
+try {
+  ScraperSession = require("../models/ScraperSession");
+} catch (e) {
+  /* optional */
+}
+try {
+  Suspect = require("../models/Suspect");
+} catch (e) {
+  /* optional */
+}
+try {
+  Notification = require("../models/Notification");
+} catch (e) {
+  /* optional */
+}
+
+// Safe query helpers — returns defaults if model not loaded
+const safeAggregate = (Model, pipeline) =>
+  Model ? Model.aggregate(pipeline) : Promise.resolve([]);
+const safeCount = (Model, filter) =>
+  Model ? Model.countDocuments(filter || {}) : Promise.resolve(0);
+const safeDistinct = (Model, field) =>
+  Model ? Model.distinct(field).then((a) => a.length) : Promise.resolve(0);
+
 // GET /api/dashboard/summary - Executive Dashboard (Consolidated)
 router.get("/summary", async (req, res) => {
   try {
@@ -17,73 +53,65 @@ router.get("/summary", async (req, res) => {
     const endOfPrevMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59);
 
     const [
-      // Counts
+      // ===== EXISTING QUERIES =====
       totalDevices,
       totalPassengerRecords,
       totalCargo,
       totalManifests,
-
-      // Monthly comparison - Cargo
       cargoThisMonth,
       cargoPrevMonth,
-
-      // Monthly comparison - Passengers
       paxThisMonth,
       paxPrevMonth,
-
-      // Cargo CIF totals
       cargoCIF,
       cargoHighValue,
-
-      // Cargo monthly trend (last 12 months)
       cargoMonthlyTrend,
-
-      // Passenger monthly trend (last 12 months)
       paxMonthlyTrend,
-
-      // Top PJT (Cargo)
       topPJT,
-
-      // Top Penerima (Cargo)
       topPenerima,
-
-      // Passenger risk analysis
       paxRiskAnalysis,
-
-      // Frequent travelers
       frequentTravelers,
-
-      // Manifest status breakdown
       manifestStatusBreakdown,
-
-      // Recent manifests
       recentManifests,
-
-      // Cargo status breakdown (top 6)
       cargoStatusBreakdown,
-
-      // Recent uploads across modules
       recentUploads,
-
-      // Passenger status breakdown
       paxStatusBreakdown,
-
-      // Device brand distribution
       deviceBrandDist,
-
-      // Unique passengers count
       uniquePassengers,
-
-      // Data date ranges
       cargoDateRange,
       paxDateRange,
-
-      // CIF this month vs prev month
       cifThisMonth,
       cifPrevMonth,
-
-      // High-risk passengers
       highRiskPassengers,
+
+      // ===== NEW: IMEI Detail Intelligence =====
+      totalImeiDetails,
+      uniqueImei,
+      imeiFobPungutan,
+      imeiBrandDist,
+      imeiTopNationality,
+      imeiPaymentBreakdown,
+      imeiMonthlyTrend,
+      imeiPungutanBreakdown,
+      imeiDateRange,
+
+      // ===== NEW: IMEI Registration =====
+      totalImeiRegistrations,
+      regPaymentBreakdown,
+
+      // ===== NEW: Scraper Sessions =====
+      totalScraperSessions,
+      scraperStats,
+      recentScraperSessions,
+
+      // ===== NEW: Suspect Intelligence =====
+      totalSuspects,
+      suspectByRisk,
+      suspectByStatus,
+      activeSuspects,
+
+      // ===== NEW: Notifications =====
+      unreadNotifications,
+      criticalNotifications,
     ] = await Promise.all([
       // Counts
       Device.countDocuments(),
@@ -407,6 +435,150 @@ router.get("/summary", async (req, res) => {
         { $sort: { riskScore: -1 } },
         { $limit: 8 },
       ]),
+
+      // ===== NEW: IMEI Detail Aggregations =====
+      safeCount(ImeiDetail),
+      safeDistinct(ImeiDetail, "imei1"),
+      safeAggregate(ImeiDetail, [
+        {
+          $group: {
+            _id: null,
+            totalFobUsd: { $sum: "$harga_fob_usd" },
+            totalPungutan: { $sum: "$total_pungutan" },
+            totalNilaiPabean: { $sum: "$nilai_pabean_rp" },
+            totalCifUsd: { $sum: "$total_cif_usd" },
+            avgFobUsd: { $avg: "$harga_fob_usd" },
+          },
+        },
+      ]),
+      safeAggregate(ImeiDetail, [
+        { $match: { merk: { $nin: ["", null] } } },
+        {
+          $group: {
+            _id: "$merk",
+            count: { $sum: 1 },
+            totalFob: { $sum: "$harga_fob_usd" },
+            totalPungutan: { $sum: "$total_pungutan" },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      safeAggregate(ImeiDetail, [
+        { $match: { kebangsaan: { $nin: ["", null] } } },
+        {
+          $group: {
+            _id: "$kebangsaan",
+            count: { $sum: 1 },
+            totalFob: { $sum: "$harga_fob_usd" },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 8 },
+      ]),
+      safeAggregate(ImeiDetail, [
+        {
+          $group: {
+            _id: "$cara_pembayaran",
+            count: { $sum: 1 },
+            totalPungutan: { $sum: "$total_pungutan" },
+          },
+        },
+        { $sort: { count: -1 } },
+      ]),
+      safeAggregate(ImeiDetail, [
+        { $match: { waktu_kedatangan: { $ne: null } } },
+        {
+          $group: {
+            _id: {
+              y: { $year: "$waktu_kedatangan" },
+              m: { $month: "$waktu_kedatangan" },
+            },
+            count: { $sum: 1 },
+            fob: { $sum: "$harga_fob_usd" },
+            pungutan: { $sum: "$total_pungutan" },
+          },
+        },
+        { $sort: { "_id.y": 1, "_id.m": 1 } },
+        { $limit: 24 },
+      ]),
+      safeAggregate(ImeiDetail, [
+        {
+          $group: {
+            _id: null,
+            totalBM: { $sum: "$pungutan_bm" },
+            totalPPN: { $sum: "$pungutan_ppn" },
+            totalPPH: { $sum: "$pungutan_pph" },
+            totalPungutan: { $sum: "$total_pungutan" },
+          },
+        },
+      ]),
+      safeAggregate(ImeiDetail, [
+        {
+          $group: {
+            _id: null,
+            min: { $min: "$waktu_kedatangan" },
+            max: { $max: "$waktu_kedatangan" },
+          },
+        },
+      ]),
+
+      // ===== NEW: IMEI Registration =====
+      safeCount(ImeiRegistration),
+      safeAggregate(ImeiRegistration, [
+        {
+          $group: {
+            _id: "$status_pembayaran",
+            count: { $sum: 1 },
+            totalPungutan: { $sum: "$total_pungutan" },
+          },
+        },
+        { $sort: { count: -1 } },
+      ]),
+
+      // ===== NEW: Scraper Sessions =====
+      safeCount(ScraperSession),
+      safeAggregate(ScraperSession, [
+        {
+          $group: {
+            _id: null,
+            totalRecordsScraped: { $sum: "$total_records" },
+            totalNewRecords: { $sum: "$new_records" },
+            completedSessions: {
+              $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+            },
+            avgElapsed: { $avg: "$elapsed_seconds" },
+          },
+        },
+      ]),
+      ScraperSession
+        ? ScraperSession.find()
+            .sort({ started_at: -1 })
+            .limit(3)
+            .select(
+              "session_id status type total_records new_records started_at elapsed_seconds",
+            )
+            .lean()
+        : Promise.resolve([]),
+
+      // ===== NEW: Suspect Intelligence =====
+      safeCount(Suspect),
+      safeAggregate(Suspect, [
+        { $group: { _id: "$risk_level", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      safeAggregate(Suspect, [
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      safeCount(Suspect, { status: "ACTIVE" }),
+
+      // ===== NEW: Notifications =====
+      safeCount(Notification, { is_read: false }),
+      safeCount(Notification, {
+        priority: { $in: ["CRITICAL", "HIGH"] },
+        is_read: false,
+      }),
     ]);
 
     // Calculate trends
@@ -427,6 +599,25 @@ router.get("/summary", async (req, res) => {
       low: 0,
       totalBilling: 0,
     };
+    const imeiTotals = imeiFobPungutan[0] || {
+      totalFobUsd: 0,
+      totalPungutan: 0,
+      totalNilaiPabean: 0,
+      totalCifUsd: 0,
+      avgFobUsd: 0,
+    };
+    const pungutanDetail = imeiPungutanBreakdown[0] || {
+      totalBM: 0,
+      totalPPN: 0,
+      totalPPH: 0,
+      totalPungutan: 0,
+    };
+    const scraperTotals = scraperStats[0] || {
+      totalRecordsScraped: 0,
+      totalNewRecords: 0,
+      completedSessions: 0,
+      avgElapsed: 0,
+    };
 
     res.json({
       status: "ok",
@@ -441,6 +632,22 @@ router.get("/summary", async (req, res) => {
           totalCIF: cargoCIF[0]?.totalCIF || 0,
           avgCIF: cargoCIF[0]?.avgCIF || 0,
           frequentTravelers: frequentTravelers[0]?.total || 0,
+          // NEW IMEI KPIs
+          totalImeiDetails,
+          uniqueImei,
+          totalFobUsd: imeiTotals.totalFobUsd,
+          totalPungutan: imeiTotals.totalPungutan,
+          totalNilaiPabean: imeiTotals.totalNilaiPabean,
+          avgFobUsd: imeiTotals.avgFobUsd,
+          totalImeiRegistrations,
+          totalSuspects,
+          activeSuspects,
+          unreadNotifications,
+          criticalNotifications,
+          totalScraperSessions,
+          scraperRecordsTotal: scraperTotals.totalRecordsScraped,
+          scraperNewRecords: scraperTotals.totalNewRecords,
+          scraperCompleted: scraperTotals.completedSessions,
         },
         trends: {
           cargoThisMonth,
@@ -463,15 +670,26 @@ router.get("/summary", async (req, res) => {
           paxStatusBreakdown,
           manifestStatusBreakdown,
           deviceBrandDist,
+          // NEW
+          imeiBrandDist,
+          imeiTopNationality,
+          imeiPaymentBreakdown,
+          imeiMonthlyTrend,
+          regPaymentBreakdown,
+          suspectByRisk,
+          suspectByStatus,
         },
         tables: {
           highRiskPassengers,
           recentManifests,
           recentUploads,
+          recentScraperSessions,
         },
+        pungutan: pungutanDetail,
         dateRanges: {
           cargo: cargoDateRange[0] || {},
           passengers: paxDateRange[0] || {},
+          imei: imeiDateRange[0] || {},
         },
       },
       timestamp: new Date(),

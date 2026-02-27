@@ -1,64 +1,66 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const cargoService = require('../services/cargoService');
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const cargoService = require("../services/cargoService");
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = ['.csv', '.xls', '.xlsx'];
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = [".csv", ".xls", ".xlsx"];
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../../uploads/cargo');
+    const dir = path.join(__dirname, "../../uploads/cargo");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
   filename: (req, file, cb) => {
     cb(null, `cnpibk_${Date.now()}${path.extname(file.originalname)}`);
-  }
+  },
 });
 const upload = multer({
   storage,
   limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (req, file, cb) => {
-    const extension = (file.originalname || '').toLowerCase();
-    const isAllowed = ALLOWED_EXTENSIONS.some(ext => extension.endsWith(ext));
+    const extension = (file.originalname || "").toLowerCase();
+    const isAllowed = ALLOWED_EXTENSIONS.some((ext) => extension.endsWith(ext));
     if (!isAllowed) {
-      return cb(new Error('Format file harus CSV atau Excel (.csv, .xls, .xlsx).'));
+      return cb(
+        new Error("Format file harus CSV atau Excel (.csv, .xls, .xlsx)."),
+      );
     }
     return cb(null, true);
-  }
+  },
 });
 
 // GET /api/cargo/stats - Executive Dashboard Statistics
-router.get('/stats', async (req, res) => {
+router.get("/stats", async (req, res) => {
   try {
     const stats = await cargoService.getStats();
     res.json(stats);
   } catch (e) {
-    console.error('Stats error:', e);
+    console.error("Stats error:", e);
     res.status(500).json({ error: e.message });
   }
 });
 
 // GET /api/cargo/search - Search CN-PIBK
-router.get('/search', async (req, res) => {
+router.get("/search", async (req, res) => {
   try {
     const result = await cargoService.search(req.query);
     res.json(result);
   } catch (e) {
-    console.error('Search error:', e);
+    console.error("Search error:", e);
     res.status(500).json({ error: e.message });
   }
 });
 
 // GET /api/cargo/detail/:nomorAju - Get single record
-router.get('/detail/:nomorAju', async (req, res) => {
+router.get("/detail/:nomorAju", async (req, res) => {
   try {
     const doc = await cargoService.getByNomorAju(req.params.nomorAju);
-    if (!doc) return res.status(404).json({ error: 'Not found' });
+    if (!doc) return res.status(404).json({ error: "Not found" });
     res.json(doc);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -66,29 +68,36 @@ router.get('/detail/:nomorAju', async (req, res) => {
 });
 
 // POST /api/cargo/upload - Upload CN-PIBK CSV/Excel
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post("/upload", upload.single("file"), async (req, res) => {
+  // Extend timeout for large files (up to 5 minutes)
+  req.setTimeout(300000);
+  res.setTimeout(300000);
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    
-    const uploadedBy = req.body.uploaded_by || 'Anonymous';
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const uploadedBy = req.body.uploaded_by || "Anonymous";
     const stats = await cargoService.importCnpibk(req.file.path, uploadedBy);
-    
+
     // Cleanup uploaded file
-    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore cleanup error */ }
-    
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch (e) {
+      /* ignore cleanup error */
+    }
+
     res.json({
       success: true,
       message: `Import selesai: ${stats.new} baru, ${stats.duplicate} update, ${stats.error} error`,
-      stats
+      stats,
     });
   } catch (e) {
-    console.error('Upload error:', e);
+    console.error("Upload error:", e);
     res.status(500).json({ error: e.message });
   }
 });
 
 // GET /api/cargo/upload-logs - Get upload history
-router.get('/upload-logs', async (req, res) => {
+router.get("/upload-logs", async (req, res) => {
   try {
     const logs = await cargoService.getUploadLogs();
     res.json(logs);

@@ -1,65 +1,99 @@
-const Manifest = require('../models/Manifest');
-const ManifestPassenger = require('../models/ManifestPassenger');
-const { ingestManifest } = require('../services/manifestIngestService');
-const { crosscheckManifest } = require('../services/crosscheckService');
-const { sanitizeCsv } = require('../utils/helpers');
+const Manifest = require("../models/Manifest");
+const ManifestPassenger = require("../models/ManifestPassenger");
+const { ingestManifest } = require("../services/manifestIngestService");
+const { crosscheckManifest } = require("../services/crosscheckService");
+const { sanitizeCsv } = require("../utils/helpers");
 
 async function listManifests(req, res) {
   try {
     const limit = Math.min(Number(req.query.limit) || 100, 500);
-    const manifests = await Manifest.find().sort({ createdAt: -1 }).limit(limit);
-    res.json({ status: 'ok', data: manifests });
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.carrier) filter.carrier = req.query.carrier;
+    if (req.query.search) {
+      // Normalize: "QZ 107" → "QZ\\s*107" so it matches "QZ107", "QZ 107", etc.
+      const raw = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const flexRegex = raw.replace(/\s+/g, "\\s*");
+      filter.$or = [
+        { flight_number: { $regex: flexRegex, $options: "i" } },
+        { origin: { $regex: flexRegex, $options: "i" } },
+        { destination: { $regex: flexRegex, $options: "i" } },
+        { filename: { $regex: flexRegex, $options: "i" } },
+        { email_subject: { $regex: flexRegex, $options: "i" } },
+        { carrier: { $regex: flexRegex, $options: "i" } },
+      ];
+    }
+    const manifests = await Manifest.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit);
+    res.json({ status: "ok", data: manifests });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
 async function getManifestDetail(req, res) {
   try {
     const manifest = await Manifest.findById(req.params.id);
-    if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
-    res.json({ status: 'ok', data: manifest });
+    if (!manifest)
+      return res
+        .status(404)
+        .json({ status: "error", message: "Manifest tidak ditemukan" });
+    res.json({ status: "ok", data: manifest });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
 async function uploadManifest(req, res) {
   try {
-    if (!req.file) return res.status(400).json({ status: 'error', message: 'File tidak ditemukan' });
-    const uploadedBy = req.body.uploaded_by || 'manual';
+    if (!req.file)
+      return res
+        .status(400)
+        .json({ status: "error", message: "File tidak ditemukan" });
+    const uploadedBy = req.body.uploaded_by || "manual";
     const manifest = await ingestManifest({
       buffer: req.file.buffer,
       filename: req.file.originalname,
-      source: 'manual',
-      uploadedBy
+      source: "manual",
+      uploadedBy,
     });
-    res.json({ status: 'ok', data: manifest });
+    res.json({ status: "ok", data: manifest });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
 async function updateManifestStatus(req, res) {
   try {
     const { status, parsing_notes } = req.body;
-    const allowed = ['approved', 'rejected', 'needs_review'];
+    const allowed = ["approved", "rejected", "needs_review"];
     if (!allowed.includes(status)) {
-      return res.status(400).json({ status: 'error', message: 'Status tidak valid' });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Status tidak valid" });
     }
     const manifest = await Manifest.findByIdAndUpdate(
       req.params.id,
       { status, parsing_notes },
-      { new: true }
+      { new: true },
     );
-    if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
-    res.json({ status: 'ok', data: manifest });
+    if (!manifest)
+      return res
+        .status(404)
+        .json({ status: "error", message: "Manifest tidak ditemukan" });
+    res.json({ status: "ok", data: manifest });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
-function buildPassengerDoc(manifest, p, defaultStatus = 'checked_in', segmentIndex = 0) {
+function buildPassengerDoc(
+  manifest,
+  p,
+  defaultStatus = "checked_in",
+  segmentIndex = 0,
+) {
   return {
     manifest_id: manifest._id,
     flight_number: manifest.flight_number,
@@ -81,81 +115,114 @@ function buildPassengerDoc(manifest, p, defaultStatus = 'checked_in', segmentInd
     gender: p.gender || null,
     date_of_birth: p.date_of_birth || null,
     passport_expiry: p.passport_expiry || null,
-    doc_type: p.doc_type || null
+    doc_type: p.doc_type || null,
+    bag_weight: p.bag_weight || null,
+    ticket_number: p.ticket_number || null,
+    pax_type: p.pax_type || null,
   };
 }
 
 async function syncManifestPassengers(req, res) {
   try {
     const manifest = await Manifest.findById(req.params.id);
-    if (!manifest) return res.status(404).json({ status: 'error', message: 'Manifest tidak ditemukan' });
-    if (manifest.status === 'synced') {
-      return res.json({ status: 'ok', message: 'Manifest sudah disinkronkan' });
+    if (!manifest)
+      return res
+        .status(404)
+        .json({ status: "error", message: "Manifest tidak ditemukan" });
+    if (manifest.status === "synced") {
+      return res.json({ status: "ok", message: "Manifest sudah disinkronkan" });
     }
 
     const parsed = manifest.parsed_fields || {};
-    const format = parsed.format || 'airasia_pax';
+    const format = parsed.format || "airasia_pax";
     const docs = [];
 
-    if (format === 'apis' || format === 'lion_manifest') {
+    if (
+      format === "apis" ||
+      format === "lion_manifest" ||
+      format === "enh_manifest" ||
+      format === "baggage_list"
+    ) {
       // Format flat: passengers + no_shows langsung di parsed_fields
-      (parsed.passengers || []).forEach(p => docs.push(buildPassengerDoc(manifest, p, 'checked_in', 0)));
-      (parsed.no_shows || []).forEach(p => docs.push(buildPassengerDoc(manifest, p, 'no_show', 0)));
+      (parsed.passengers || []).forEach((p) =>
+        docs.push(buildPassengerDoc(manifest, p, "checked_in", 0)),
+      );
+      (parsed.no_shows || []).forEach((p) =>
+        docs.push(buildPassengerDoc(manifest, p, "no_show", 0)),
+      );
     } else {
       // Format AirAsia PAX: segments[]
       const segments = parsed.segments || [];
       if (!segments.length) {
-        return res.status(400).json({ status: 'error', message: 'Manifest belum diparse atau tidak ada penumpang' });
+        return res.status(400).json({
+          status: "error",
+          message: "Manifest belum diparse atau tidak ada penumpang",
+        });
       }
       segments.forEach((segment, index) => {
-        (segment.passengers || []).forEach(p => docs.push(buildPassengerDoc(manifest, p, 'checked_in', index)));
-        (segment.no_shows || []).forEach(p => docs.push(buildPassengerDoc(manifest, p, 'no_show', index)));
+        (segment.passengers || []).forEach((p) =>
+          docs.push(buildPassengerDoc(manifest, p, "checked_in", index)),
+        );
+        (segment.no_shows || []).forEach((p) =>
+          docs.push(buildPassengerDoc(manifest, p, "no_show", index)),
+        );
       });
     }
 
     if (!docs.length) {
-      return res.status(400).json({ status: 'error', message: 'Tidak ada data penumpang yang bisa disinkronkan' });
+      return res.status(400).json({
+        status: "error",
+        message: "Tidak ada data penumpang yang bisa disinkronkan",
+      });
     }
 
     await ManifestPassenger.deleteMany({ manifest_id: manifest._id });
     await ManifestPassenger.insertMany(docs);
 
-    manifest.status = 'synced';
+    manifest.status = "synced";
     await manifest.save();
-    res.json({ status: 'ok', message: 'Manifest berhasil disinkronkan', total: docs.length, format });
+    res.json({
+      status: "ok",
+      message: "Manifest berhasil disinkronkan",
+      total: docs.length,
+      format,
+    });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
 async function listManifestPassengers(req, res) {
   try {
     const limit = Math.min(Number(req.query.limit) || 200, 1000);
-    const passengers = await ManifestPassenger.find({ manifest_id: req.params.id })
+    const passengers = await ManifestPassenger.find({
+      manifest_id: req.params.id,
+    })
       .sort({ seq_no: 1 })
       .limit(limit);
-    res.json({ status: 'ok', data: passengers });
+    res.json({ status: "ok", data: passengers });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
 async function exportManifestPassengers(req, res) {
   try {
-    const passengers = await ManifestPassenger.find({ manifest_id: req.params.id })
-      .sort({ seq_no: 1 });
+    const passengers = await ManifestPassenger.find({
+      manifest_id: req.params.id,
+    }).sort({ seq_no: 1 });
     const headers = [
-      'status',
-      'name',
-      'pnr',
-      'fare_class',
-      'seq_no',
-      'travel_date',
-      'seat_no',
-      'destination_code',
-      'flight_no'
+      "status",
+      "name",
+      "pnr",
+      "fare_class",
+      "seq_no",
+      "travel_date",
+      "seat_no",
+      "destination_code",
+      "flight_no",
     ];
-    const rows = passengers.map(p => [
+    const rows = passengers.map((p) => [
       p.status,
       p.name,
       p.pnr,
@@ -164,23 +231,35 @@ async function exportManifestPassengers(req, res) {
       p.travel_date,
       p.seat_no,
       p.destination_code,
-      p.flight_no
+      p.flight_no,
     ]);
-    const csv = [headers.join(','), ...rows.map(row => row.map(val => `"${sanitizeCsv(String(val || '')).replace(/"/g, '""')}"`).join(','))].join('\n');
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="manifest_passengers.csv"');
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row
+          .map(
+            (val) => `"${sanitizeCsv(String(val || "")).replace(/"/g, '""')}"`,
+          )
+          .join(","),
+      ),
+    ].join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="manifest_passengers.csv"',
+    );
     res.send(csv);
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
 async function crosscheckManifestHandler(req, res) {
   try {
     const result = await crosscheckManifest(req.params.id);
-    res.json({ status: 'ok', data: result });
+    res.json({ status: "ok", data: result });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: error.message });
   }
 }
 
@@ -192,5 +271,5 @@ module.exports = {
   syncManifestPassengers,
   listManifestPassengers,
   exportManifestPassengers,
-  crosscheckManifestHandler
+  crosscheckManifestHandler,
 };
