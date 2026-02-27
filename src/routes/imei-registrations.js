@@ -561,10 +561,41 @@ router.get("/analytics", async (req, res) => {
       kantor_nama: getKantorName(o._id),
     }));
 
+    // Data enrichment stats from ImeiDetail
+    const ImeiDetail = require("../models/ImeiDetail");
+    const [detCount, detUniqueRegs, detBrandSummary] = await Promise.all([
+      ImeiDetail.countDocuments(),
+      ImeiDetail.distinct("no_dokumen").then((a) => a.length),
+      ImeiDetail.aggregate([
+        { $group: { _id: "$merk", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+      ]),
+    ]);
+
+    const ov = overview[0] || {};
+    const enrichment = {
+      totalDevicesScraped: detCount,
+      uniqueRegistrationsScraped: detUniqueRegs,
+      csvRegistrations: ov.total || 0,
+      coverageEstimate:
+        ov.total > 0
+          ? Math.min(100, (detUniqueRegs / (ov.total || 1)) * 100).toFixed(1) +
+            "%"
+          : "0%",
+      topBrandsFromDetail: detBrandSummary,
+      dataStatus:
+        detUniqueRegs === 0
+          ? "NO_DETAIL_DATA"
+          : detUniqueRegs < (ov.total || 0) * 0.5
+            ? "PARTIAL_COVERAGE"
+            : "GOOD_COVERAGE",
+    };
+
     res.json({
       status: "ok",
       data: {
-        overview: overview[0] || {},
+        overview: ov,
         byNationality,
         byStatus,
         byOffice: enrichedOffices,
@@ -581,6 +612,7 @@ router.get("/analytics", async (req, res) => {
         nationalityPayment,
         vesselPayment,
         kantorMap: KANTOR_MAP,
+        enrichment,
       },
     });
   } catch (err) {
@@ -589,7 +621,7 @@ router.get("/analytics", async (req, res) => {
   }
 });
 
-// ==================== SEARCH ====================
+// ==================== SEARCH (CROSS-COLLECTION) ====================
 router.get("/search", async (req, res) => {
   try {
     const { q, limit = 50 } = req.query;
@@ -599,28 +631,67 @@ router.get("/search", async (req, res) => {
 
     const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(escaped, "i");
+    const ImeiDetail = require("../models/ImeiDetail");
 
-    const data = await ImeiRegistration.find({
-      $or: [
-        { nama: regex },
-        { no_identitas: regex },
-        { vessel: regex },
-        { vessel_normalized: regex },
-        { no_dok: regex },
-        { id_registrasi: regex },
-      ],
-    })
-      .sort({ tgl_kedatangan: -1 })
-      .limit(parseInt(limit))
-      .lean();
+    // Search both collections in parallel
+    const [regData, detData] = await Promise.all([
+      ImeiRegistration.find({
+        $or: [
+          { nama: regex },
+          { no_identitas: regex },
+          { vessel: regex },
+          { vessel_normalized: regex },
+          { no_dok: regex },
+          { id_registrasi: regex },
+        ],
+      })
+        .sort({ tgl_kedatangan: -1 })
+        .limit(parseInt(limit))
+        .lean(),
+      ImeiDetail.find({
+        $or: [
+          { nama: regex },
+          { no_identitas: regex },
+          { flight_voyage: regex },
+          { flight_normalized: regex },
+          { no_dokumen: regex },
+          { imei1: regex },
+          { imei2: regex },
+          { merk: regex },
+          { tipe: regex },
+        ],
+      })
+        .sort({ waktu_kedatangan: -1 })
+        .limit(parseInt(limit))
+        .lean(),
+    ]);
+
+    // Merge results, preferring detail data for overlapping no_dok
+    const detNoDoks = new Set(detData.map((d) => d.no_dokumen));
+    const regFiltered = regData.filter((r) => !detNoDoks.has(r.no_dok));
+
+    const merged = [
+      ...detData.map((d) => ({
+        ...d,
+        _source: "detail",
+        kantor_nama: getKantorName(d.kode_kantor),
+      })),
+      ...regFiltered.map((d) => ({
+        ...d,
+        _source: "registration",
+        kantor_nama: getKantorName(d.kode_kantor),
+      })),
+    ].slice(0, parseInt(limit));
 
     res.json({
       status: "ok",
-      data: data.map((d) => ({
-        ...d,
-        kantor_nama: getKantorName(d.kode_kantor),
-      })),
-      total: data.length,
+      data: merged,
+      total: merged.length,
+      sources: {
+        fromRegistration: regFiltered.length,
+        fromDetail: detData.length,
+        deduplicatedOverlap: regData.length - regFiltered.length,
+      },
     });
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
@@ -632,22 +703,30 @@ router.get("/passport/:no", async (req, res) => {
   try {
     const passport = req.params.no.toUpperCase().trim();
 
-    // Parallel: IMEI registrations + CEISA passenger data + manifest data
-    const [imeiRecords, ceisaRecords, manifestRecords] = await Promise.all([
-      ImeiRegistration.find({ no_identitas: passport })
-        .sort({ tgl_kedatangan: -1 })
-        .lean(),
-      Passenger.find({ paspor: passport }).sort({ tanggal_dokumen: -1 }).lean(),
-      ManifestPassenger.find({ passport_number: passport })
-        .sort({ createdAt: -1 })
-        .limit(20)
-        .lean(),
-    ]);
+    // Parallel: IMEI registrations + CEISA passenger data + manifest data + device details
+    const ImeiDetail = require("../models/ImeiDetail");
+    const [imeiRecords, ceisaRecords, manifestRecords, deviceRecords] =
+      await Promise.all([
+        ImeiRegistration.find({ no_identitas: passport })
+          .sort({ tgl_kedatangan: -1 })
+          .lean(),
+        Passenger.find({ paspor: passport })
+          .sort({ tanggal_dokumen: -1 })
+          .lean(),
+        ManifestPassenger.find({ passport_number: passport })
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .lean(),
+        ImeiDetail.find({ no_identitas: passport })
+          .sort({ waktu_kedatangan: -1 })
+          .lean(),
+      ]);
 
     if (
       !imeiRecords.length &&
       !ceisaRecords.length &&
-      !manifestRecords.length
+      !manifestRecords.length &&
+      !deviceRecords.length
     ) {
       return res.json({ status: "ok", data: null, message: "Tidak ditemukan" });
     }
@@ -780,6 +859,24 @@ router.get("/passport/:no", async (req, res) => {
         ceisa: ceisaSummary,
         ceisa_records: ceisaRecords.slice(0, 10),
         manifest_records: manifestRecords.slice(0, 10),
+        device_details: {
+          total: deviceRecords.length,
+          brands: [
+            ...new Set(deviceRecords.map((r) => r.merk).filter(Boolean)),
+          ],
+          imeis: deviceRecords
+            .flatMap((r) => [r.imei1, r.imei2].filter(Boolean))
+            .slice(0, 20),
+          totalFobUsd: deviceRecords.reduce(
+            (s, r) => s + (r.harga_fob_usd || 0),
+            0,
+          ),
+          totalPungutan: deviceRecords.reduce(
+            (s, r) => s + (r.total_pungutan || 0),
+            0,
+          ),
+          records: deviceRecords.slice(0, 20),
+        },
       },
     });
   } catch (err) {

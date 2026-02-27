@@ -2687,6 +2687,65 @@
         );
         html += "</div>";
 
+        // Data Enrichment Status (from ImeiDetail)
+        const enr = imeiRegData.enrichment;
+        if (enr) {
+          const statusColor =
+            enr.dataStatus === "GOOD_COVERAGE"
+              ? "#22c55e"
+              : enr.dataStatus === "PARTIAL_COVERAGE"
+                ? "#f59e0b"
+                : "#ef4444";
+          const statusLabel =
+            enr.dataStatus === "GOOD_COVERAGE"
+              ? "Baik"
+              : enr.dataStatus === "PARTIAL_COVERAGE"
+                ? "Parsial"
+                : "Belum Ada";
+          html +=
+            '<div class="glass-card-solid rounded-xl p-4 mb-4 border" style="border-color:' +
+            statusColor +
+            '40">';
+          html +=
+            '<h4 class="text-sm font-bold text-gray-300 mb-2"><i class="fas fa-database text-cyan-400 mr-1"></i> Status Enrichment Data Device</h4>';
+          html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
+          html +=
+            '<div class="text-center p-2 bg-slate-800/50 rounded-lg"><div class="text-lg font-bold text-cyan-400">' +
+            (enr.totalDevicesScraped || 0).toLocaleString("id-ID") +
+            '</div><div class="text-[10px] text-gray-500">Device ter-scrape</div></div>';
+          html +=
+            '<div class="text-center p-2 bg-slate-800/50 rounded-lg"><div class="text-lg font-bold text-purple-400">' +
+            (enr.uniqueRegistrationsScraped || 0).toLocaleString("id-ID") +
+            '</div><div class="text-[10px] text-gray-500">Registrasi dgn Detail</div></div>';
+          html +=
+            '<div class="text-center p-2 bg-slate-800/50 rounded-lg"><div class="text-lg font-bold" style="color:' +
+            statusColor +
+            '">' +
+            (enr.coverageEstimate || "0%") +
+            '</div><div class="text-[10px] text-gray-500">Coverage</div></div>';
+          html +=
+            '<div class="text-center p-2 bg-slate-800/50 rounded-lg"><div class="text-lg font-bold" style="color:' +
+            statusColor +
+            '">' +
+            statusLabel +
+            '</div><div class="text-[10px] text-gray-500">Status</div></div>';
+          html += "</div>";
+          if (enr.topBrandsFromDetail && enr.topBrandsFromDetail.length > 0) {
+            html +=
+              '<div class="mt-2 flex flex-wrap gap-1 items-center"><span class="text-[10px] text-gray-500 mr-1">Top Merk:</span>';
+            enr.topBrandsFromDetail.slice(0, 5).forEach((b) => {
+              html +=
+                '<span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">' +
+                b._id +
+                " (" +
+                b.count +
+                ")</span>";
+            });
+            html += "</div>";
+          }
+          html += "</div>";
+        }
+
         // Status & Nationality side by side
         html += '<div class="grid md:grid-cols-2 gap-4">';
 

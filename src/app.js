@@ -90,6 +90,9 @@ app.use("/api/imei-registrations", require("./routes/imei-registrations"));
 // IMEI Detail routes (device-level intelligence)
 app.use("/api/imei-details", require("./routes/imei-details"));
 
+// IMEI Data Integrity & Consistency routes
+app.use("/api/imei-integrity", require("./routes/imei-integrity"));
+
 // Price Intelligence routes (smart reference for officers)
 app.use("/api/price-intel", require("./routes/price-intel"));
 
