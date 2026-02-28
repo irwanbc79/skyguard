@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SkyGuard Intelligence - BC Kualanamu</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/logo.png" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/images/logo-32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="/images/logo-16.png"
+    />
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/logo.png" />
+    <meta name="theme-color" content="#0c1929" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css"
@@ -437,10 +452,12 @@
       <div class="max-w-7xl mx-auto px-4 py-3">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-4">
-            <div
-              class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center glow-blue"
-            >
-              <i class="fas fa-shield-alt text-lg"></i>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center">
+              <img
+                src="/images/logo.png"
+                alt="BC Kualanamu"
+                class="w-11 h-11 object-contain drop-shadow-lg"
+              />
             </div>
             <div>
               <h1
@@ -588,10 +605,12 @@
       >
         <!-- Header Section -->
         <div class="text-center mb-8">
-          <div
-            class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl mb-4 shadow-lg"
-          >
-            <i class="fas fa-shield-alt text-4xl text-white"></i>
+          <div class="inline-flex items-center justify-center w-24 h-24 mb-4">
+            <img
+              src="/images/logo.png"
+              alt="BC Kualanamu"
+              class="w-24 h-24 object-contain drop-shadow-2xl"
+            />
           </div>
           <h1 class="text-3xl font-bold text-white mb-2">
             SkyGuard Intelligence
@@ -2733,7 +2752,7 @@
           if (enr.topBrandsFromDetail && enr.topBrandsFromDetail.length > 0) {
             html +=
               '<div class="mt-2 flex flex-wrap gap-1 items-center"><span class="text-[10px] text-gray-500 mr-1">Top Merk:</span>';
-            enr.topBrandsFromDetail.slice(0, 5).forEach((b) => {
+            enr.topBrandsFromDetail.slice(0, 5).forEach(function (b) {
               html +=
                 '<span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">' +
                 b._id +
@@ -14992,7 +15011,7 @@
         if (Notification.permission === "granted") {
           new Notification(title, {
             body: body,
-            icon: "/favicon.ico",
+            icon: "/images/logo.png",
             tag: "skyguard-alert",
           });
         } else if (Notification.permission !== "denied") {
@@ -15000,7 +15019,7 @@
             if (p === "granted")
               new Notification(title, {
                 body: body,
-                icon: "/favicon.ico",
+                icon: "/images/logo.png",
                 tag: "skyguard-alert",
               });
           });
@@ -15047,9 +15066,11 @@
 
           _notifCache.notifications = json.notifications;
           _notifCache.dataMap = {};
+          json.notifications.forEach(function (n) {
+            if (n._id && n.data) _notifCache.dataMap[n._id] = n.data || {};
+          });
           body.innerHTML = json.notifications
             .map(function (n) {
-              _notifCache.dataMap[n._id] = n.data || {};
               var cfg = NOTIF_TYPES[n.type] || NOTIF_TYPES.SYSTEM;
               var isCritical =
                 n.priority === "CRITICAL" || n.priority === "HIGH";
@@ -15070,7 +15091,7 @@
                 n._id +
                 "', '" +
                 n.type +
-                "')">' +
+                ')">' +
                 '<div class="notif-icon ' +
                 cfg.bg +
                 '"><i class="fas ' +
@@ -15080,7 +15101,10 @@
                 '"></i></div>' +
                 '<div class="notif-content">' +
                 '<div class="notif-title text-white">' +
-                (n.title || "").replace(/[⚠️🔍📋🔥📦]/g, "") +
+                (n.title || "").replace(
+                  /[\u{26A0}\u{FE0F}\u{1F50D}\u{1F4CB}\u{1F525}\u{1F4E6}]/gu,
+                  "",
+                ) +
                 priorityBadge +
                 "</div>" +
                 '<div class="notif-message">' +
@@ -15113,7 +15137,7 @@
           /* silent */
         }
 
-        // Lookup data from cached map
+        // Get data from cache (avoids broken inline JSON)
         var data = (_notifCache.dataMap && _notifCache.dataMap[notifId]) || {};
 
         // Close dropdown
