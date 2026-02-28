@@ -11412,7 +11412,7 @@
       }
 
       function renderMfPaxResult(data) {
-        const { profile, records } = data;
+        const { profile, records, sources } = data;
         const resultEl = document.getElementById("mfPaxSearchResult");
 
         // Format dates helper
@@ -11424,9 +11424,48 @@
                 year: "numeric",
               })
             : "-";
+        const fmtRpPax = (n) =>
+          n ? "Rp " + Number(n).toLocaleString("id-ID") : "-";
+
+        // Source badge helper
+        const srcBadge = (s) => {
+          if (s === "manifest")
+            return '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">Manifest</span>';
+          if (s === "imei_detail")
+            return '<span class="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-300 border border-green-500/30">IMEI Detail</span>';
+          if (s === "imei_registration")
+            return '<span class="px-2 py-0.5 rounded text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">IMEI Reg</span>';
+          return '<span class="px-2 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300">Unknown</span>';
+        };
 
         // Profile Card
         let html = '<div class="space-y-5">';
+
+        // Source summary bar
+        if (sources) {
+          html += '<div class="flex flex-wrap gap-3 text-xs">';
+          if (sources.manifest)
+            html +=
+              '<div class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg"><i class="fas fa-file-alt text-blue-400"></i> <span class="text-blue-300">' +
+              sources.manifest +
+              " dari Manifest</span></div>";
+          if (sources.imei_detail)
+            html +=
+              '<div class="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg"><i class="fas fa-microchip text-green-400"></i> <span class="text-green-300">' +
+              sources.imei_detail +
+              " dari IMEI Detail</span></div>";
+          if (sources.imei_registration > 0)
+            html +=
+              '<div class="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg"><i class="fas fa-database text-yellow-400"></i> <span class="text-yellow-300">' +
+              sources.imei_registration +
+              " dari IMEI Registrasi</span></div>";
+          if (sources.ceisa)
+            html +=
+              '<div class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg"><i class="fas fa-building text-purple-400"></i> <span class="text-purple-300">' +
+              sources.ceisa +
+              " dari CEISA</span></div>";
+          html += "</div>";
+        }
 
         // Profile Summary
         html += '<div class="glass-card-solid rounded-2xl p-5">';
@@ -11503,80 +11542,196 @@
         html += "</div>";
         html += "</div></div>";
 
-        // Flight History Table
+        // Combined History Table
         html += '<div class="glass-card-solid rounded-2xl p-5">';
         html +=
-          '<h4 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-plane text-blue-400"></i> Riwayat Penerbangan</h4>';
+          '<h4 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-history text-blue-400"></i> Riwayat Lengkap</h4>';
         html += '<div class="overflow-x-auto"><table class="w-full text-sm">';
         html +=
           '<thead><tr class="text-gray-400 text-xs border-b border-slate-700">';
         html += '<th class="text-left pb-2 pl-2">#</th>';
+        html += '<th class="text-left pb-2">Sumber</th>';
         html += '<th class="text-left pb-2">Flight</th>';
         html += '<th class="text-left pb-2">Tanggal</th>';
-        html += '<th class="text-left pb-2">Rute</th>';
-        html += '<th class="text-left pb-2">PNR/Booking</th>';
-        html += '<th class="text-left pb-2">Seat</th>';
-        html += '<th class="text-left pb-2">Class</th>';
+        html += '<th class="text-left pb-2">PNR</th>';
         html += '<th class="text-left pb-2">Status</th>';
-        html += '<th class="text-left pb-2">Tiket</th>';
-        html += '<th class="text-right pb-2 pr-2">Bagasi</th>';
+        html += '<th class="text-left pb-2">Device</th>';
+        html += '<th class="text-right pb-2 pr-2">Pungutan</th>';
         html += "</tr></thead><tbody>";
 
         records.forEach(function (r, idx) {
           const dir =
             r.direction === "inbound"
-              ? '<span class="text-green-400" title="Inbound"><i class="fas fa-plane-arrival"></i></span>'
+              ? '<span class="text-green-400" title="Inbound"><i class="fas fa-plane-arrival"></i></span> '
               : r.direction === "outbound"
-                ? '<span class="text-red-400" title="Outbound"><i class="fas fa-plane-departure"></i></span>'
+                ? '<span class="text-red-400" title="Outbound"><i class="fas fa-plane-departure"></i></span> '
                 : "";
-          const route =
-            [r.origin, r.destination].filter(Boolean).join(" → ") || "-";
-          const statusColor =
-            r.status === "checked_in"
-              ? "text-green-400"
-              : r.status === "no_show"
-                ? "text-red-400"
-                : "text-gray-400";
-          const statusLabel =
-            r.status === "checked_in"
-              ? "Checked In"
-              : r.status === "no_show"
-                ? "No Show"
-                : r.status || "-";
+
+          // Status display
+          let statusHtml = "-";
+          if (r._source === "manifest") {
+            const stColor =
+              r.status === "checked_in"
+                ? "text-green-400"
+                : r.status === "no_show"
+                  ? "text-red-400"
+                  : "text-gray-400";
+            const stLabel =
+              r.status === "checked_in"
+                ? "Checked In"
+                : r.status === "no_show"
+                  ? "No Show"
+                  : r.status || "-";
+            statusHtml =
+              '<span class="font-semibold ' +
+              stColor +
+              '">' +
+              stLabel +
+              "</span>";
+          } else {
+            const payStatus = r.status || "-";
+            const pColor =
+              payStatus === "BILLING"
+                ? "text-yellow-400"
+                : payStatus === "PEMBEBASAN"
+                  ? "text-green-400"
+                  : "text-gray-400";
+            statusHtml =
+              '<span class="font-semibold ' +
+              pColor +
+              '">' +
+              payStatus +
+              "</span>";
+          }
+
+          // Device info
+          let deviceHtml = "-";
+          if (r.device_info && r.device_info.merk) {
+            deviceHtml =
+              '<span class="text-cyan-300">' + r.device_info.merk + "</span>";
+            if (r.device_info.tipe)
+              deviceHtml +=
+                ' <span class="text-gray-400">' +
+                r.device_info.tipe +
+                "</span>";
+            if (r.device_info.imei1)
+              deviceHtml +=
+                '<br><span class="text-[10px] text-gray-500 font-mono">IMEI: ' +
+                r.device_info.imei1 +
+                "</span>";
+          }
+
+          // Pungutan
+          let pungutanHtml = "-";
+          if (r.payment_info && r.payment_info.total_pungutan) {
+            pungutanHtml =
+              '<span class="text-green-300 font-semibold">' +
+              fmtRpPax(r.payment_info.total_pungutan) +
+              "</span>";
+          }
 
           html +=
             '<tr class="border-t border-slate-700/30 hover:bg-slate-800/30">';
-          html += '<td class="py-2 pl-2 text-gray-500">' + (idx + 1) + "</td>";
           html +=
-            '<td class="py-2 font-mono font-bold text-blue-300">' +
+            '<td class="py-2.5 pl-2 text-gray-500">' + (idx + 1) + "</td>";
+          html += '<td class="py-2.5">' + srcBadge(r._source) + "</td>";
+          html +=
+            '<td class="py-2.5 font-mono font-bold text-blue-300">' +
             dir +
-            " " +
             (r.flight_number || "-") +
             "</td>";
           html +=
-            '<td class="py-2 text-xs">' + fmtDate(r.flight_date) + "</td>";
-          html += '<td class="py-2 text-xs">' + route + "</td>";
+            '<td class="py-2.5 text-xs">' + fmtDate(r.flight_date) + "</td>";
           html +=
-            '<td class="py-2 font-mono font-bold text-orange-300">' +
+            '<td class="py-2.5 font-mono font-bold text-orange-300">' +
             (r.pnr || '<span class="text-gray-600">-</span>') +
             "</td>";
-          html += '<td class="py-2 text-xs">' + (r.seat_no || "-") + "</td>";
-          html += '<td class="py-2 text-xs">' + (r.fare_class || "-") + "</td>";
+          html += '<td class="py-2.5 text-xs">' + statusHtml + "</td>";
+          html += '<td class="py-2.5 text-xs">' + deviceHtml + "</td>";
           html +=
-            '<td class="py-2 text-xs font-semibold ' +
-            statusColor +
-            '">' +
-            statusLabel +
-            "</td>";
-          html +=
-            '<td class="py-2 text-xs font-mono text-gray-400">' +
-            (r.ticket_number || "-") +
-            "</td>";
-          html +=
-            '<td class="py-2 text-xs text-right pr-2">' +
-            (r.bag_weight ? r.bag_weight + " kg" : "-") +
+            '<td class="py-2.5 text-xs text-right pr-2">' +
+            pungutanHtml +
             "</td>";
           html += "</tr>";
+
+          // Expandable detail row for manifest records
+          if (
+            r._source === "manifest" &&
+            (r.seat_no || r.fare_class || r.ticket_number || r.bag_weight)
+          ) {
+            html += '<tr class="bg-slate-800/20">';
+            html +=
+              '<td></td><td colspan="7" class="py-1 text-[11px] text-gray-500">';
+            const details = [];
+            if (r.seat_no)
+              details.push(
+                'Seat: <span class="text-white">' + r.seat_no + "</span>",
+              );
+            if (r.fare_class)
+              details.push(
+                'Class: <span class="text-white">' + r.fare_class + "</span>",
+              );
+            if (r.ticket_number)
+              details.push(
+                'Tiket: <span class="text-white font-mono">' +
+                  r.ticket_number +
+                  "</span>",
+              );
+            if (r.bag_weight)
+              details.push(
+                'Bagasi: <span class="text-white">' +
+                  r.bag_weight +
+                  " kg</span>",
+              );
+            if (r.origin || r.destination)
+              details.push(
+                'Rute: <span class="text-white">' +
+                  [r.origin, r.destination].filter(Boolean).join(" → ") +
+                  "</span>",
+              );
+            html += details.join(" &nbsp;•&nbsp; ");
+            html += "</td></tr>";
+          }
+
+          // Expandable detail row for IMEI records with device
+          if (r.device_info && r.device_info.merk && r.payment_info) {
+            html += '<tr class="bg-slate-800/20">';
+            html +=
+              '<td></td><td colspan="7" class="py-1 text-[11px] text-gray-500">';
+            const details = [];
+            if (r.device_info.storage)
+              details.push(
+                'Storage: <span class="text-white">' +
+                  r.device_info.storage +
+                  "</span>",
+              );
+            if (r.device_info.warna)
+              details.push(
+                'Warna: <span class="text-white">' +
+                  r.device_info.warna +
+                  "</span>",
+              );
+            if (r.device_info.harga_fob_usd)
+              details.push(
+                'FOB: <span class="text-white">$' +
+                  r.device_info.harga_fob_usd +
+                  "</span>",
+              );
+            if (r.payment_info.no_dokumen)
+              details.push(
+                'Dok: <span class="text-white font-mono">' +
+                  r.payment_info.no_dokumen +
+                  "</span>",
+              );
+            if (r.payment_info.kode_kantor)
+              details.push(
+                'Kantor: <span class="text-white">' +
+                  r.payment_info.kode_kantor +
+                  "</span>",
+              );
+            html += details.join(" &nbsp;•&nbsp; ");
+            html += "</td></tr>";
+          }
         });
 
         html += "</tbody></table></div></div>";

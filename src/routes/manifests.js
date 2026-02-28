@@ -388,6 +388,7 @@ router.post("/bulk-sync", async (req, res) => {
 
 // ==================== PASSPORT SEARCH (Booking/PNR Lookup) ====================
 // MUST be before /:id to avoid param capture
+// Cross-references: ManifestPassenger, ImeiDetail, ImeiRegistration, Passenger
 router.get("/search/passport/:no", async (req, res) => {
   try {
     const passport = req.params.no.toUpperCase().trim();
@@ -397,41 +398,64 @@ router.get("/search/passport/:no", async (req, res) => {
         .json({ status: "error", message: "Nomor paspor minimal 3 karakter" });
     }
 
-    // Find all manifest passengers matching this passport
-    const passengers = await ManifestPassenger.find({
-      passport_number: {
-        $regex: new RegExp(
-          "^" + passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
-          "i",
-        ),
-      },
-    })
-      .sort({ flight_date: -1 })
-      .lean();
+    const ImeiDetail = require("../models/ImeiDetail");
+    const ImeiRegistration = require("../models/ImeiRegistration");
+    const Passenger = require("../models/Passenger");
 
-    if (!passengers.length) {
+    const escapedPassport = passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const passportRegex = new RegExp("^" + escapedPassport + "$", "i");
+
+    // Search ALL collections in parallel
+    const [manifestPax, imeiDetails, imeiRegs, ceisaPax] = await Promise.all([
+      ManifestPassenger.find({ passport_number: passportRegex })
+        .sort({ flight_date: -1 })
+        .lean(),
+      ImeiDetail.find({ no_identitas: passportRegex })
+        .sort({ waktu_kedatangan: -1 })
+        .lean(),
+      ImeiRegistration.find({ no_identitas: passportRegex })
+        .sort({ tgl_kedatangan: -1 })
+        .lean(),
+      Passenger.find({ paspor: passportRegex }).sort({ createdAt: -1 }).lean(),
+    ]);
+
+    const totalFound =
+      manifestPax.length +
+      imeiDetails.length +
+      imeiRegs.length +
+      ceisaPax.length;
+
+    if (!totalFound) {
       return res.json({
         status: "ok",
         data: { passport, records: [], total: 0 },
       });
     }
 
-    // Get unique manifest IDs to fetch flight info
+    // Get manifest flight info for manifest passengers
     const manifestIds = [
       ...new Set(
-        passengers.map((p) => p.manifest_id?.toString()).filter(Boolean),
+        manifestPax.map((p) => p.manifest_id?.toString()).filter(Boolean),
       ),
     ];
-    const manifests = await Manifest.find({ _id: { $in: manifestIds } })
-      .select("flight_number flight_date direction origin destination carrier")
-      .lean();
+    const manifests =
+      manifestIds.length > 0
+        ? await Manifest.find({ _id: { $in: manifestIds } })
+            .select(
+              "flight_number flight_date direction origin destination carrier",
+            )
+            .lean()
+        : [];
     const manifestMap = {};
     manifests.forEach((m) => (manifestMap[m._id.toString()] = m));
 
-    // Build enriched records
-    const records = passengers.map((p) => {
+    const records = [];
+
+    // 1. Records from ManifestPassenger (has PNR/booking)
+    manifestPax.forEach((p) => {
       const mf = manifestMap[p.manifest_id?.toString()] || {};
-      return {
+      records.push({
+        _source: "manifest",
         name: p.name,
         passport_number: p.passport_number,
         pnr: p.pnr || null,
@@ -450,26 +474,144 @@ router.get("/search/passport/:no", async (req, res) => {
         ticket_number: p.ticket_number || null,
         bag_weight: p.bag_weight || null,
         manifest_id: p.manifest_id,
-      };
+        // IMEI-specific (not applicable)
+        device_info: null,
+        payment_info: null,
+      });
     });
 
-    // Extract unique PNRs for quick summary
+    // 2. Records from ImeiDetail (has device + payment + flight)
+    imeiDetails.forEach((d) => {
+      records.push({
+        _source: "imei_detail",
+        name: d.nama,
+        passport_number: d.no_identitas,
+        pnr: null,
+        seat_no: null,
+        fare_class: null,
+        status: d.cara_pembayaran || null,
+        flight_number: d.flight_voyage || d.flight_normalized || null,
+        flight_date: d.waktu_kedatangan || null,
+        direction: null,
+        origin: null,
+        destination: null,
+        carrier: null,
+        nationality: d.kebangsaan || null,
+        gender: null,
+        date_of_birth: null,
+        ticket_number: null,
+        bag_weight: null,
+        manifest_id: null,
+        device_info: {
+          merk: d.merk,
+          tipe: d.tipe,
+          storage: d.storage,
+          imei1: d.imei1,
+          imei2: d.imei2,
+          warna: d.warna,
+          harga_fob_usd: d.harga_fob_usd,
+          bekas: d.bekas,
+        },
+        payment_info: {
+          no_dokumen: d.no_dokumen,
+          tgl_dokumen: d.tgl_dokumen,
+          cara_pembayaran: d.cara_pembayaran,
+          kode_billing: d.kode_billing,
+          total_pungutan: d.total_pungutan,
+          pungutan_bm: d.pungutan_bm,
+          pungutan_ppn: d.pungutan_ppn,
+          pungutan_pph: d.pungutan_pph,
+          nilai_pabean_rp: d.nilai_pabean_rp,
+          kode_kantor: d.kode_kantor,
+        },
+      });
+    });
+
+    // 3. Records from ImeiRegistration (summary level, no device detail)
+    // Only add if not already covered by ImeiDetail (deduplicate by no_dok)
+    const detailDokSet = new Set(
+      imeiDetails.map((d) => d.no_dokumen).filter(Boolean),
+    );
+    imeiRegs.forEach((r) => {
+      if (r.no_dok && detailDokSet.has(r.no_dok)) return; // skip duplicate
+      records.push({
+        _source: "imei_registration",
+        name: r.nama,
+        passport_number: r.no_identitas,
+        pnr: null,
+        seat_no: null,
+        fare_class: null,
+        status: r.status_pembayaran || null,
+        flight_number: r.vessel || r.vessel_normalized || null,
+        flight_date: r.tgl_kedatangan || null,
+        direction: null,
+        origin: null,
+        destination: null,
+        carrier: null,
+        nationality: r.kebangsaan || null,
+        gender: null,
+        date_of_birth: null,
+        ticket_number: null,
+        bag_weight: null,
+        manifest_id: null,
+        device_info: null,
+        payment_info: {
+          no_dokumen: r.no_dok,
+          tgl_dokumen: r.tgl_dok,
+          cara_pembayaran: r.status_pembayaran,
+          total_pungutan: r.total_pungutan,
+          kode_kantor: r.kode_kantor,
+        },
+      });
+    });
+
+    // Sort all records by date descending
+    records.sort((a, b) => {
+      const da = a.flight_date ? new Date(a.flight_date).getTime() : 0;
+      const db = b.flight_date ? new Date(b.flight_date).getTime() : 0;
+      return db - da;
+    });
+
+    // Extract unique PNRs and flights
     const uniquePnrs = [...new Set(records.map((r) => r.pnr).filter(Boolean))];
     const uniqueFlights = [
       ...new Set(records.map((r) => r.flight_number).filter(Boolean)),
     ];
 
-    // Passenger profile summary
+    // Build profile from best available data
+    const firstManifest = manifestPax[0];
+    const firstDetail = imeiDetails[0];
+    const firstReg = imeiRegs[0];
+    const firstCeisa = ceisaPax[0];
+
     const profile = {
-      name: records[0]?.name || null,
+      name:
+        firstManifest?.name ||
+        firstDetail?.nama ||
+        firstReg?.nama ||
+        firstCeisa?.nama ||
+        null,
       passport: passport,
-      nationality: records[0]?.nationality || null,
-      gender: records[0]?.gender || null,
-      date_of_birth: records[0]?.date_of_birth || null,
+      nationality:
+        firstManifest?.nationality ||
+        firstDetail?.kebangsaan ||
+        firstReg?.kebangsaan ||
+        firstCeisa?.kebangsaan ||
+        null,
+      gender: firstManifest?.gender || null,
+      date_of_birth: firstManifest?.date_of_birth || null,
       total_flights: uniqueFlights.length,
       total_bookings: uniquePnrs.length,
       booking_codes: uniquePnrs,
       flights: uniqueFlights,
+    };
+
+    // Source summary
+    const sources = {
+      manifest: manifestPax.length,
+      imei_detail: imeiDetails.length,
+      imei_registration: imeiRegs.length - [...detailDokSet].length,
+      ceisa: ceisaPax.length,
     };
 
     res.json({
@@ -479,6 +621,7 @@ router.get("/search/passport/:no", async (req, res) => {
         profile,
         records,
         total: records.length,
+        sources,
       },
     });
   } catch (err) {
