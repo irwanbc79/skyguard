@@ -674,6 +674,11 @@ router.get("/search", async (req, res) => {
       ...detData.map((d) => ({
         ...d,
         _source: "detail",
+        // Normalize field names to match ImeiRegistration schema
+        vessel: d.flight_voyage || d.vessel || null,
+        tgl_kedatangan: d.waktu_kedatangan || d.tgl_kedatangan || null,
+        status_pembayaran: d.cara_pembayaran || d.status_pembayaran || null,
+        no_dok: d.no_dokumen || d.no_dok || null,
         kantor_nama: getKantorName(d.kode_kantor),
       })),
       ...regFiltered.map((d) => ({
