@@ -1420,6 +1420,8 @@
         <div id="manifest-analitik" style="display: none"></div>
         <!-- Sub-container: Crosscheck -->
         <div id="manifest-crosscheck" style="display: none"></div>
+        <!-- Sub-container: Cari Paspor -->
+        <div id="manifest-paxsearch" style="display: none"></div>
       </div>
       <div id="content-dashboard" class="content-section fade-in">
         <!-- Dashboard Loading Indicator -->
@@ -2173,6 +2175,7 @@
             { id: "inbox", label: "Inbox", icon: "fa-inbox" },
             { id: "analitik", label: "Analitik", icon: "fa-chart-bar" },
             { id: "crosscheck", label: "Crosscheck", icon: "fa-search-plus" },
+            { id: "paxsearch", label: "Cari Paspor", icon: "fa-passport" },
           ],
           color: "#f97316",
         },
@@ -11315,7 +11318,14 @@
       let manifestKomandoData = null;
 
       function loadManifestSubContent(subId) {
-        ["radar", "komando", "inbox", "analitik", "crosscheck"].forEach((c) => {
+        [
+          "radar",
+          "komando",
+          "inbox",
+          "analitik",
+          "crosscheck",
+          "paxsearch",
+        ].forEach((c) => {
           const el = document.getElementById("manifest-" + c);
           if (el) el.style.display = c === subId ? "block" : "none";
         });
@@ -11336,7 +11346,243 @@
         } else if (subId === "crosscheck") {
           container.innerHTML = getManifestCrosscheckCenterContent();
           loadManifestCrosscheckCenter();
+        } else if (subId === "paxsearch") {
+          container.innerHTML = getManifestPaxSearchContent();
         }
+      }
+
+      // ============================================================
+      //  CARI PASPOR — Passport Search & Booking Code Tracker
+      // ============================================================
+      function getManifestPaxSearchContent() {
+        return `
+        <div class="space-y-5">
+          <div class="glass-card-solid rounded-2xl p-6 border-l-4 border-orange-400">
+            <h3 class="text-xl font-bold flex items-center gap-2 mb-1">
+              <i class="fas fa-passport text-orange-400"></i> Pencarian Paspor — Booking & Riwayat Penerbangan
+            </h3>
+            <p class="text-sm text-gray-400">Cari kode booking (PNR), riwayat penerbangan, dan detail penumpang dari data manifest</p>
+          </div>
+          <div class="glass-card-solid rounded-2xl p-5">
+            <div class="flex gap-2">
+              <input type="text" id="mfPaxSearchInput"
+                     placeholder="Masukkan nomor paspor (contoh: X4785318)..."
+                     class="flex-1 px-4 py-3 rounded-xl bg-slate-800 text-white placeholder-gray-500 outline-none border border-slate-600 focus:border-orange-500 font-mono uppercase tracking-wider"
+                     onkeydown="if(event.key==='Enter')mfPaxDoSearch()">
+              <button onclick="mfPaxDoSearch()" class="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition">
+                <i class="fas fa-search mr-1"></i> Cari
+              </button>
+            </div>
+          </div>
+          <div id="mfPaxSearchResult"></div>
+        </div>`;
+      }
+
+      async function mfPaxDoSearch() {
+        const input = document.getElementById("mfPaxSearchInput");
+        const passport = (input?.value || "").trim().toUpperCase();
+        if (passport.length < 3) {
+          showToast("Masukkan minimal 3 karakter nomor paspor", "error");
+          return;
+        }
+        const resultEl = document.getElementById("mfPaxSearchResult");
+        resultEl.innerHTML =
+          '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-400 mb-3"></i><p class="text-gray-400">Mencari data manifest...</p></div>';
+
+        try {
+          const res = await fetch(
+            "/api/manifests/search/passport/" + encodeURIComponent(passport),
+          );
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          if (!json.data.total) {
+            resultEl.innerHTML =
+              '<div class="glass-card-solid rounded-2xl p-8 text-center"><i class="fas fa-inbox text-4xl text-gray-600 mb-3"></i><p class="text-gray-400 text-lg">Tidak ditemukan data manifest untuk paspor <span class="font-mono text-orange-400">' +
+              passport +
+              '</span></p><p class="text-gray-500 text-sm mt-1">Pastikan nomor paspor benar dan data manifest sudah ter-upload</p></div>';
+            return;
+          }
+          renderMfPaxResult(json.data);
+        } catch (e) {
+          resultEl.innerHTML =
+            '<div class="text-red-400 text-center py-6"><i class="fas fa-exclamation-triangle text-2xl mb-2"></i><p>' +
+            e.message +
+            "</p></div>";
+        }
+      }
+
+      function renderMfPaxResult(data) {
+        const { profile, records } = data;
+        const resultEl = document.getElementById("mfPaxSearchResult");
+
+        // Format dates helper
+        const fmtDate = (d) =>
+          d
+            ? new Date(d).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "-";
+
+        // Profile Card
+        let html = '<div class="space-y-5">';
+
+        // Profile Summary
+        html += '<div class="glass-card-solid rounded-2xl p-5">';
+        html += '<div class="flex flex-col md:flex-row gap-6">';
+
+        // Left — Identity
+        html += '<div class="flex-1">';
+        html +=
+          '<div class="flex items-center gap-3 mb-4"><div class="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center"><i class="fas fa-user text-orange-400 text-xl"></i></div>';
+        html +=
+          '<div><h3 class="text-lg font-bold text-white">' +
+          (profile.name || "N/A") +
+          "</h3>";
+        html +=
+          '<p class="font-mono text-sm text-orange-400">' +
+          profile.passport +
+          "</p></div></div>";
+        html += '<div class="grid grid-cols-2 gap-3 text-sm">';
+        html +=
+          '<div class="bg-slate-800/50 rounded-lg p-3"><span class="text-gray-500 text-xs block">Kebangsaan</span><span class="text-white font-semibold">' +
+          (profile.nationality || "-") +
+          "</span></div>";
+        html +=
+          '<div class="bg-slate-800/50 rounded-lg p-3"><span class="text-gray-500 text-xs block">Gender</span><span class="text-white font-semibold">' +
+          (profile.gender === "M"
+            ? "Laki-laki"
+            : profile.gender === "F"
+              ? "Perempuan"
+              : profile.gender || "-") +
+          "</span></div>";
+        html +=
+          '<div class="bg-slate-800/50 rounded-lg p-3"><span class="text-gray-500 text-xs block">Tgl Lahir</span><span class="text-white font-semibold">' +
+          (profile.date_of_birth || "-") +
+          "</span></div>";
+        html +=
+          '<div class="bg-slate-800/50 rounded-lg p-3"><span class="text-gray-500 text-xs block">Total Record</span><span class="text-white font-semibold">' +
+          records.length +
+          "</span></div>";
+        html += "</div></div>";
+
+        // Right — Quick Stats
+        html += '<div class="flex-1">';
+        html +=
+          '<h4 class="text-sm text-gray-400 font-semibold mb-3"><i class="fas fa-chart-bar mr-1"></i> RINGKASAN</h4>';
+        html += '<div class="grid grid-cols-2 gap-3">';
+        html +=
+          '<div class="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl p-4 text-center">';
+        html +=
+          '<p class="text-2xl font-bold text-blue-400">' +
+          profile.total_flights +
+          '</p><p class="text-xs text-gray-400">Penerbangan</p></div>';
+        html +=
+          '<div class="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl p-4 text-center">';
+        html +=
+          '<p class="text-2xl font-bold text-purple-400">' +
+          profile.total_bookings +
+          '</p><p class="text-xs text-gray-400">Kode Booking</p></div>';
+        html += "</div>";
+
+        // Booking Codes (PNR) highlight
+        if (profile.booking_codes.length > 0) {
+          html += '<div class="mt-4 bg-slate-800/50 rounded-xl p-3">';
+          html +=
+            '<h5 class="text-xs text-gray-500 font-semibold mb-2"><i class="fas fa-ticket-alt mr-1"></i> KODE BOOKING (PNR)</h5>';
+          html += '<div class="flex flex-wrap gap-2">';
+          profile.booking_codes.forEach(function (pnr) {
+            html +=
+              '<span class="px-3 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-300 rounded-lg font-mono text-sm font-bold">' +
+              pnr +
+              "</span>";
+          });
+          html += "</div></div>";
+        }
+        html += "</div>";
+        html += "</div></div>";
+
+        // Flight History Table
+        html += '<div class="glass-card-solid rounded-2xl p-5">';
+        html +=
+          '<h4 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-plane text-blue-400"></i> Riwayat Penerbangan</h4>';
+        html += '<div class="overflow-x-auto"><table class="w-full text-sm">';
+        html +=
+          '<thead><tr class="text-gray-400 text-xs border-b border-slate-700">';
+        html += '<th class="text-left pb-2 pl-2">#</th>';
+        html += '<th class="text-left pb-2">Flight</th>';
+        html += '<th class="text-left pb-2">Tanggal</th>';
+        html += '<th class="text-left pb-2">Rute</th>';
+        html += '<th class="text-left pb-2">PNR/Booking</th>';
+        html += '<th class="text-left pb-2">Seat</th>';
+        html += '<th class="text-left pb-2">Class</th>';
+        html += '<th class="text-left pb-2">Status</th>';
+        html += '<th class="text-left pb-2">Tiket</th>';
+        html += '<th class="text-right pb-2 pr-2">Bagasi</th>';
+        html += "</tr></thead><tbody>";
+
+        records.forEach(function (r, idx) {
+          const dir =
+            r.direction === "inbound"
+              ? '<span class="text-green-400" title="Inbound"><i class="fas fa-plane-arrival"></i></span>'
+              : r.direction === "outbound"
+                ? '<span class="text-red-400" title="Outbound"><i class="fas fa-plane-departure"></i></span>'
+                : "";
+          const route =
+            [r.origin, r.destination].filter(Boolean).join(" → ") || "-";
+          const statusColor =
+            r.status === "checked_in"
+              ? "text-green-400"
+              : r.status === "no_show"
+                ? "text-red-400"
+                : "text-gray-400";
+          const statusLabel =
+            r.status === "checked_in"
+              ? "Checked In"
+              : r.status === "no_show"
+                ? "No Show"
+                : r.status || "-";
+
+          html +=
+            '<tr class="border-t border-slate-700/30 hover:bg-slate-800/30">';
+          html += '<td class="py-2 pl-2 text-gray-500">' + (idx + 1) + "</td>";
+          html +=
+            '<td class="py-2 font-mono font-bold text-blue-300">' +
+            dir +
+            " " +
+            (r.flight_number || "-") +
+            "</td>";
+          html +=
+            '<td class="py-2 text-xs">' + fmtDate(r.flight_date) + "</td>";
+          html += '<td class="py-2 text-xs">' + route + "</td>";
+          html +=
+            '<td class="py-2 font-mono font-bold text-orange-300">' +
+            (r.pnr || '<span class="text-gray-600">-</span>') +
+            "</td>";
+          html += '<td class="py-2 text-xs">' + (r.seat_no || "-") + "</td>";
+          html += '<td class="py-2 text-xs">' + (r.fare_class || "-") + "</td>";
+          html +=
+            '<td class="py-2 text-xs font-semibold ' +
+            statusColor +
+            '">' +
+            statusLabel +
+            "</td>";
+          html +=
+            '<td class="py-2 text-xs font-mono text-gray-400">' +
+            (r.ticket_number || "-") +
+            "</td>";
+          html +=
+            '<td class="py-2 text-xs text-right pr-2">' +
+            (r.bag_weight ? r.bag_weight + " kg" : "-") +
+            "</td>";
+          html += "</tr>";
+        });
+
+        html += "</tbody></table></div></div>";
+        html += "</div>";
+
+        resultEl.innerHTML = html;
       }
 
       // ============================================================

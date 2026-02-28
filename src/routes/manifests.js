@@ -386,6 +386,107 @@ router.post("/bulk-sync", async (req, res) => {
   }
 });
 
+// ==================== PASSPORT SEARCH (Booking/PNR Lookup) ====================
+// MUST be before /:id to avoid param capture
+router.get("/search/passport/:no", async (req, res) => {
+  try {
+    const passport = req.params.no.toUpperCase().trim();
+    if (!passport || passport.length < 3) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Nomor paspor minimal 3 karakter" });
+    }
+
+    // Find all manifest passengers matching this passport
+    const passengers = await ManifestPassenger.find({
+      passport_number: {
+        $regex: new RegExp(
+          "^" + passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
+          "i",
+        ),
+      },
+    })
+      .sort({ flight_date: -1 })
+      .lean();
+
+    if (!passengers.length) {
+      return res.json({
+        status: "ok",
+        data: { passport, records: [], total: 0 },
+      });
+    }
+
+    // Get unique manifest IDs to fetch flight info
+    const manifestIds = [
+      ...new Set(
+        passengers.map((p) => p.manifest_id?.toString()).filter(Boolean),
+      ),
+    ];
+    const manifests = await Manifest.find({ _id: { $in: manifestIds } })
+      .select("flight_number flight_date direction origin destination carrier")
+      .lean();
+    const manifestMap = {};
+    manifests.forEach((m) => (manifestMap[m._id.toString()] = m));
+
+    // Build enriched records
+    const records = passengers.map((p) => {
+      const mf = manifestMap[p.manifest_id?.toString()] || {};
+      return {
+        name: p.name,
+        passport_number: p.passport_number,
+        pnr: p.pnr || null,
+        seat_no: p.seat_no || null,
+        fare_class: p.fare_class || null,
+        status: p.status,
+        flight_number: p.flight_number || mf.flight_number || null,
+        flight_date: p.flight_date || mf.flight_date || null,
+        direction: mf.direction || null,
+        origin: mf.origin || null,
+        destination: mf.destination || null,
+        carrier: mf.carrier || null,
+        nationality: p.nationality || null,
+        gender: p.gender || null,
+        date_of_birth: p.date_of_birth || null,
+        ticket_number: p.ticket_number || null,
+        bag_weight: p.bag_weight || null,
+        manifest_id: p.manifest_id,
+      };
+    });
+
+    // Extract unique PNRs for quick summary
+    const uniquePnrs = [...new Set(records.map((r) => r.pnr).filter(Boolean))];
+    const uniqueFlights = [
+      ...new Set(records.map((r) => r.flight_number).filter(Boolean)),
+    ];
+
+    // Passenger profile summary
+    const profile = {
+      name: records[0]?.name || null,
+      passport: passport,
+      nationality: records[0]?.nationality || null,
+      gender: records[0]?.gender || null,
+      date_of_birth: records[0]?.date_of_birth || null,
+      total_flights: uniqueFlights.length,
+      total_bookings: uniquePnrs.length,
+      booking_codes: uniquePnrs,
+      flights: uniqueFlights,
+    };
+
+    res.json({
+      status: "ok",
+      data: {
+        passport,
+        profile,
+        records,
+        total: records.length,
+      },
+    });
+  } catch (err) {
+    console.error("[Manifest Passport Search]", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 router.get("/:id", manifestController.getManifestDetail);
 router.post(
   "/upload",
