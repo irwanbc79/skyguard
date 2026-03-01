@@ -925,6 +925,132 @@ function parseBaggageList(rawText = "") {
   };
 }
 
+// ==================== GENERIC REPORT PARSER (Amadeus/DCS) ====================
+// Format: "Generic Report" used by MH (Malaysia Airlines), SQ (Singapore Airlines), etc.
+// Subtypes: WNI (WNI=Indonesian pax), WNA (Foreign pax), PST (all pax w/ passport), CUST ACC (customs)
+
+function parseGenericReport(rawText = "") {
+  if (!/Generic\s*Report/i.test(rawText)) return null;
+
+  // Extract report year from timestamp: "27FEB2026 01:45:38 Z"
+  const tsMatch = rawText.match(
+    /(\d{2})([A-Z]{3})(\d{4})\s+\d{2}:\d{2}:\d{2}\s*Z/i,
+  );
+  const reportYear = tsMatch ? tsMatch[3] : String(new Date().getFullYear());
+
+  // Normalize: remove page markers, collapse whitespace to single-line
+  let text = rawText
+    .replace(/Report\s+content/gi, " ")
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Extract flight info: SQ995 27FEB KNO STD2030 or MH864 01MAR KUL STD1550
+  const flightMatch = text.match(
+    /([A-Z]{2})(\d{3,4})\s+(\d{2}[A-Z]{3})\s+([A-Z]{3})\s+STD(\d{4})/i,
+  );
+
+  let carrier = null,
+    flightNumber = null,
+    flightDate = null,
+    origin = null,
+    destination = null;
+
+  if (flightMatch) {
+    const iataCode = flightMatch[1].toUpperCase();
+    const fltNum = flightMatch[2];
+    const dateStr = flightMatch[3]; // e.g. "27FEB" (no year)
+    origin = flightMatch[4];
+
+    flightNumber = `${iataCode} ${fltNum}`;
+    carrier = IATA_CARRIER_MAP[iataCode] || iataCode;
+
+    // Build full date with year from report timestamp
+    const yearSuffix = reportYear.slice(-2); // "2026" → "26"
+    flightDate = parseFlightDate(dateStr + yearSuffix); // "27FEB26"
+  }
+
+  // Extract declared total from header: "J5 Y115 TOTAL 120"
+  const totalMatch = text.match(/TOTAL\s+(\d+)/i);
+  const declaredTotal = totalMatch ? Number(totalMatch[1]) : 0;
+
+  // Parse passenger entries
+  // After normalization, each entry looks like:
+  //   SEQ.LASTNAME/FIRSTNAME [TITLE] GENDER ORIGIN DEST CLASS B SEAT [NAT] [***PASSPORT]
+  // Key: use SEQ. as anchor, GENDER + ORIGIN DEST CLASS B as structural markers
+  const passengers = [];
+
+  const paxRegex =
+    /(\d{1,3})\.(.+?)\s([MFIC])\s([A-Z]{3})\s([A-Z]{3})\s([A-Z]{1,2})\sB\s(\d{2,3}[A-Z]?)/g;
+
+  let match;
+  while ((match = paxRegex.exec(text)) !== null) {
+    const seq = Number(match[1]);
+    let nameRaw = match[2].trim();
+    const genderType = match[3];
+    const paxOrigin = match[4];
+    const paxDest = match[5];
+    const bookClass = match[6];
+    const seat = match[7];
+
+    // Derive destination from first passenger's route
+    if (!destination && paxDest !== origin) {
+      destination = paxDest;
+    }
+
+    // Look ahead for nationality (3-letter) and optional masked passport
+    const afterSeatPos = match.index + match[0].length;
+    const afterSeat = text.substring(afterSeatPos, afterSeatPos + 60);
+    const extraMatch = afterSeat.match(/^\s+([A-Z]{3})(?:\s+\*+(\d+))?/);
+    const nationality = extraMatch ? extraMatch[1] : "";
+    const passportLast = extraMatch && extraMatch[2] ? extraMatch[2] : "";
+
+    // Strip title from name
+    const cleanName = nameRaw
+      .replace(/\s+(MR|MRS|MS|MISS|MSTR|DR|BINT|MIS)\.?\s*$/i, "")
+      .replace(/\/\s*$/, "/") // Keep trailing / for names like "AJID/"
+      .trim();
+
+    passengers.push({
+      seat_no: seat,
+      gender: genderType,
+      name: cleanName,
+      nationality:
+        nationality.length === 3 ? nationality.slice(0, 2) : nationality,
+      passport_number: passportLast ? `***${passportLast}` : "",
+      doc_type: "P",
+      status: "checked_in",
+      raw_line: match[0].trim().substring(0, 80),
+    });
+  }
+
+  if (!passengers.length) return null;
+
+  // Determine format name based on carrier
+  let formatName = "generic_report";
+  if (carrier === "Malaysia Airlines") formatName = "mh_manifest";
+  else if (["Singapore Airlines", "SilkAir", "Scoot"].includes(carrier))
+    formatName = "sq_manifest";
+
+  return {
+    format: formatName,
+    flight_number: flightNumber,
+    flight_date: flightDate,
+    origin,
+    destination,
+    carrier,
+    passengers,
+    no_shows: [],
+    totals: {
+      male: passengers.filter((p) => p.gender === "M").length,
+      female: passengers.filter((p) => p.gender === "F").length,
+      infant: passengers.filter((p) => p.gender === "I").length,
+      child: passengers.filter((p) => p.gender === "C").length,
+      total_passengers: declaredTotal || passengers.length,
+    },
+  };
+}
+
 // ==================== FILENAME-BASED CLASSIFIER ====================
 // Classify non-parseable files by filename pattern to reduce needs_review
 
@@ -944,7 +1070,7 @@ function classifyByFilename(filename = "") {
     WNB: "weight_balance",
     "W&B": "weight_balance",
     WB: "weight_balance",
-    WNA: "weight_balance",
+    // WNA removed — WNA = Warga Negara Asing (foreign pax manifest), NOT weight balance
     ACC: "acceptance",
     ACCP: "acceptance",
     ACCTED: "acceptance",
@@ -1253,6 +1379,9 @@ function detectAndParseTextOnly(rawText = "", filename = "") {
   const enh = parseENHManifest(rawText);
   if (enh) return enh;
 
+  const gen = parseGenericReport(rawText);
+  if (gen) return gen;
+
   const dcs = parseLionAirManifest(rawText);
   if (dcs) return dcs;
 
@@ -1297,6 +1426,7 @@ module.exports = {
   parseCSVManifest,
   parseXLSXManifest,
   parseGenericManifest,
+  parseGenericReport,
   classifyByFilename,
   detectAndParseText,
   detectAndParseTextOnly,
