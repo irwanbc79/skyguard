@@ -477,4 +477,447 @@ router.get("/search/:passport", async (req, res) => {
   }
 });
 
+// ============================================================
+// MULTI-SEARCH — Cari dari semua koleksi berdasarkan tipe input
+// Mendukung: paspor, nama, imei, flight, dokumen
+// ============================================================
+router.get("/multi-search", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    let type = (req.query.type || "auto").toLowerCase();
+
+    if (!q || q.length < 2) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Masukkan minimal 2 karakter" });
+    }
+
+    // Auto-detect type
+    if (type === "auto") {
+      if (/^\d{15}$/.test(q)) type = "imei";
+      else if (/^\d{6}-\d{6}$/.test(q) || /^\d{12}$/.test(q)) type = "dokumen";
+      else if (
+        /^[A-Z]{2}\s?\d{2,4}$/i.test(q) ||
+        /^(GA|JT|QG|QZ|ID|SJ|IN|IW|KD|IP|SQ|CX|MH|TG|AK|TR|3K|MI|CZ|MU|CA)\s?\d{2,4}$/i.test(
+          q,
+        )
+      )
+        type = "flight";
+      else if (/^[A-Z]{1,2}\d{5,9}$/i.test(q) || /^\d{7,9}$/.test(q))
+        type = "paspor";
+      else if (/\s/.test(q) || q.length >= 4) type = "nama";
+      else type = "paspor";
+    }
+
+    const results = { type, query: q, sources: [] };
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const qUpper = q.toUpperCase();
+
+    if (type === "paspor") {
+      const regex = new RegExp("^" + escaped + "$", "i");
+      const [mPax, iDet, iReg, ceisa, suspect] = await Promise.all([
+        ManifestPassenger.find({ passport_number: regex })
+          .sort({ flight_date: -1 })
+          .limit(100)
+          .lean(),
+        ImeiDetail.find({ no_identitas: regex })
+          .sort({ waktu_kedatangan: -1 })
+          .limit(100)
+          .lean(),
+        ImeiRegistration.find({ no_identitas: regex })
+          .sort({ tgl_kedatangan: -1 })
+          .limit(100)
+          .lean(),
+        Passenger.find({ paspor: regex })
+          .sort({ tanggal_dokumen: -1 })
+          .limit(100)
+          .lean(),
+        require("mongoose")
+          .model("Suspect")
+          .findOne({ passport_number: regex })
+          .lean()
+          .catch(() => null),
+      ]);
+
+      // Build grouped results
+      const names = new Set();
+      mPax.forEach((p) => {
+        if (p.name) names.add(p.name);
+      });
+      iDet.forEach((d) => {
+        if (d.nama) names.add(d.nama);
+      });
+      iReg.forEach((r) => {
+        if (r.nama) names.add(r.nama);
+      });
+      ceisa.forEach((c) => {
+        if (c.nama_lengkap) names.add(c.nama_lengkap);
+      });
+      const primaryName = names.values().next().value || qUpper;
+
+      results.identity = {
+        passport: qUpper,
+        name: primaryName,
+        aliases: [...names].slice(1, 5),
+      };
+      results.is_suspect = !!suspect;
+      results.suspect = suspect
+        ? { status: suspect.status, risk_level: suspect.risk_level }
+        : null;
+
+      if (mPax.length)
+        results.sources.push({
+          source: "manifest",
+          label: "Manifest Penerbangan",
+          icon: "fa-plane",
+          color: "#f97316",
+          count: mPax.length,
+          items: mPax
+            .slice(0, 20)
+            .map((p) => ({
+              name: p.name,
+              flight: p.flight_number,
+              date: p.flight_date,
+              pnr: p.pnr,
+              seat: p.seat_no,
+              nationality: p.nationality,
+            })),
+        });
+      if (ceisa.length)
+        results.sources.push({
+          source: "ceisa",
+          label: "CEISA (HKT)",
+          icon: "fa-stamp",
+          color: "#f59e0b",
+          count: ceisa.length,
+          items: ceisa
+            .slice(0, 20)
+            .map((c) => ({
+              name: c.nama_lengkap,
+              doc: c.nomor_dokumen,
+              date: c.tanggal_dokumen,
+              status: c.status_penelitian,
+              hkt1: c.hkt1,
+              hkt2: c.hkt2,
+            })),
+        });
+      if (iDet.length)
+        results.sources.push({
+          source: "imei_detail",
+          label: "IMEI Detail (Scraper)",
+          icon: "fa-microchip",
+          color: "#3b82f6",
+          count: iDet.length,
+          items: iDet
+            .slice(0, 20)
+            .map((d) => ({
+              name: d.nama,
+              merk: d.merk,
+              tipe: d.tipe,
+              imei: d.imei1,
+              fob: d.harga_fob_usd,
+              payment: d.cara_pembayaran,
+              dok: d.no_dokumen,
+              flight: d.flight_voyage,
+            })),
+        });
+      if (iReg.length)
+        results.sources.push({
+          source: "imei_reg",
+          label: "IMEI Registrasi (CSV)",
+          icon: "fa-file-csv",
+          color: "#22c55e",
+          count: iReg.length,
+          items: iReg
+            .slice(0, 20)
+            .map((r) => ({
+              name: r.nama,
+              dok: r.no_dok,
+              date: r.tgl_kedatangan,
+              vessel: r.vessel,
+              payment: r.status_pembayaran,
+              pungutan: r.total_pungutan,
+            })),
+        });
+
+      results.totalRecords =
+        mPax.length + ceisa.length + iDet.length + iReg.length;
+      results.hasFullProfile = true; // Can use /search/:passport for full dossier
+    } else if (type === "nama") {
+      const regex = new RegExp(escaped, "i");
+      const [mPax, iDet, iReg, ceisa] = await Promise.all([
+        ManifestPassenger.find({ name: regex })
+          .sort({ flight_date: -1 })
+          .limit(100)
+          .lean(),
+        ImeiDetail.find({ nama: regex })
+          .sort({ waktu_kedatangan: -1 })
+          .limit(100)
+          .lean(),
+        ImeiRegistration.find({ nama: regex })
+          .sort({ tgl_kedatangan: -1 })
+          .limit(100)
+          .lean(),
+        Passenger.find({ nama_lengkap: regex })
+          .sort({ tanggal_dokumen: -1 })
+          .limit(100)
+          .lean(),
+      ]);
+
+      // Group by passport to deduplicate across sources
+      const passportMap = {};
+      const addToMap = (passport, name, source) => {
+        if (!passport) return;
+        const key = passport.toUpperCase();
+        if (!passportMap[key])
+          passportMap[key] = {
+            passport: key,
+            names: new Set(),
+            sources: new Set(),
+            count: 0,
+          };
+        if (name) passportMap[key].names.add(name);
+        passportMap[key].sources.add(source);
+        passportMap[key].count++;
+      };
+
+      mPax.forEach((p) => addToMap(p.passport_number, p.name, "manifest"));
+      iDet.forEach((d) => addToMap(d.no_identitas, d.nama, "imei_detail"));
+      iReg.forEach((r) => addToMap(r.no_identitas, r.nama, "imei_reg"));
+      ceisa.forEach((c) => addToMap(c.paspor, c.nama_lengkap, "ceisa"));
+
+      const grouped = Object.values(passportMap)
+        .map((g) => ({
+          passport: g.passport,
+          name: [...g.names][0] || qUpper,
+          aliases: [...g.names].slice(1, 3),
+          sources: [...g.sources],
+          recordCount: g.count,
+        }))
+        .sort((a, b) => b.recordCount - a.recordCount)
+        .slice(0, 50);
+
+      // Also include records without passport
+      const noPassport = [];
+      mPax
+        .filter((p) => !p.passport_number)
+        .forEach((p) =>
+          noPassport.push({
+            name: p.name,
+            source: "manifest",
+            flight: p.flight_number,
+            date: p.flight_date,
+          }),
+        );
+
+      if (mPax.length)
+        results.sources.push({
+          source: "manifest",
+          label: "Manifest Penerbangan",
+          icon: "fa-plane",
+          color: "#f97316",
+          count: mPax.length,
+        });
+      if (ceisa.length)
+        results.sources.push({
+          source: "ceisa",
+          label: "CEISA (HKT)",
+          icon: "fa-stamp",
+          color: "#f59e0b",
+          count: ceisa.length,
+        });
+      if (iDet.length)
+        results.sources.push({
+          source: "imei_detail",
+          label: "IMEI Detail",
+          icon: "fa-microchip",
+          color: "#3b82f6",
+          count: iDet.length,
+        });
+      if (iReg.length)
+        results.sources.push({
+          source: "imei_reg",
+          label: "IMEI Registrasi",
+          icon: "fa-file-csv",
+          color: "#22c55e",
+          count: iReg.length,
+        });
+
+      results.grouped = grouped;
+      results.noPassport = noPassport.slice(0, 10);
+      results.totalRecords =
+        mPax.length + ceisa.length + iDet.length + iReg.length;
+    } else if (type === "imei") {
+      const regex = new RegExp("^" + escaped, "i");
+      const iDet = await ImeiDetail.find({
+        $or: [{ imei1: regex }, { imei2: regex }],
+      })
+        .limit(50)
+        .lean();
+
+      if (iDet.length)
+        results.sources.push({
+          source: "imei_detail",
+          label: "IMEI Detail",
+          icon: "fa-microchip",
+          color: "#3b82f6",
+          count: iDet.length,
+          items: iDet.map((d) => ({
+            nama: d.nama,
+            passport: d.no_identitas,
+            merk: d.merk,
+            tipe: d.tipe,
+            imei1: d.imei1,
+            imei2: d.imei2,
+            fob: d.harga_fob_usd,
+            payment: d.cara_pembayaran,
+            dok: d.no_dokumen,
+            flight: d.flight_voyage,
+            date: d.waktu_kedatangan,
+          })),
+        });
+
+      results.totalRecords = iDet.length;
+    } else if (type === "flight") {
+      const flightNorm = qUpper.replace(/\s+/g, "");
+      const flightRegex = new RegExp(escaped.replace(/\s+/g, "\\s*"), "i");
+
+      const [mPax, iDet, iReg] = await Promise.all([
+        ManifestPassenger.find({ flight_number: flightRegex })
+          .sort({ flight_date: -1 })
+          .limit(200)
+          .lean(),
+        ImeiDetail.find({
+          $or: [
+            { flight_voyage: flightRegex },
+            { flight_normalized: flightNorm },
+          ],
+        })
+          .sort({ waktu_kedatangan: -1 })
+          .limit(100)
+          .lean(),
+        ImeiRegistration.find({
+          $or: [{ vessel: flightRegex }, { vessel_normalized: flightNorm }],
+        })
+          .sort({ tgl_kedatangan: -1 })
+          .limit(100)
+          .lean(),
+      ]);
+
+      // Group manifest passengers by date
+      const dateGroups = {};
+      mPax.forEach((p) => {
+        const d = p.flight_date
+          ? new Date(p.flight_date).toISOString().slice(0, 10)
+          : "unknown";
+        if (!dateGroups[d])
+          dateGroups[d] = { date: d, passengers: [], count: 0 };
+        dateGroups[d].passengers.push({
+          name: p.name,
+          passport: p.passport_number,
+          nationality: p.nationality,
+          pnr: p.pnr,
+          seat: p.seat_no,
+        });
+        dateGroups[d].count++;
+      });
+
+      if (mPax.length)
+        results.sources.push({
+          source: "manifest",
+          label: "Manifest Penerbangan",
+          icon: "fa-plane",
+          color: "#f97316",
+          count: mPax.length,
+        });
+      if (iDet.length)
+        results.sources.push({
+          source: "imei_detail",
+          label: "IMEI Detail",
+          icon: "fa-microchip",
+          color: "#3b82f6",
+          count: iDet.length,
+          items: iDet
+            .slice(0, 20)
+            .map((d) => ({
+              nama: d.nama,
+              passport: d.no_identitas,
+              merk: d.merk,
+              tipe: d.tipe,
+              payment: d.cara_pembayaran,
+              dok: d.no_dokumen,
+            })),
+        });
+      if (iReg.length)
+        results.sources.push({
+          source: "imei_reg",
+          label: "IMEI Registrasi",
+          icon: "fa-file-csv",
+          color: "#22c55e",
+          count: iReg.length,
+          items: iReg
+            .slice(0, 20)
+            .map((r) => ({
+              nama: r.nama,
+              passport: r.no_identitas,
+              dok: r.no_dok,
+              payment: r.status_pembayaran,
+            })),
+        });
+
+      results.flightGroups = Object.values(dateGroups).sort((a, b) =>
+        b.date.localeCompare(a.date),
+      );
+      results.totalRecords = mPax.length + iDet.length + iReg.length;
+    } else if (type === "dokumen") {
+      const regex = new RegExp("^" + escaped + "$", "i");
+      const [iDet, iReg] = await Promise.all([
+        ImeiDetail.find({ no_dokumen: regex }).limit(50).lean(),
+        ImeiRegistration.find({ no_dok: regex }).limit(50).lean(),
+      ]);
+
+      if (iDet.length)
+        results.sources.push({
+          source: "imei_detail",
+          label: "IMEI Detail",
+          icon: "fa-microchip",
+          color: "#3b82f6",
+          count: iDet.length,
+          items: iDet.map((d) => ({
+            nama: d.nama,
+            passport: d.no_identitas,
+            merk: d.merk,
+            tipe: d.tipe,
+            imei: d.imei1,
+            fob: d.harga_fob_usd,
+            payment: d.cara_pembayaran,
+          })),
+        });
+      if (iReg.length)
+        results.sources.push({
+          source: "imei_reg",
+          label: "IMEI Registrasi",
+          icon: "fa-file-csv",
+          color: "#22c55e",
+          count: iReg.length,
+          items: iReg.map((r) => ({
+            nama: r.nama,
+            passport: r.no_identitas,
+            dok: r.no_dok,
+            vessel: r.vessel,
+            payment: r.status_pembayaran,
+            pungutan: r.total_pungutan,
+          })),
+        });
+
+      results.totalRecords = iDet.length + iReg.length;
+    }
+
+    res.json({ status: "ok", results });
+  } catch (err) {
+    console.error("[MULTI SEARCH]", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 module.exports = router;

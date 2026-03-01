@@ -225,6 +225,9 @@
       .menu-home {
         color: #60a5fa;
       }
+      .menu-pencarian {
+        color: #06b6d4;
+      }
       .menu-imei {
         color: #22c55e;
       }
@@ -522,6 +525,13 @@
             <i class="fas fa-home"></i> HOME
           </button>
           <button
+            onclick="setMainMenu('pencarian')"
+            class="main-menu-item menu-pencarian flex items-center gap-2 whitespace-nowrap"
+            data-menu="pencarian"
+          >
+            <i class="fas fa-search"></i> PENCARIAN
+          </button>
+          <button
             onclick="setMainMenu('imei')"
             class="main-menu-item menu-imei flex items-center gap-2 whitespace-nowrap"
             data-menu="imei"
@@ -617,6 +627,60 @@
         <!-- ═══════════════════════════════════════════════════════════
              PENCARIAN TERPADU — Unified Passport Search
              ═══════════════════════════════════════════════════════════ -->
+        <div
+          style="
+            background: linear-gradient(
+              135deg,
+              rgba(6, 182, 212, 0.12),
+              rgba(6, 182, 212, 0.04)
+            );
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+          "
+        >
+          <i
+            class="fas fa-info-circle"
+            style="color: #22d3ee; font-size: 1.2rem"
+          ></i>
+          <div style="flex: 1; min-width: 200px">
+            <div style="color: #e2e8f0; font-weight: 600; font-size: 0.85rem">
+              Pencarian Sentral kini tersedia!
+            </div>
+            <div
+              style="color: #94a3b8; font-size: 0.75rem; margin-top: 0.15rem"
+            >
+              Gunakan menu
+              <strong style="color: #22d3ee">PENCARIAN</strong> untuk pencarian
+              multi-tipe (paspor, nama, flight, IMEI, dokumen) dengan hasil dari
+              <b style="color: #e2e8f0">semua</b> sumber data sekaligus.
+            </div>
+          </div>
+          <button
+            onclick="setMainMenu('pencarian')"
+            style="
+              background: linear-gradient(135deg, #06b6d4, #0891b2);
+              border: none;
+              border-radius: 0.75rem;
+              padding: 0.5rem 1.25rem;
+              color: #fff;
+              font-weight: 600;
+              cursor: pointer;
+              font-size: 0.8rem;
+              white-space: nowrap;
+              display: flex;
+              align-items: center;
+              gap: 0.4rem;
+            "
+          >
+            <i class="fas fa-search"></i> Buka Pencarian Sentral
+          </button>
+        </div>
         <div
           class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-6 mb-6 border border-blue-500/30 shadow-xl"
         >
@@ -2106,6 +2170,7 @@
       </div>
 
       <!-- Intelligence Center Content -->
+      <div id="content-pencarian" class="content-section fade-in"></div>
       <div id="content-intel" class="content-section fade-in"></div>
 
       <!-- Flight Radar Content -->
@@ -2143,6 +2208,7 @@
       // ==================== MENU CONFIG ====================
       const menuConfig = {
         home: { subMenus: [], color: "#60a5fa" },
+        pencarian: { subMenus: [], color: "#06b6d4" },
         imei: {
           subMenus: [
             { id: "harga", label: "Cek Harga", icon: "fa-search" },
@@ -2338,6 +2404,7 @@
             "flights",
             "manifest",
             "intel",
+            "pencarian",
           ].includes(menu) &&
           menuConfig[menu].subMenus &&
           menuConfig[menu].subMenus.length > 0
@@ -2348,6 +2415,12 @@
         }
         if (menu === "dashboard") {
           loadDashboard();
+        }
+        if (menu === "pencarian") {
+          const pc = document.getElementById("content-pencarian");
+          if (pc) {
+            pc.innerHTML = getPencarianTerpaduContent();
+          }
         }
       }
 
@@ -2457,6 +2530,18 @@
         }
       }
 
+      // Helper: Redirect banner for old search pages
+      function psRedirectBanner(ctx) {
+        return `<div style="background:linear-gradient(135deg,rgba(6,182,212,0.12),rgba(6,182,212,0.04));border:1px solid rgba(6,182,212,0.25);border-radius:1rem;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <i class="fas fa-info-circle" style="color:#22d3ee;font-size:1.2rem;"></i>
+          <div style="flex:1;min-width:200px;">
+            <div style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">Gunakan Pencarian Sentral untuk hasil lengkap</div>
+            <div style="color:#94a3b8;font-size:0.75rem;margin-top:0.15rem;">Menu <strong style="color:#22d3ee;">PENCARIAN</strong> menyatukan data dari semua sumber (Manifest, CEISA, IMEI, Registrasi, Atensi) dalam satu tampilan konsisten.</div>
+          </div>
+          <button onclick="setMainMenu('pencarian')" style="background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:0.75rem;padding:0.5rem 1.25rem;color:#fff;font-weight:600;cursor:pointer;font-size:0.8rem;white-space:nowrap;display:flex;align-items:center;gap:0.4rem;"><i class="fas fa-search"></i> Buka Pencarian Sentral</button>
+        </div>`;
+      }
+
       // ==================== INTELLIGENCE CENTER ====================
       let intelMap = null;
       let intelMapMarkers = [];
@@ -2478,7 +2563,9 @@
 
       // ─── Pencarian Lanjutan ───
       function getIntelSearchContent() {
-        return `
+        return (
+          psRedirectBanner("intel") +
+          `
         <style>
           .ic-hero { background: linear-gradient(135deg, #1a0a0a 0%, #2d1015 50%, #3b1520 100%); border-radius: 1.5rem; padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
           .ic-hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(239,68,68,0.12) 0%, transparent 70%); pointer-events: none; }
@@ -2581,7 +2668,8 @@
         </div>
         <div id="icSearchResults"></div>
         <div id="icDossierView"></div>
-        `;
+        `
+        );
       }
 
       let intelSearchType = "auto";
@@ -3885,7 +3973,9 @@
 
       // ─── Peta Rute (Standalone Route Map) ───
       function getIntelRouteMapContent() {
-        return `
+        return (
+          psRedirectBanner("routemap") +
+          `
         <div class="ic-hero" style="padding:1.5rem;margin-bottom:1rem;">
           <div style="position:relative;z-index:1;">
             <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
@@ -3915,7 +4005,8 @@
           <div id="icRouteMapContainer" style="height:550px;background:#0f172a;"></div>
         </div>
         <div id="icRouteMapStats" style="margin-top:1rem;"></div>
-        `;
+        `
+        );
       }
 
       function initIntelMap() {
@@ -8108,7 +8199,9 @@
 
       // ==================== TRAVEL HISTORY INTELLIGENCE ====================
       function getTravelHistoryContent() {
-        return `
+        return (
+          psRedirectBanner("travel") +
+          `
         <style>
           .th-hero { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%); border-radius: 1.5rem; padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
           .th-hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%); pointer-events: none; }
@@ -8205,7 +8298,8 @@
         </div>
         <div id="thSearchResults"></div>
         <div id="thDossierView"></div>
-        `;
+        `
+        );
       }
 
       let thSearchType = "auto";
@@ -9114,7 +9208,9 @@
 
       // ==================== PENUMPANG FUNCTIONS ====================
       function getPenumpangLookupContent() {
-        return `<div class="glass-card-solid rounded-2xl p-6 mb-6">
+        return (
+          psRedirectBanner("lookup") +
+          `<div class="glass-card-solid rounded-2xl p-6 mb-6">
                 <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-search text-yellow-400"></i> Cari Data Penumpang</h3>
                 <div class="flex gap-3">
                     <div class="flex-1 relative">
@@ -9123,7 +9219,8 @@
                     </div>
                     <button onclick="searchPaspor()" class="btn-primary px-6 py-4 rounded-xl font-semibold"><i class="fas fa-search mr-2"></i>Cari</button>
                 </div>
-            </div><div id="pasporResult"></div>`;
+            </div><div id="pasporResult"></div>`
+        );
       }
 
       function getPenumpangAlertsContent() {
@@ -13131,7 +13228,9 @@
       //  CARI PASPOR — Passport Search & Booking Code Tracker
       // ============================================================
       function getManifestPaxSearchContent() {
-        return `
+        return (
+          psRedirectBanner("manifest") +
+          `
         <div class="space-y-5">
           <div class="glass-card-solid rounded-2xl p-6 border-l-4 border-orange-400">
             <h3 class="text-xl font-bold flex items-center gap-2 mb-1">
@@ -13151,7 +13250,8 @@
             </div>
           </div>
           <div id="mfPaxSearchResult"></div>
-        </div>`;
+        </div>`
+        );
       }
 
       async function mfPaxDoSearch() {
@@ -17806,6 +17906,1031 @@
 
         poll();
         _scraperPollTimer = setInterval(poll, 5000);
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // PENCARIAN SENTRAL — Unified Hub for ALL searches
+      // ═══════════════════════════════════════════════════════════
+      let psSearchType = "auto";
+
+      function getPencarianTerpaduContent() {
+        return `
+        <style>
+          .ps-hero { background: linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%); border-radius: 1.5rem; padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+          .ps-hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%); pointer-events: none; }
+          .ps-type-btn { padding: 0.5rem 1rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #94a3b8; cursor: pointer; transition: all 0.3s; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; }
+          .ps-type-btn.active { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; border-color: #06b6d4; box-shadow: 0 0 20px rgba(6,182,212,0.3); }
+          .ps-type-btn:hover:not(.active) { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+          .ps-src-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600; }
+          .ps-card { background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 1rem; padding: 1.25rem; margin-bottom: 0.75rem; transition: all 0.3s; cursor: pointer; position: relative; }
+          .ps-card:hover { border-color: rgba(6,182,212,0.4); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+          .ps-badge { padding: 0.2rem 0.6rem; border-radius: 2rem; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.3rem; }
+          .ps-badge-red { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+          .ps-badge-green { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+          .ps-badge-blue { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+          .ps-badge-yellow { background: rgba(234,179,8,0.2); color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); }
+          .ps-badge-cyan { background: rgba(6,182,212,0.2); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); }
+          .ps-badge-purple { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+          .ps-badge-orange { background: rgba(249,115,22,0.2); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+          .ps-section { background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem; }
+          .ps-section-title { font-size: 0.95rem; font-weight: 700; color: #e2e8f0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+          .ps-fadein { animation: psFadeIn 0.4s ease; }
+          @keyframes psFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+          .ps-guide-card { background: rgba(6,182,212,0.06); border: 1px solid rgba(6,182,212,0.15); border-radius: 0.75rem; padding: 1rem; display: flex; align-items: flex-start; gap: 0.75rem; }
+        </style>
+
+        <div class="ps-hero">
+          <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+              <div style="width:56px;height:56px;border-radius:1rem;background:linear-gradient(135deg,#06b6d4,#0891b2);display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-search text-2xl text-white"></i>
+              </div>
+              <div>
+                <h2 style="font-size:1.5rem;font-weight:800;color:#fff;margin:0;">Pencarian Sentral</h2>
+                <p style="color:#94a3b8;font-size:0.85rem;margin:0.25rem 0 0;">Satu pintu pencarian — akses semua data dari <span style="color:#22d3ee;">Manifest · CEISA · IMEI · Registrasi · Atensi</span></p>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+              <button class="ps-type-btn active" onclick="setPsType(this,'auto')"><i class="fas fa-magic"></i> Auto Deteksi</button>
+              <button class="ps-type-btn" onclick="setPsType(this,'paspor')"><i class="fas fa-passport"></i> Paspor</button>
+              <button class="ps-type-btn" onclick="setPsType(this,'nama')"><i class="fas fa-user"></i> Nama</button>
+              <button class="ps-type-btn" onclick="setPsType(this,'flight')"><i class="fas fa-plane"></i> Penerbangan</button>
+              <button class="ps-type-btn" onclick="setPsType(this,'imei')"><i class="fas fa-mobile-alt"></i> IMEI</button>
+              <button class="ps-type-btn" onclick="setPsType(this,'dokumen')"><i class="fas fa-file-alt"></i> No. Dokumen</button>
+            </div>
+
+            <div style="display:flex;gap:0.75rem;">
+              <div style="flex:1;position:relative;">
+                <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#22d3ee;"></i>
+                <input type="text" id="psSearchInput" placeholder="Cari paspor, nama, IMEI, no. penerbangan, atau no. dokumen..." style="width:100%;padding:1rem 1rem 1rem 3rem;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.15);border-radius:0.75rem;color:#fff;font-size:1rem;outline:none;" onkeydown="if(event.key==='Enter')doPsSearch();" autocomplete="off">
+              </div>
+              <button onclick="doPsSearch()" style="padding:0 1.75rem;background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:0.75rem;color:#fff;font-weight:700;cursor:pointer;font-size:1rem;display:flex;align-items:center;gap:0.5rem;white-space:nowrap;"><i class="fas fa-search"></i> Cari</button>
+            </div>
+
+            <div style="margin-top:0.75rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+              <span id="psDetectedType" style="color:#94a3b8;font-size:0.75rem;"></span>
+            </div>
+          </div>
+        </div>
+
+        <div id="psResultArea"></div>
+
+        <div id="psGuideArea" class="ps-fadein">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0.75rem;margin-bottom:1.5rem;">
+            <div class="ps-guide-card">
+              <i class="fas fa-passport" style="color:#22d3ee;font-size:1.1rem;margin-top:0.15rem;"></i>
+              <div>
+                <div style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">Pencarian Paspor</div>
+                <div style="color:#94a3b8;font-size:0.75rem;margin-top:0.2rem;">Masukkan nomor paspor → lihat profil lengkap: riwayat penerbangan, IMEI, CEISA, dan status atensi dalam satu tampilan</div>
+              </div>
+            </div>
+            <div class="ps-guide-card">
+              <i class="fas fa-user" style="color:#a855f7;font-size:1.1rem;margin-top:0.15rem;"></i>
+              <div>
+                <div style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">Pencarian Nama</div>
+                <div style="color:#94a3b8;font-size:0.75rem;margin-top:0.2rem;">Cari berdasarkan nama penumpang → hasilnya dikelompokkan per paspor dari semua koleksi data</div>
+              </div>
+            </div>
+            <div class="ps-guide-card">
+              <i class="fas fa-plane" style="color:#f97316;font-size:1.1rem;margin-top:0.15rem;"></i>
+              <div>
+                <div style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">Pencarian Penerbangan</div>
+                <div style="color:#94a3b8;font-size:0.75rem;margin-top:0.2rem;">Masukkan nomor penerbangan (cth: JT133) → lihat semua penumpang dari manifest, IMEI, dan CEISA</div>
+              </div>
+            </div>
+            <div class="ps-guide-card">
+              <i class="fas fa-mobile-alt" style="color:#3b82f6;font-size:1.1rem;margin-top:0.15rem;"></i>
+              <div>
+                <div style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">Pencarian IMEI</div>
+                <div style="color:#94a3b8;font-size:0.75rem;margin-top:0.2rem;">Masukkan nomor IMEI (15 digit) → temukan pemilik dan detail perangkat terdaftar</div>
+              </div>
+            </div>
+            <div class="ps-guide-card">
+              <i class="fas fa-file-alt" style="color:#22c55e;font-size:1.1rem;margin-top:0.15rem;"></i>
+              <div>
+                <div style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">Pencarian No. Dokumen</div>
+                <div style="color:#94a3b8;font-size:0.75rem;margin-top:0.2rem;">Masukkan nomor dokumen (cth: 000009-003576) → temukan registrasi IMEI terkait dari CSV maupun Scraper</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ps-section" style="border-left:3px solid #06b6d4;">
+            <div class="ps-section-title"><i class="fas fa-info-circle" style="color:#22d3ee;"></i> Mengapa Pencarian Sentral?</div>
+            <div style="color:#94a3b8;font-size:0.85rem;line-height:1.7;">
+              Fitur ini menggabungkan <strong style="color:#e2e8f0;">5 sumber data</strong> dalam satu pencarian terpadu:<br>
+              <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;">
+                <span class="ps-src-pill" style="background:rgba(249,115,22,0.15);color:#fb923c;"><i class="fas fa-plane"></i> Manifest Penerbangan</span>
+                <span class="ps-src-pill" style="background:rgba(245,158,11,0.15);color:#fbbf24;"><i class="fas fa-stamp"></i> CEISA (HKT)</span>
+                <span class="ps-src-pill" style="background:rgba(59,130,246,0.15);color:#60a5fa;"><i class="fas fa-microchip"></i> IMEI Detail</span>
+                <span class="ps-src-pill" style="background:rgba(34,197,94,0.15);color:#4ade80;"><i class="fas fa-file-csv"></i> IMEI Registrasi</span>
+                <span class="ps-src-pill" style="background:rgba(239,68,68,0.15);color:#f87171;"><i class="fas fa-user-secret"></i> Daftar Atensi</span>
+              </div>
+              <div style="margin-top:0.75rem;color:#64748b;font-size:0.8rem;">Hasil pencarian konsisten karena semua data diambil dari sumber yang sama secara bersamaan.</div>
+            </div>
+          </div>
+        </div>
+        `;
+      }
+
+      function setPsType(btn, type) {
+        psSearchType = type;
+        document
+          .querySelectorAll(".ps-type-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const input = document.getElementById("psSearchInput");
+        const placeholders = {
+          auto: "Cari paspor, nama, IMEI, no. penerbangan, atau no. dokumen...",
+          paspor: "Masukkan nomor paspor...",
+          nama: "Masukkan nama penumpang...",
+          flight: "Masukkan nomor penerbangan (cth: JT133, GA804)...",
+          imei: "Masukkan nomor IMEI (15 digit)...",
+          dokumen: "Masukkan nomor dokumen (cth: 000009-003576)...",
+        };
+        if (input) input.placeholder = placeholders[type] || placeholders.auto;
+      }
+
+      async function doPsSearch() {
+        const input = document.getElementById("psSearchInput");
+        const q = (input?.value || "").trim();
+        if (!q) return showToast("Masukkan kata kunci pencarian", "warning");
+        if (q.length < 2) return showToast("Minimal 2 karakter", "warning");
+
+        const area = document.getElementById("psResultArea");
+        const guide = document.getElementById("psGuideArea");
+        if (guide) guide.style.display = "none";
+        if (!area) return;
+
+        area.innerHTML =
+          '<div style="text-align:center;padding:3rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#06b6d4;"></i><p style="color:#94a3b8;margin-top:1rem;">Mencari di semua sumber data...</p></div>';
+
+        try {
+          // First try multi-search for overview
+          const res = await fetch(
+            "/api/unified/multi-search?q=" +
+              encodeURIComponent(q) +
+              "&type=" +
+              psSearchType,
+          );
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message || "Gagal");
+
+          const r = json.results;
+          document.getElementById("psDetectedType").innerHTML =
+            '<i class="fas fa-magic"></i> Tipe terdeteksi: <strong style="color:#22d3ee;">' +
+            psTypeLabel(r.type) +
+            "</strong>";
+
+          // If passport search and has full profile, also fetch the full dossier
+          if (r.type === "paspor" && r.hasFullProfile && r.totalRecords > 0) {
+            await renderPsFullProfile(q.toUpperCase(), r, area);
+          } else {
+            renderPsResults(r, area);
+          }
+        } catch (err) {
+          area.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#f87171;"><i class="fas fa-exclamation-triangle fa-2x"></i><p style="margin-top:0.5rem;">' +
+            err.message +
+            "</p></div>";
+        }
+      }
+
+      function psTypeLabel(t) {
+        const map = {
+          paspor: "Paspor",
+          nama: "Nama",
+          flight: "Penerbangan",
+          imei: "IMEI",
+          dokumen: "No. Dokumen",
+        };
+        return map[t] || t;
+      }
+
+      // ── Full passport profile — combines multi-search + unified dossier ──
+      async function renderPsFullProfile(passport, multiResult, container) {
+        // Fetch full dossier from unified/search/:passport
+        let dossier = null;
+        try {
+          const res2 = await fetch(
+            "/api/unified/search/" + encodeURIComponent(passport),
+          );
+          const j2 = await res2.json();
+          if (j2.status === "ok" && j2.data?.found) dossier = j2.data;
+        } catch (e) {
+          /* fallback to multi-result only */
+        }
+
+        let html = '<div class="ps-fadein">';
+
+        // Identity header
+        const id = dossier?.identity || multiResult.identity || {};
+        const risk = dossier?.risk || {};
+        const summ = dossier?.summary || {};
+        const riskColor = risk.color || "#22c55e";
+        const riskLevel = risk.level || "LOW";
+
+        html +=
+          '<div class="ps-section" style="border-top:3px solid ' +
+          riskColor +
+          ';">';
+        html +=
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">';
+
+        // Identity card
+        html += '<div style="flex:1;min-width:250px;">';
+        html +=
+          '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem;">';
+        html +=
+          '<div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,' +
+          riskColor +
+          "40," +
+          riskColor +
+          "20);display:flex;align-items:center;justify-content:center;border:2px solid " +
+          riskColor +
+          ';">';
+        html +=
+          '<i class="fas fa-user" style="color:' +
+          riskColor +
+          ';font-size:1.2rem;"></i></div>';
+        html += "<div>";
+        html +=
+          '<div style="font-size:1.1rem;font-weight:800;color:#fff;">' +
+          (id.name || passport) +
+          "</div>";
+        html +=
+          '<div style="color:#94a3b8;font-size:0.85rem;"><i class="fas fa-passport" style="margin-right:0.3rem;color:#22d3ee;"></i>' +
+          passport +
+          "</div>";
+        if (id.nationality)
+          html +=
+            '<div style="color:#94a3b8;font-size:0.8rem;"><i class="fas fa-globe" style="margin-right:0.3rem;"></i>' +
+            id.nationality +
+            "</div>";
+        html += "</div></div>";
+
+        // Aliases
+        if (id.aliases?.length) {
+          html +=
+            '<div style="margin-top:0.5rem;"><span style="color:#64748b;font-size:0.7rem;">ALIAS DIKETAHUI:</span><div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.25rem;">';
+          id.aliases.forEach((a) => {
+            html += '<span class="ps-badge ps-badge-yellow">' + a + "</span>";
+          });
+          html += "</div></div>";
+        }
+
+        // Sources
+        const sources = multiResult.sources || [];
+        html +=
+          '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;">';
+        sources.forEach((s) => {
+          html +=
+            '<span class="ps-src-pill" style="background:' +
+            s.color +
+            "20;color:" +
+            s.color +
+            ';"><i class="fas ' +
+            s.icon +
+            '"></i> ' +
+            s.label +
+            ": " +
+            s.count +
+            "</span>";
+        });
+        if (multiResult.is_suspect)
+          html +=
+            '<span class="ps-badge ps-badge-red"><i class="fas fa-exclamation-triangle"></i> DAFTAR ATENSI</span>';
+        html += "</div>";
+        html += "</div>";
+
+        // Stats right side
+        html +=
+          '<div style="display:grid;grid-template-columns:repeat(3,auto);gap:0.75rem;text-align:center;">';
+        const stats = [
+          {
+            val: summ.total_flights || multiResult.totalRecords || 0,
+            label: "Record",
+            color: "#06b6d4",
+          },
+          { val: summ.total_devices || 0, label: "Device", color: "#3b82f6" },
+          { val: summ.total_ceisa || 0, label: "CEISA", color: "#f59e0b" },
+          { val: summ.billing_count || 0, label: "Billing", color: "#ef4444" },
+          { val: summ.total_bookings || 0, label: "Booking", color: "#a855f7" },
+          {
+            val: "$" + Math.round(summ.total_fob_usd || 0).toLocaleString(),
+            label: "FOB USD",
+            color: "#fbbf24",
+          },
+        ];
+        stats.forEach((s) => {
+          html +=
+            '<div style="background:' +
+            s.color +
+            "12;border:1px solid " +
+            s.color +
+            '25;border-radius:0.75rem;padding:0.6rem 0.8rem;min-width:80px;">';
+          html +=
+            '<div style="font-size:1.2rem;font-weight:800;color:' +
+            s.color +
+            ';">' +
+            s.val +
+            "</div>";
+          html +=
+            '<div style="font-size:0.6rem;color:#94a3b8;text-transform:uppercase;">' +
+            s.label +
+            "</div>";
+          html += "</div>";
+        });
+        html += "</div>";
+
+        // Risk bar
+        html += '<div style="width:100%;margin-top:0.5rem;">';
+        html +=
+          '<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#94a3b8;"><span>Risk Score</span><span style="color:' +
+          riskColor +
+          ';font-weight:700;">' +
+          riskLevel +
+          " (" +
+          (risk.score || 0) +
+          ")</span></div>";
+        const scorePct = Math.min(100, risk.score || 0);
+        html +=
+          '<div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-top:0.25rem;"><div style="height:100%;width:' +
+          scorePct +
+          "%;background:linear-gradient(90deg," +
+          riskColor +
+          "," +
+          riskColor +
+          '88);border-radius:4px;transition:width 1s;"></div></div>';
+        html += "</div>";
+        html += "</div></div>";
+
+        // Anomalies
+        if (risk.anomalies?.length) {
+          html +=
+            '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">';
+          risk.anomalies.forEach((a) => {
+            const ac =
+              a.severity === "CRITICAL"
+                ? "#ef4444"
+                : a.severity === "HIGH"
+                  ? "#f97316"
+                  : "#f59e0b";
+            html +=
+              '<div style="background:' +
+              ac +
+              "15;border:1px solid " +
+              ac +
+              '30;border-radius:0.75rem;padding:0.6rem 1rem;display:flex;align-items:center;gap:0.5rem;">';
+            html +=
+              '<i class="fas fa-exclamation-triangle" style="color:' +
+              ac +
+              ';"></i>';
+            html +=
+              '<span style="color:' +
+              ac +
+              ';font-size:0.8rem;font-weight:600;">' +
+              a.msg +
+              "</span>";
+            html += "</div>";
+          });
+          html += "</div>";
+        }
+
+        // Tab navigation for details
+        html +=
+          '<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;" id="psDossierTabs">';
+        const tabs = [
+          { id: "timeline", label: "Timeline", icon: "fa-stream" },
+          { id: "devices", label: "Perangkat", icon: "fa-mobile-alt" },
+          { id: "ceisa", label: "CEISA", icon: "fa-stamp" },
+          { id: "sources", label: "Per Sumber", icon: "fa-layer-group" },
+        ];
+        tabs.forEach((t, i) => {
+          html +=
+            '<button class="ps-type-btn' +
+            (i === 0 ? " active" : "") +
+            '" onclick="switchPsTab(this,\'' +
+            t.id +
+            '\')"><i class="fas ' +
+            t.icon +
+            '"></i> ' +
+            t.label +
+            "</button>";
+        });
+        html += "</div>";
+        html += '<div id="psDossierBody"></div>';
+
+        html += "</div>";
+        container.innerHTML = html;
+
+        // Stash dossier data for tabs
+        window._psDossier = dossier;
+        window._psMulti = multiResult;
+        switchPsTab(
+          document.querySelector("#psDossierTabs .ps-type-btn"),
+          "timeline",
+        );
+      }
+
+      function switchPsTab(btn, tabId) {
+        document
+          .querySelectorAll("#psDossierTabs .ps-type-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const body = document.getElementById("psDossierBody");
+        if (!body) return;
+
+        const d = window._psDossier;
+        const m = window._psMulti;
+
+        if (tabId === "timeline") {
+          renderPsTimeline(d, body);
+        } else if (tabId === "devices") {
+          renderPsDevices(d, body);
+        } else if (tabId === "ceisa") {
+          renderPsCeisa(d, body);
+        } else if (tabId === "sources") {
+          renderPsSources(m, body);
+        }
+      }
+
+      function renderPsTimeline(d, container) {
+        const timeline = d?.timeline || [];
+        if (!timeline.length) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada data timeline</div>';
+          return;
+        }
+        const fmtDate = (dt) => {
+          if (!dt) return "-";
+          try {
+            return new Date(dt).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return "-";
+          }
+        };
+        let html = '<div class="ps-fadein">';
+        for (const t of timeline.slice(0, 50)) {
+          const srcColor =
+            t.source === "manifest"
+              ? "#f97316"
+              : t.source === "imei_detail"
+                ? "#3b82f6"
+                : "#22c55e";
+          const srcIcon =
+            t.source === "manifest"
+              ? "fa-plane"
+              : t.source === "imei_detail"
+                ? "fa-microchip"
+                : "fa-file-csv";
+          html +=
+            '<div class="ps-card" style="cursor:default;border-left:3px solid ' +
+            srcColor +
+            ';">';
+          html +=
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">';
+          html += "<div>";
+          html +=
+            '<span class="ps-badge" style="background:' +
+            srcColor +
+            "20;color:" +
+            srcColor +
+            ";border:1px solid " +
+            srcColor +
+            '30;"><i class="fas ' +
+            srcIcon +
+            '"></i> ' +
+            t.source +
+            "</span> ";
+          if (t.flight_number)
+            html +=
+              '<span style="color:#e2e8f0;font-weight:600;font-size:0.95rem;"> ' +
+              t.flight_number +
+              "</span>";
+          html += "</div>";
+          html +=
+            '<span style="color:#94a3b8;font-size:0.8rem;">' +
+            fmtDate(t.flight_date) +
+            "</span>";
+          html += "</div>";
+          html +=
+            '<div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.5rem;font-size:0.8rem;color:#94a3b8;">';
+          if (t.origin || t.destination)
+            html +=
+              '<span><i class="fas fa-route" style="color:#60a5fa;margin-right:0.25rem;"></i>' +
+              (t.origin || "?") +
+              " → " +
+              (t.destination || "?") +
+              "</span>";
+          if (t.pnr)
+            html +=
+              '<span><i class="fas fa-ticket-alt" style="color:#a855f7;margin-right:0.25rem;"></i>' +
+              t.pnr +
+              "</span>";
+          if (t.seat_no)
+            html +=
+              '<span><i class="fas fa-chair" style="color:#14b8a6;margin-right:0.25rem;"></i>' +
+              t.seat_no +
+              "</span>";
+          if (t.status)
+            html +=
+              '<span><i class="fas fa-info-circle" style="color:#fbbf24;margin-right:0.25rem;"></i>' +
+              t.status +
+              "</span>";
+          if (t.device)
+            html +=
+              '<span><i class="fas fa-mobile-alt" style="color:#3b82f6;margin-right:0.25rem;"></i>' +
+              (t.device.merk || "") +
+              " " +
+              (t.device.tipe || "") +
+              "</span>";
+          if (t.payment?.total_pungutan)
+            html +=
+              '<span><i class="fas fa-money-bill-wave" style="color:#ef4444;margin-right:0.25rem;"></i>Rp ' +
+              Number(t.payment.total_pungutan).toLocaleString() +
+              "</span>";
+          html += "</div></div>";
+        }
+        if (timeline.length > 50)
+          html +=
+            '<div style="text-align:center;color:#64748b;padding:0.5rem;font-size:0.8rem;">... dan ' +
+            (timeline.length - 50) +
+            " record lainnya</div>";
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function renderPsDevices(d, container) {
+        const devices = d?.devices || [];
+        if (!devices.length) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada data perangkat terdaftar</div>';
+          return;
+        }
+        const fmtDate = (dt) => {
+          if (!dt) return "-";
+          try {
+            return new Date(dt).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return "-";
+          }
+        };
+        let html =
+          '<div class="ps-fadein" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0.75rem;">';
+        devices.forEach((dv, i) => {
+          const isBilling = dv.cara_pembayaran === "BILLING";
+          html +=
+            '<div class="ps-card" style="cursor:default;border-top:3px solid ' +
+            (isBilling ? "#ef4444" : "#3b82f6") +
+            ';">';
+          html +=
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">';
+          html +=
+            '<span style="font-weight:700;color:#e2e8f0;">' +
+            (dv.merk || "?") +
+            " " +
+            (dv.tipe || "") +
+            "</span>";
+          if (isBilling)
+            html +=
+              '<span class="ps-badge ps-badge-red"><i class="fas fa-money-bill-wave"></i> BILLING</span>';
+          html += "</div>";
+          html +=
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;font-size:0.8rem;">';
+          html +=
+            '<div style="color:#64748b;">IMEI <span style="color:#94a3b8;">' +
+            (dv.imei1 || "-") +
+            "</span></div>";
+          html +=
+            '<div style="color:#64748b;">Storage <span style="color:#94a3b8;">' +
+            (dv.storage || "-") +
+            "</span></div>";
+          html +=
+            '<div style="color:#64748b;">FOB <span style="color:#fbbf24;font-weight:600;">$' +
+            (dv.harga_fob_usd || 0).toLocaleString() +
+            "</span></div>";
+          html +=
+            '<div style="color:#64748b;">Pungutan <span style="color:#f87171;font-weight:600;">Rp ' +
+            (dv.total_pungutan || 0).toLocaleString() +
+            "</span></div>";
+          html +=
+            '<div style="color:#64748b;">Warna <span style="color:#94a3b8;">' +
+            (dv.warna || "-") +
+            "</span></div>";
+          html +=
+            '<div style="color:#64748b;">Flight <span style="color:#94a3b8;">' +
+            (dv.flight_voyage || "-") +
+            "</span></div>";
+          html += "</div>";
+          html +=
+            '<div style="margin-top:0.5rem;font-size:0.75rem;color:#64748b;">' +
+            (dv.kantor_nama || "-") +
+            " · " +
+            fmtDate(dv.waktu_kedatangan) +
+            "</div>";
+          html += "</div>";
+        });
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function renderPsCeisa(d, container) {
+        const ceisa = d?.ceisa || [];
+        if (!ceisa.length) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada data CEISA (HKT)</div>';
+          return;
+        }
+        const fmtDate = (dt) => {
+          if (!dt) return "-";
+          try {
+            return new Date(dt).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return "-";
+          }
+        };
+        let html = '<div class="ps-fadein">';
+        ceisa.forEach((c) => {
+          const isBilling = (c.status_penelitian || c.status || "").includes(
+            "BILLING",
+          );
+          html +=
+            '<div class="ps-card" style="cursor:default;border-left:3px solid ' +
+            (isBilling ? "#ef4444" : "#f59e0b") +
+            ';">';
+          html +=
+            '<div style="display:flex;justify-content:space-between;align-items:center;">';
+          html +=
+            '<span style="color:#e2e8f0;font-weight:600;">' +
+            (c.nomor_dokumen || "-") +
+            "</span>";
+          html +=
+            '<span style="color:#94a3b8;font-size:0.8rem;">' +
+            fmtDate(c.tanggal_dokumen) +
+            "</span>";
+          html += "</div>";
+          html +=
+            '<div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.5rem;font-size:0.8rem;">';
+          html +=
+            '<span style="color:#94a3b8;">' +
+            (c.nama_lengkap || "-") +
+            "</span>";
+          if (c.status_penelitian || c.status)
+            html +=
+              '<span class="ps-badge ' +
+              (isBilling ? "ps-badge-red" : "ps-badge-yellow") +
+              '">' +
+              (c.status_penelitian || c.status) +
+              "</span>";
+          if (c.hkt1)
+            html +=
+              '<span style="color:#60a5fa;"><i class="fas fa-mobile-alt" style="margin-right:0.2rem;"></i>' +
+              c.hkt1 +
+              "</span>";
+          if (c.hkt2)
+            html +=
+              '<span style="color:#60a5fa;"><i class="fas fa-mobile-alt" style="margin-right:0.2rem;"></i>' +
+              c.hkt2 +
+              "</span>";
+          html += "</div></div>";
+        });
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function renderPsSources(multiResult, container) {
+        const sources = multiResult?.sources || [];
+        if (!sources.length) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada data tersedia</div>';
+          return;
+        }
+        let html = '<div class="ps-fadein">';
+        for (const src of sources) {
+          html +=
+            '<div class="ps-section" style="border-left:3px solid ' +
+            src.color +
+            ';">';
+          html +=
+            '<div class="ps-section-title"><i class="fas ' +
+            src.icon +
+            '" style="color:' +
+            src.color +
+            ';"></i> ' +
+            src.label +
+            ' <span class="ps-badge" style="background:' +
+            src.color +
+            "20;color:" +
+            src.color +
+            ";border:1px solid " +
+            src.color +
+            '30;margin-left:auto;">' +
+            src.count +
+            " record</span></div>";
+          if (src.items?.length) {
+            html +=
+              '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.8rem;">';
+            // Dynamic headers
+            const keys = Object.keys(src.items[0]).filter(
+              (k) => src.items[0][k] !== null && src.items[0][k] !== undefined,
+            );
+            html +=
+              '<thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">';
+            keys.forEach((k) => {
+              html +=
+                '<th style="padding:0.4rem;text-align:left;color:#64748b;font-size:0.7rem;text-transform:uppercase;">' +
+                k +
+                "</th>";
+            });
+            html += "</tr></thead><tbody>";
+            for (const item of src.items) {
+              html +=
+                '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+              keys.forEach((k) => {
+                let val = item[k] || "-";
+                if (typeof val === "number") val = val.toLocaleString();
+                html +=
+                  '<td style="padding:0.4rem;color:#e2e8f0;white-space:nowrap;">' +
+                  val +
+                  "</td>";
+              });
+              html += "</tr>";
+            }
+            html += "</tbody></table></div>";
+          }
+          html += "</div>";
+        }
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      // ── Non-passport results (nama, flight, imei, dokumen) ──
+      function renderPsResults(r, container) {
+        let html = '<div class="ps-fadein">';
+
+        // Source summary header
+        html +=
+          '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;">';
+        html +=
+          '<span style="color:#e2e8f0;font-weight:600;font-size:0.9rem;">' +
+          (r.totalRecords || 0).toLocaleString() +
+          " record ditemukan</span>";
+        (r.sources || []).forEach((s) => {
+          html +=
+            '<span class="ps-src-pill" style="background:' +
+            s.color +
+            "20;color:" +
+            s.color +
+            ';"><i class="fas ' +
+            s.icon +
+            '"></i> ' +
+            s.label +
+            ": " +
+            s.count +
+            "</span>";
+        });
+        html += "</div>";
+
+        if (r.totalRecords === 0) {
+          html +=
+            '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="fas fa-search fa-3x" style="opacity:0.3;"></i><p style="margin-top:1rem;font-size:1rem;">Tidak ditemukan data untuk "<strong style="color:#22d3ee;">' +
+            r.query +
+            '</strong>"</p><p style="font-size:0.85rem;">Coba dengan kata kunci atau tipe pencarian yang berbeda</p></div>';
+          html += "</div>";
+          container.innerHTML = html;
+          return;
+        }
+
+        // Nama search → grouped by passport
+        if (r.type === "nama" && r.grouped?.length) {
+          html +=
+            '<div class="ps-section"><div class="ps-section-title"><i class="fas fa-users" style="color:#a855f7;"></i> Hasil Pencarian Nama — ' +
+            r.grouped.length +
+            " paspor ditemukan</div>";
+          for (const g of r.grouped) {
+            html +=
+              "<div class=\"ps-card\" onclick=\"document.getElementById('psSearchInput').value='" +
+              g.passport +
+              "';psSearchType='paspor';doPsSearch();\">";
+            html +=
+              '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">';
+            html += "<div>";
+            html +=
+              '<span style="color:#e2e8f0;font-weight:600;font-size:0.95rem;">' +
+              g.name +
+              "</span><br>";
+            html +=
+              '<span style="color:#22d3ee;font-size:0.85rem;"><i class="fas fa-passport" style="margin-right:0.25rem;"></i>' +
+              g.passport +
+              "</span>";
+            if (g.aliases?.length)
+              g.aliases.forEach((a) => {
+                html +=
+                  ' <span class="ps-badge ps-badge-yellow" style="font-size:0.6rem;">' +
+                  a +
+                  "</span>";
+              });
+            html += "</div>";
+            html += '<div style="display:flex;gap:0.3rem;align-items:center;">';
+            html +=
+              '<span class="ps-badge ps-badge-cyan">' +
+              g.recordCount +
+              " record</span>";
+            g.sources.forEach((s) => {
+              const sc = {
+                manifest: "#f97316",
+                imei_detail: "#3b82f6",
+                imei_reg: "#22c55e",
+                ceisa: "#f59e0b",
+              };
+              const si = {
+                manifest: "fa-plane",
+                imei_detail: "fa-microchip",
+                imei_reg: "fa-file-csv",
+                ceisa: "fa-stamp",
+              };
+              html +=
+                '<span class="ps-badge" style="background:' +
+                (sc[s] || "#94a3b8") +
+                "20;color:" +
+                (sc[s] || "#94a3b8") +
+                ';"><i class="fas ' +
+                (si[s] || "fa-database") +
+                '"></i></span>';
+            });
+            html +=
+              '<i class="fas fa-chevron-right" style="color:#64748b;"></i>';
+            html += "</div></div></div>";
+          }
+          if (r.noPassport?.length) {
+            html +=
+              '<div style="margin-top:1rem;"><div style="color:#64748b;font-size:0.8rem;margin-bottom:0.5rem;">' +
+              r.noPassport.length +
+              " record tanpa nomor paspor:</div>";
+            r.noPassport.forEach((np) => {
+              html +=
+                '<div style="font-size:0.8rem;color:#94a3b8;padding:0.25rem 0;">' +
+                np.name +
+                " · " +
+                np.source +
+                " · " +
+                (np.flight || "-") +
+                "</div>";
+            });
+            html += "</div>";
+          }
+          html += "</div>";
+
+          // Flight search → grouped by date
+        } else if (r.type === "flight" && r.flightGroups?.length) {
+          html +=
+            '<div class="ps-section"><div class="ps-section-title"><i class="fas fa-plane" style="color:#f97316;"></i> Penumpang per Tanggal — ' +
+            r.query.toUpperCase() +
+            "</div>";
+          for (const fg of r.flightGroups) {
+            const fmtDate =
+              fg.date !== "unknown"
+                ? new Date(fg.date).toLocaleDateString("id-ID", {
+                    weekday: "short",
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Tanggal tidak diketahui";
+            html += '<div class="ps-card" style="cursor:default;">';
+            html +=
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">';
+            html +=
+              '<span style="color:#f97316;font-weight:600;"><i class="fas fa-calendar-day" style="margin-right:0.3rem;"></i>' +
+              fmtDate +
+              "</span>";
+            html +=
+              '<span class="ps-badge ps-badge-orange">' +
+              fg.count +
+              " penumpang</span></div>";
+            html +=
+              '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.4rem;">';
+            fg.passengers.forEach((p) => {
+              html +=
+                '<div style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:0.5rem;padding:0.5rem;font-size:0.8rem;cursor:pointer;" onclick="if(\'' +
+                (p.passport || "") +
+                "'){document.getElementById('psSearchInput').value='" +
+                (p.passport || "") +
+                "';psSearchType='paspor';doPsSearch();}\">";
+              html +=
+                '<div style="color:#e2e8f0;font-weight:500;">' +
+                (p.name || "-") +
+                "</div>";
+              html +=
+                '<div style="color:#94a3b8;font-size:0.75rem;"><i class="fas fa-passport" style="margin-right:0.2rem;color:#22d3ee;"></i>' +
+                (p.passport || "-") +
+                "</div>";
+              if (p.seat)
+                html +=
+                  '<span style="color:#64748b;font-size:0.7rem;margin-right:0.5rem;"><i class="fas fa-chair" style="margin-right:0.15rem;"></i>' +
+                  p.seat +
+                  "</span>";
+              if (p.pnr)
+                html +=
+                  '<span style="color:#64748b;font-size:0.7rem;"><i class="fas fa-ticket-alt" style="margin-right:0.15rem;"></i>' +
+                  p.pnr +
+                  "</span>";
+              html += "</div>";
+            });
+            html += "</div></div>";
+          }
+          html += "</div>";
+
+          // Also show IMEI-related items as separate section
+          renderPsSourceTables(r, html, container);
+          return;
+
+          // IMEI / Dokumen → show per-source tables
+        } else {
+          renderPsSourceTables(r, html, container);
+          return;
+        }
+
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function renderPsSourceTables(r, html, container) {
+        const sources = (r.sources || []).filter((s) => s.items?.length);
+        for (const src of sources) {
+          html +=
+            '<div class="ps-section" style="border-left:3px solid ' +
+            src.color +
+            ';">';
+          html +=
+            '<div class="ps-section-title"><i class="fas ' +
+            src.icon +
+            '" style="color:' +
+            src.color +
+            ';"></i> ' +
+            src.label +
+            ' <span class="ps-badge" style="background:' +
+            src.color +
+            "20;color:" +
+            src.color +
+            ";border:1px solid " +
+            src.color +
+            '30;margin-left:auto;">' +
+            src.count +
+            "</span></div>";
+          html +=
+            '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.8rem;">';
+          const keys = Object.keys(src.items[0]).filter(
+            (k) => src.items[0][k] != null,
+          );
+          html +=
+            '<thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">';
+          keys.forEach((k) => {
+            html +=
+              '<th style="padding:0.4rem;text-align:left;color:#64748b;font-size:0.7rem;text-transform:uppercase;">' +
+              k +
+              "</th>";
+          });
+          html += "</tr></thead><tbody>";
+          for (const item of src.items) {
+            const hasPassport = item.passport || item.no_identitas;
+            html +=
+              '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:' +
+              (hasPassport ? "pointer" : "default") +
+              ';" ' +
+              (hasPassport
+                ? "onclick=\"document.getElementById('psSearchInput').value='" +
+                  (item.passport || item.no_identitas) +
+                  "';psSearchType='paspor';doPsSearch();\""
+                : "") +
+              ">";
+            keys.forEach((k) => {
+              let val = item[k] ?? "-";
+              if (typeof val === "number") val = val.toLocaleString();
+              html +=
+                '<td style="padding:0.4rem;color:#e2e8f0;white-space:nowrap;">' +
+                val +
+                "</td>";
+            });
+            html += "</tr>";
+          }
+          html += "</tbody></table></div></div>";
+        }
+        html += "</div>";
+        container.innerHTML = html;
       }
 
       // ═══════════════════════════════════════════════════════════
