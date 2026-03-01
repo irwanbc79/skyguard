@@ -9,11 +9,21 @@ const ManifestPassenger = require("../models/ManifestPassenger");
 const Manifest = require("../models/Manifest");
 const Passenger = require("../models/Passenger");
 const Suspect = require("../models/Suspect");
+const NodeCache = require("node-cache");
+
+// Cache with 10-minute TTL — intelligence queries are expensive
+const cache = new NodeCache({ stdTTL: 600, checkperiod: 120 });
+
+// Max time for any single aggregation (30 seconds)
+const AGG_TIMEOUT = 30000;
 
 // ──────────────────────────────────────
 //  1. RADAR OVERVIEW — Main dashboard
 // ──────────────────────────────────────
 async function getRadarOverview() {
+  const cached = cache.get("radar_overview");
+  if (cached) return cached;
+
   const [
     totalManifestPax,
     withPassport,
@@ -25,7 +35,6 @@ async function getRadarOverview() {
     activeSuspects,
     uniqueManifestAgg,
     uniqueCeisaAgg,
-    crossMatchedAgg,
   ] = await Promise.all([
     ManifestPassenger.countDocuments({}),
     ManifestPassenger.countDocuments({
@@ -51,45 +60,36 @@ async function getRadarOverview() {
         $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } },
       },
       { $count: "total" },
-    ]),
+    ]).option({ maxTimeMS: AGG_TIMEOUT }),
     Passenger.aggregate([
       { $match: { paspor: { $exists: true, $nin: [null, ""] } } },
       { $group: { _id: { $toUpper: { $trim: { input: "$paspor" } } } } },
       { $count: "total" },
-    ]),
-    ManifestPassenger.aggregate([
-      { $match: { passport_number: { $exists: true, $nin: [null, ""] } } },
-      {
-        $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } },
-      },
-      {
-        $lookup: {
-          from: "passengers",
-          let: { passport_norm: "$_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: [
-                    { $toUpper: { $trim: { input: "$paspor" } } },
-                    "$$passport_norm",
-                  ],
-                },
-              },
-            },
-            { $limit: 1 },
-          ],
-          as: "ceisa",
-        },
-      },
-      { $match: { "ceisa.0": { $exists: true } } },
-      { $count: "total" },
-    ]),
+    ]).option({ maxTimeMS: AGG_TIMEOUT }),
   ]);
+
+  // Cross-match: two-step approach (much faster than $lookup with $expr)
+  // Step 1: get unique CEISA passports as a Set
+  const ceisaPassports = await Passenger.aggregate([
+    { $match: { paspor: { $exists: true, $nin: [null, ""] } } },
+    { $group: { _id: { $toUpper: { $trim: { input: "$paspor" } } } } },
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  const ceisaSet = new Set(ceisaPassports.map((c) => c._id));
+
+  // Step 2: get unique manifest passports
+  const manifestPassports = await ManifestPassenger.aggregate([
+    { $match: { passport_number: { $exists: true, $nin: [null, ""] } } },
+    { $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } } },
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
+
+  // Step 3: count intersection in JS (instant)
+  let crossMatched = 0;
+  for (const mp of manifestPassports) {
+    if (mp._id && ceisaSet.has(mp._id)) crossMatched++;
+  }
 
   const uniquePassportsManifest = uniqueManifestAgg[0]?.total || 0;
   const uniquePassportsCeisa = uniqueCeisaAgg[0]?.total || 0;
-  const crossMatched = crossMatchedAgg[0]?.total || 0;
 
   const manifestOnly = uniquePassportsManifest - crossMatched;
   const ceisaOnly = uniquePassportsCeisa - crossMatched;
@@ -185,7 +185,7 @@ async function getRadarOverview() {
   ]);
   const ghostCount = manifestOnly;
 
-  return {
+  const result = {
     overview: {
       total_manifest_passengers: totalManifestPax,
       with_passport: withPassport,
@@ -221,6 +221,9 @@ async function getRadarOverview() {
       with_passport: a.withPassport,
     })),
   };
+
+  cache.set("radar_overview", result);
+  return result;
 }
 
 // Helper: count frequent travelers (5+ flights)
@@ -241,7 +244,7 @@ async function countFrequentTravelers(minFlights) {
     { $project: { flights: { $size: "$flight_count" } } },
     { $match: { flights: { $gte: minFlights } } },
     { $count: "total" },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
   return result[0]?.total || 0;
 }
 
@@ -263,7 +266,7 @@ async function countWatchlistHits() {
     { $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } } },
     { $match: { _id: { $in: passportNums } } },
     { $count: "total" },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   return hitsAgg[0]?.total || 0;
 }
@@ -274,6 +277,10 @@ async function countWatchlistHits() {
 //  (No customs record = potential bypass)
 // ──────────────────────────────────────
 async function getGhostPassengers(page = 1, limit = 50) {
+  const cacheKey = `ghosts_${page}_${limit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const skip = (page - 1) * limit;
 
   const pipeline = [
@@ -327,11 +334,13 @@ async function getGhostPassengers(page = 1, limit = 50) {
     },
   ];
 
-  const result = await ManifestPassenger.aggregate(pipeline);
-  const total = result[0]?.metadata[0]?.total || 0;
-  const paginated = result[0]?.data || [];
+  const aggResult = await ManifestPassenger.aggregate(pipeline).option({
+    maxTimeMS: AGG_TIMEOUT,
+  });
+  const total = aggResult[0]?.metadata[0]?.total || 0;
+  const paginated = aggResult[0]?.data || [];
 
-  return {
+  const ghostResult = {
     total,
     page,
     limit,
@@ -348,6 +357,9 @@ async function getGhostPassengers(page = 1, limit = 50) {
         g.flight_count >= 3 ? "HIGH" : g.flight_count >= 2 ? "MEDIUM" : "LOW",
     })),
   };
+
+  cache.set(cacheKey, ghostResult);
+  return ghostResult;
 }
 
 // ──────────────────────────────────────
@@ -356,6 +368,10 @@ async function getGhostPassengers(page = 1, limit = 50) {
 //  manifest and CEISA (identity anomaly)
 // ──────────────────────────────────────
 async function getNameMismatches(page = 1, limit = 50) {
+  const cacheKey = `mismatches_${page}_${limit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   // Get all unique passport → name from manifests
   const manifestPax = await ManifestPassenger.aggregate([
     {
@@ -372,7 +388,7 @@ async function getNameMismatches(page = 1, limit = 50) {
         flights: { $addToSet: "$flight_number" },
       },
     },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   // Get CEISA names for those passports
   const passportNorms = manifestPax.map((p) => p._id).filter(Boolean);
@@ -402,7 +418,7 @@ async function getNameMismatches(page = 1, limit = 50) {
         paspor_norm: { $in: passportNorms },
       },
     },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   // Also try case-insensitive matching
   const ceisaMap = {};
@@ -462,20 +478,24 @@ async function getNameMismatches(page = 1, limit = 50) {
   const total = mismatches.length;
   const paginated = mismatches.slice((page - 1) * limit, page * limit);
 
-  return {
+  const mismatchResult = {
     total,
     page,
     limit,
     pages: Math.ceil(total / limit),
     data: paginated,
   };
-}
 
-// ──────────────────────────────────────
-//  4. FREQUENT TRAVELERS
+  cache.set(cacheKey, mismatchResult);
+  return mismatchResult;
+}
 //  Passengers appearing on 3+ flights
 // ──────────────────────────────────────
 async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
+  const cacheKey = `frequent_${minFlights}_${page}_${limit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const result = await ManifestPassenger.aggregate([
     {
       $match: {
@@ -513,7 +533,7 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
     { $sort: { flight_count: -1 } },
     { $skip: (page - 1) * limit },
     { $limit: limit },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   // Get total count
   const countResult = await ManifestPassenger.aggregate([
@@ -532,7 +552,7 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
     { $project: { cnt: { $size: "$c" } } },
     { $match: { cnt: { $gte: minFlights } } },
     { $count: "total" },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
   const total = countResult[0]?.total || 0;
 
   // Enrich: check CEISA and watchlist for each
@@ -578,7 +598,7 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
     }
   }
 
-  return {
+  const frequentResult = {
     total,
     page,
     limit,
@@ -610,6 +630,9 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
       };
     }),
   };
+
+  cache.set(cacheKey, frequentResult);
+  return frequentResult;
 }
 
 // ──────────────────────────────────────
@@ -617,6 +640,9 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
 //  Active suspects found in manifest data
 // ──────────────────────────────────────
 async function getWatchlistHits() {
+  const cached = cache.get("watchlist_hits");
+  if (cached) return cached;
+
   const suspects = await Suspect.find({
     status: { $in: ["ACTIVE", "MONITORING"] },
   }).lean();
@@ -664,7 +690,7 @@ async function getWatchlistHits() {
       },
     },
     { $sort: { flight_count: -1 } },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   // Enrich with suspect info
   const suspectMap = {};
@@ -740,12 +766,15 @@ async function getWatchlistHits() {
       alert_level: "MONITORING",
     }));
 
-  return {
+  const watchlistResult = {
     total_hits: hits.length,
     total_suspects: suspects.length,
     total_not_found: notFound.length,
     data: [...hits, ...notFound],
   };
+
+  cache.set("watchlist_hits", watchlistResult);
+  return watchlistResult;
 }
 
 // ──────────────────────────────────────
@@ -754,6 +783,10 @@ async function getWatchlistHits() {
 //  or same name with multiple passports
 // ──────────────────────────────────────
 async function getMultiIdentity(page = 1, limit = 50) {
+  const cacheKey = `multi_identity_${page}_${limit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   // A) Same passport, different nationalities
   const multiNat = await ManifestPassenger.aggregate([
     {
@@ -776,7 +809,7 @@ async function getMultiIdentity(page = 1, limit = 50) {
       },
     },
     { $sort: { _id: 1 } },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   // B) Same normalized name with multiple passports
   const multiPassport = await ManifestPassenger.aggregate([
@@ -836,7 +869,7 @@ async function getMultiIdentity(page = 1, limit = 50) {
       },
     },
     { $sort: { _id: 1 } },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT });
 
   const anomalies = [];
 
@@ -869,13 +902,16 @@ async function getMultiIdentity(page = 1, limit = 50) {
   const total = anomalies.length;
   const paginated = anomalies.slice((page - 1) * limit, page * limit);
 
-  return {
+  const multiResult = {
     total,
     page,
     limit,
     pages: Math.ceil(total / limit),
     data: paginated,
   };
+
+  cache.set(cacheKey, multiResult);
+  return multiResult;
 }
 
 // ──────────────────────────────────────

@@ -31,31 +31,12 @@ function parsePagination(query, defaults = {}) {
   return { page, limit, skip: (page - 1) * limit };
 }
 
-// PDF text extraction — compatible with pdf-parse v1 and v2
+// PDF text extraction using pdf-parse v1
 async function extractPdfText(buffer) {
   try {
-    const pdfMod = require("pdf-parse");
-    // pdf-parse v1: module exports a function directly
-    if (typeof pdfMod === "function") {
-      const data = await pdfMod(buffer);
-      return data.text || "";
-    }
-    // pdf-parse v2: module exports { PDFParse, ... }
-    if (pdfMod.PDFParse) {
-      const parser = new pdfMod.PDFParse();
-      const data = await parser.parse(buffer);
-      return data.text || "";
-    }
-    // pdf-parse v2 default export
-    if (typeof pdfMod.default === "function") {
-      const data = await pdfMod.default(buffer);
-      return data.text || "";
-    }
-    console.warn(
-      "[extractPdfText] Unknown pdf-parse API. Keys:",
-      Object.keys(pdfMod),
-    );
-    return "";
+    const pdfParse = require("pdf-parse");
+    const data = await pdfParse(buffer);
+    return data.text || "";
   } catch (err) {
     console.warn("[extractPdfText] PDF parse gagal:", err.message);
     return "";

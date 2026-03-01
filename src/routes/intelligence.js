@@ -19,8 +19,15 @@ router.get("/radar", async (req, res) => {
     const data = await intelligence.getRadarOverview();
     res.json({ status: "ok", data });
   } catch (err) {
-    console.error("[Intelligence Radar]", err);
-    res.status(500).json({ status: "error", message: err.message });
+    console.error("[Intelligence Radar]", err.message);
+    const isTimeout =
+      err.message?.includes("timed out") || err.codeName === "MaxTimeMSExpired";
+    res.status(isTimeout ? 504 : 500).json({
+      status: "error",
+      message: isTimeout
+        ? "Query sedang diproses, data terlalu besar. Coba lagi dalam beberapa detik."
+        : err.message,
+    });
   }
 });
 
@@ -32,7 +39,7 @@ router.get("/ghosts", async (req, res) => {
     const data = await intelligence.getGhostPassengers(page, limit);
     res.json({ status: "ok", data });
   } catch (err) {
-    console.error("[Intelligence Ghosts]", err);
+    console.error("[Intelligence Ghosts]", err.message);
     res.status(500).json({ status: "error", message: err.message });
   }
 });
@@ -45,7 +52,7 @@ router.get("/mismatches", async (req, res) => {
     const data = await intelligence.getNameMismatches(page, limit);
     res.json({ status: "ok", data });
   } catch (err) {
-    console.error("[Intelligence Mismatches]", err);
+    console.error("[Intelligence Mismatches]", err.message);
     res.status(500).json({ status: "error", message: err.message });
   }
 });
