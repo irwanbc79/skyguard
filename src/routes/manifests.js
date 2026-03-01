@@ -208,10 +208,9 @@ router.post("/bulk-reparse", async (req, res) => {
           }
         } else if (ext === "pdf") {
           try {
-            const pdfParse = require("pdf-parse");
+            const { extractPdfText } = require("../utils/helpers");
             const buffer = fs.readFileSync(m.file_path);
-            const data = await pdfParse(buffer);
-            rawText = data.text || "";
+            rawText = await extractPdfText(buffer);
           } catch (e) {
             rawText = "";
           }
@@ -684,10 +683,9 @@ router.post("/:id/reparse", async (req, res) => {
       const buffer = fs.readFileSync(manifest.file_path);
       parsed = parseXLSXManifest(buffer, manifest.filename);
     } else if (ext === "pdf") {
-      const pdfParse = require("pdf-parse");
+      const { extractPdfText } = require("../utils/helpers");
       const buffer = fs.readFileSync(manifest.file_path);
-      const data = await pdfParse(buffer);
-      rawText = data.text || "";
+      rawText = await extractPdfText(buffer);
     } else if (ext === "docx") {
       const mammoth = require("mammoth");
       const buffer = fs.readFileSync(manifest.file_path);

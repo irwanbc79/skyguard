@@ -25,14 +25,8 @@ function buildFilePath(filename) {
 
 async function extractText(buffer, fileType) {
   if (fileType === "pdf") {
-    try {
-      const pdfParse = require("pdf-parse");
-      const data = await pdfParse(buffer);
-      return data.text || "";
-    } catch (err) {
-      console.warn("[Manifest Ingest] PDF parse gagal:", err.message);
-      return "";
-    }
+    const { extractPdfText } = require("../utils/helpers");
+    return await extractPdfText(buffer);
   }
   if (fileType === "docx") {
     try {

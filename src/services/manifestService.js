@@ -938,6 +938,8 @@ function classifyByFilename(filename = "") {
     GENDEC: "general_declaration",
     BAS: "baggage_summary",
     BASS: "baggage_summary",
+    BAG: "baggage_summary",
+    BAGGAGE: "baggage_summary",
     PST: "passenger_summary",
     WNB: "weight_balance",
     "W&B": "weight_balance",
@@ -945,8 +947,11 @@ function classifyByFilename(filename = "") {
     WNA: "weight_balance",
     ACC: "acceptance",
     ACCP: "acceptance",
+    ACCTED: "acceptance",
+    ACCEPTANCE: "acceptance",
     CUS: "customs",
     CUST: "customs",
+    CUSS: "customs",
     CST: "customs",
     CUSTOMER: "customs",
     CAS: "acceptance",
@@ -955,8 +960,13 @@ function classifyByFilename(filename = "") {
   // Check FLT prefix (flt107, flt125, etc.)
   if (/^FLT\d+/.test(prefix)) return "flight_document";
 
+  // Handle "W N B" (weight & balance with spaces) and similar spaced patterns
+  const fnNoSpaces = fn.replace(/\s+/g, "");
+  if (/^WNB/i.test(fnNoSpaces)) return "weight_balance";
+  if (/^CUSSAC/i.test(fnNoSpaces)) return "customs";
+
   // Check known prefixes from combined patterns
-  if (/^(SQ|MH)?BAS$/i.test(prefix)) return "baggage_summary";
+  if (/^(SQ|MH)?BAS(S)?$/i.test(prefix)) return "baggage_summary";
   if (/^(SQ|MH)?WNB$/i.test(prefix)) return "weight_balance";
   if (/^(SQ|MH)?COUS(ACC)?$/i.test(prefix)) return "customs";
 
