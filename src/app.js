@@ -99,6 +99,9 @@ app.use("/api/price-intel", require("./routes/price-intel"));
 // Scraper Bridge routes (browser-to-server CEISA data import)
 app.use("/api/scraper", require("./routes/scraper"));
 
+// Unified Passport Search (Pencarian Terpadu)
+app.use("/api/unified", require("./routes/unified"));
+
 app.get("/api/health", (req, res) => {
   const isDbUp = mongoose.connection.readyState === 1;
   res.status(isDbUp ? 200 : 503).json({

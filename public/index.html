@@ -604,6 +604,42 @@
           </p>
         </div>
 
+        <!-- ═══════════════════════════════════════════════════════════
+             PENCARIAN TERPADU — Unified Passport Search
+             ═══════════════════════════════════════════════════════════ -->
+        <div
+          class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-6 mb-6 border border-blue-500/30 shadow-xl"
+        >
+          <h3 class="text-white font-bold text-lg mb-3 flex items-center gap-2">
+            <i class="fas fa-search-plus text-cyan-400"></i> Pencarian Terpadu
+          </h3>
+          <p class="text-gray-400 text-sm mb-4">
+            Cari berdasarkan nomor paspor — agregasi data dari
+            <strong class="text-blue-300"
+              >Manifest, IMEI Detail, IMEI Registration, CEISA,</strong
+            >
+            dan <strong class="text-blue-300">Daftar Atensi</strong> dalam satu
+            tampilan.
+          </p>
+          <div class="flex gap-2">
+            <input
+              id="unifiedPassportInput"
+              type="text"
+              placeholder="Masukkan nomor paspor..."
+              class="flex-1 bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder-gray-500 uppercase"
+              onkeydown="if (event.key === 'Enter') doUnifiedSearch();"
+            />
+            <button
+              onclick="doUnifiedSearch()"
+              class="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all flex items-center gap-2 shadow-lg"
+            >
+              <i class="fas fa-search"></i> Cari
+            </button>
+          </div>
+          <!-- Results container -->
+          <div id="unifiedSearchResults" class="mt-4 hidden"></div>
+        </div>
+
         <!-- DISCLAIMER UTAMA -->
         <div
           class="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border-l-4 border-yellow-500 rounded-xl p-6 mb-6"
@@ -16030,6 +16066,457 @@
 
         poll();
         _scraperPollTimer = setInterval(poll, 5000);
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // PENCARIAN TERPADU — Unified Passport Search
+      // ═══════════════════════════════════════════════════════════
+      async function doUnifiedSearch() {
+        const input = document.getElementById("unifiedPassportInput");
+        const container = document.getElementById("unifiedSearchResults");
+        const passport = (input.value || "").trim().toUpperCase();
+        if (!passport || passport.length < 3) {
+          showToast("Masukkan minimal 3 karakter nomor paspor", "warning");
+          return;
+        }
+        container.innerHTML =
+          '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-cyan-400 text-3xl"></i><p class="text-gray-400 mt-2">Mencari di semua sumber data...</p></div>';
+        container.classList.remove("hidden");
+        try {
+          const res = await fetch(
+            "/api/unified/search/" + encodeURIComponent(passport),
+          );
+          const json = await res.json();
+          if (json.status !== "ok" || !json.data?.found) {
+            container.innerHTML =
+              '<div class="bg-slate-800/60 rounded-xl p-6 text-center"><i class="fas fa-inbox text-gray-500 text-4xl mb-3"></i><p class="text-gray-400">Tidak ditemukan data untuk paspor <strong class="text-white">' +
+              passport +
+              "</strong></p></div>";
+            return;
+          }
+          renderUnifiedResults(json.data, container);
+        } catch (err) {
+          container.innerHTML =
+            '<div class="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-400"><i class="fas fa-exclamation-triangle mr-2"></i>Gagal mengambil data: ' +
+            err.message +
+            "</div>";
+        }
+      }
+
+      function renderUnifiedResults(data, container) {
+        const { identity, risk, summary, timeline, ceisa, devices, watchlist } =
+          data;
+        const riskBadge =
+          risk.level === "HIGH"
+            ? '<span class="bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-sm font-bold"><i class="fas fa-exclamation-triangle mr-1"></i>HIGH RISK</span>'
+            : risk.level === "MEDIUM"
+              ? '<span class="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm font-bold"><i class="fas fa-exclamation-circle mr-1"></i>MEDIUM</span>'
+              : '<span class="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-bold"><i class="fas fa-check-circle mr-1"></i>LOW</span>';
+
+        let html = "";
+
+        // ── IDENTITY CARD ──
+        html +=
+          '<div class="bg-slate-800/70 rounded-xl p-5 mb-4 border border-slate-700">';
+        html +=
+          '<div class="flex flex-wrap items-start justify-between gap-4">';
+        html += "<div>";
+        html +=
+          '<h3 class="text-xl font-bold text-white">' +
+          esc(identity.name || "N/A") +
+          "</h3>";
+        html += '<div class="flex flex-wrap gap-3 mt-2 text-sm">';
+        html +=
+          '<span class="text-gray-400"><i class="fas fa-passport text-cyan-400 mr-1"></i>' +
+          esc(identity.passport_number) +
+          "</span>";
+        if (identity.nationality)
+          html +=
+            '<span class="text-gray-400"><i class="fas fa-globe mr-1"></i>' +
+            esc(identity.nationality) +
+            "</span>";
+        if (identity.gender)
+          html +=
+            '<span class="text-gray-400"><i class="fas fa-venus-mars mr-1"></i>' +
+            esc(identity.gender) +
+            "</span>";
+        if (identity.date_of_birth)
+          html +=
+            '<span class="text-gray-400"><i class="fas fa-birthday-cake mr-1"></i>' +
+            esc(identity.date_of_birth) +
+            "</span>";
+        html += "</div>";
+        if (identity.aliases && identity.aliases.length > 0) {
+          html +=
+            '<div class="mt-2 text-xs text-gray-500"><i class="fas fa-user-tag mr-1"></i>Alias: ' +
+            identity.aliases.map((a) => esc(a)).join(", ") +
+            "</div>";
+        }
+        html += "</div>";
+        html += '<div class="flex flex-col items-end gap-2">';
+        html += riskBadge;
+        html +=
+          '<span class="text-xs text-gray-500">Skor: ' + risk.score + "</span>";
+        html += "</div>";
+        html += "</div>";
+
+        // Source badges
+        html +=
+          '<div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-700">';
+        identity.sources.forEach((s) => {
+          html +=
+            '<span class="bg-slate-700 text-gray-300 px-2 py-1 rounded text-xs">' +
+            esc(s.label) +
+            ': <strong class="text-white">' +
+            s.count +
+            "</strong></span>";
+        });
+        html += "</div>";
+        html += "</div>";
+
+        // ── ANOMALIES (if any) ──
+        if (risk.anomalies && risk.anomalies.length > 0) {
+          html +=
+            '<div class="bg-red-900/20 border border-red-500/30 rounded-xl p-4 mb-4">';
+          html +=
+            '<h4 class="text-red-400 font-semibold mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Anomali Terdeteksi</h4>';
+          html += '<div class="space-y-1">';
+          risk.anomalies.forEach((a) => {
+            const sevColor =
+              a.severity === "CRITICAL"
+                ? "text-red-400"
+                : a.severity === "HIGH"
+                  ? "text-orange-400"
+                  : "text-yellow-400";
+            html +=
+              '<div class="flex items-center gap-2 text-sm"><span class="' +
+              sevColor +
+              ' font-mono text-xs w-16">[' +
+              a.severity +
+              ']</span><span class="text-gray-300">' +
+              esc(a.msg) +
+              "</span></div>";
+          });
+          html += "</div></div>";
+        }
+
+        // ── WATCHLIST ──
+        if (watchlist.is_suspect) {
+          html +=
+            '<div class="bg-gradient-to-r from-red-900/40 to-orange-900/40 border-l-4 border-red-500 rounded-xl p-4 mb-4">';
+          html +=
+            '<h4 class="text-red-400 font-bold mb-1"><i class="fas fa-user-secret mr-2"></i>TERDAFTAR DI DAFTAR ATENSI</h4>';
+          html += '<div class="text-sm text-gray-300">';
+          if (watchlist.risk_level)
+            html +=
+              '<span class="mr-3">Level: <strong class="text-red-300">' +
+              esc(watchlist.risk_level) +
+              "</strong></span>";
+          if (watchlist.status)
+            html +=
+              '<span class="mr-3">Status: ' + esc(watchlist.status) + "</span>";
+          html += "</div>";
+          if (watchlist.description)
+            html +=
+              '<p class="text-gray-400 text-sm mt-1">' +
+              esc(watchlist.description) +
+              "</p>";
+          html += "</div>";
+        }
+
+        // ── SUMMARY STATS ──
+        html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+        const stats = [
+          {
+            icon: "fa-plane",
+            color: "text-blue-400",
+            val: summary.total_flights,
+            label: "Penerbangan",
+          },
+          {
+            icon: "fa-mobile-alt",
+            color: "text-purple-400",
+            val: summary.total_devices,
+            label: "Perangkat",
+          },
+          {
+            icon: "fa-file-invoice",
+            color: "text-green-400",
+            val: summary.total_ceisa,
+            label: "CEISA",
+          },
+          {
+            icon: "fa-database",
+            color: "text-cyan-400",
+            val: summary.total_records,
+            label: "Total Record",
+          },
+        ];
+        stats.forEach((s) => {
+          html += '<div class="bg-slate-800/60 rounded-lg p-3 text-center">';
+          html +=
+            '<i class="fas ' + s.icon + " " + s.color + ' text-lg mb-1"></i>';
+          html += '<p class="text-xl font-bold text-white">' + s.val + "</p>";
+          html += '<p class="text-gray-500 text-xs">' + s.label + "</p>";
+          html += "</div>";
+        });
+        html += "</div>";
+
+        // ── EXTRA STATS ROW (brands, airlines, billing/pembebasan) ──
+        if (
+          summary.unique_airlines.length ||
+          summary.billing_count ||
+          summary.pembebasan_count ||
+          summary.brands.length
+        ) {
+          html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+          if (summary.billing_count) {
+            html +=
+              '<div class="bg-red-900/20 rounded-lg p-3 text-center border border-red-500/20"><p class="text-lg font-bold text-red-400">' +
+              summary.billing_count +
+              '</p><p class="text-gray-500 text-xs">Billing</p></div>';
+          }
+          if (summary.pembebasan_count) {
+            html +=
+              '<div class="bg-green-900/20 rounded-lg p-3 text-center border border-green-500/20"><p class="text-lg font-bold text-green-400">' +
+              summary.pembebasan_count +
+              '</p><p class="text-gray-500 text-xs">Pembebasan</p></div>';
+          }
+          if (summary.total_fob_usd) {
+            html +=
+              '<div class="bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-500/20"><p class="text-lg font-bold text-yellow-400">$' +
+              summary.total_fob_usd.toLocaleString() +
+              '</p><p class="text-gray-500 text-xs">Total FOB</p></div>';
+          }
+          if (summary.total_pungutan) {
+            html +=
+              '<div class="bg-purple-900/20 rounded-lg p-3 text-center border border-purple-500/20"><p class="text-lg font-bold text-purple-400">Rp' +
+              summary.total_pungutan.toLocaleString() +
+              '</p><p class="text-gray-500 text-xs">Total Pungutan</p></div>';
+          }
+          html += "</div>";
+        }
+
+        // ── AIRLINES & BRANDS TAGS ──
+        if (summary.unique_airlines.length || summary.brands.length) {
+          html += '<div class="flex flex-wrap gap-2 mb-4">';
+          summary.unique_airlines.forEach((a) => {
+            html +=
+              '<span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-xs"><i class="fas fa-plane mr-1"></i>' +
+              esc(a) +
+              "</span>";
+          });
+          summary.brands.forEach((b) => {
+            html +=
+              '<span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded text-xs"><i class="fas fa-mobile-alt mr-1"></i>' +
+              esc(b.brand) +
+              " (" +
+              b.count +
+              ")</span>";
+          });
+          html += "</div>";
+        }
+
+        // ── BOOKING CODES ──
+        if (summary.booking_codes && summary.booking_codes.length) {
+          html += '<div class="flex flex-wrap gap-2 mb-4">';
+          summary.booking_codes.forEach((pnr) => {
+            html +=
+              '<span class="bg-cyan-500/10 text-cyan-300 px-2 py-1 rounded font-mono text-xs border border-cyan-500/20">' +
+              esc(pnr) +
+              "</span>";
+          });
+          html += "</div>";
+        }
+
+        // ── FLIGHT TIMELINE (collapsible) ──
+        if (timeline && timeline.length > 0) {
+          html += '<details class="mb-4" open>';
+          html +=
+            '<summary class="bg-slate-800/70 rounded-lg p-3 cursor-pointer text-white font-semibold hover:bg-slate-700/70"><i class="fas fa-plane-departure text-blue-400 mr-2"></i>Riwayat Penerbangan & IMEI (' +
+            timeline.length +
+            ")</summary>";
+          html += '<div class="mt-2 space-y-2 max-h-96 overflow-y-auto pr-1">';
+          timeline.forEach((t, i) => {
+            const srcBadge =
+              t.source === "manifest"
+                ? '<span class="bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded text-xs">MNF</span>'
+                : t.source === "imei_detail"
+                  ? '<span class="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-xs">IMEI</span>'
+                  : '<span class="bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded text-xs">REG</span>';
+            const dateStr = t.flight_date
+              ? new Date(t.flight_date).toLocaleDateString("id-ID", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "-";
+            html +=
+              '<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">';
+            html += '<div class="flex flex-wrap items-center gap-2 text-sm">';
+            html += srcBadge;
+            html +=
+              '<span class="text-white font-semibold">' +
+              esc(t.flight_number || "-") +
+              "</span>";
+            html += '<span class="text-gray-500">' + dateStr + "</span>";
+            if (t.origin && t.destination)
+              html +=
+                '<span class="text-gray-400">' +
+                esc(t.origin) +
+                " → " +
+                esc(t.destination) +
+                "</span>";
+            if (t.pnr)
+              html +=
+                '<span class="font-mono text-cyan-400 text-xs">' +
+                esc(t.pnr) +
+                "</span>";
+            if (t.seat_no)
+              html +=
+                '<span class="text-gray-500 text-xs">Seat: ' +
+                esc(t.seat_no) +
+                "</span>";
+            html += "</div>";
+            // Device info (from IMEI Detail)
+            if (t.device && t.device.merk) {
+              html +=
+                '<div class="mt-1 text-xs text-gray-400"><i class="fas fa-mobile-alt text-purple-400 mr-1"></i>' +
+                esc(t.device.merk) +
+                " " +
+                esc(t.device.tipe || "") +
+                (t.device.imei1 ? " | IMEI: " + esc(t.device.imei1) : "") +
+                (t.device.harga_fob_usd
+                  ? " | $" + t.device.harga_fob_usd
+                  : "") +
+                "</div>";
+            }
+            // Payment info
+            if (t.payment && t.payment.no_dokumen) {
+              html +=
+                '<div class="mt-1 text-xs text-gray-400"><i class="fas fa-file-invoice text-green-400 mr-1"></i>Dok: ' +
+                esc(t.payment.no_dokumen) +
+                (t.payment.cara_pembayaran
+                  ? " | " + esc(t.payment.cara_pembayaran)
+                  : "") +
+                (t.payment.kantor_nama
+                  ? " | " + esc(t.payment.kantor_nama)
+                  : "") +
+                "</div>";
+            }
+            html += "</div>";
+          });
+          html += "</div></details>";
+        }
+
+        // ── DEVICE PORTFOLIO (collapsible) ──
+        if (devices && devices.length > 0) {
+          html += '<details class="mb-4">';
+          html +=
+            '<summary class="bg-slate-800/70 rounded-lg p-3 cursor-pointer text-white font-semibold hover:bg-slate-700/70"><i class="fas fa-mobile-alt text-purple-400 mr-2"></i>Portofolio Perangkat (' +
+            devices.length +
+            ")</summary>";
+          html += '<div class="mt-2 overflow-x-auto">';
+          html +=
+            '<table class="w-full text-sm text-left"><thead class="text-xs text-gray-400 border-b border-slate-700"><tr>';
+          html +=
+            '<th class="p-2">Merk</th><th class="p-2">Tipe</th><th class="p-2">IMEI</th><th class="p-2">FOB (USD)</th><th class="p-2">Pungutan</th><th class="p-2">Pembayaran</th><th class="p-2">Kantor</th>';
+          html += "</tr></thead><tbody>";
+          devices.forEach((d) => {
+            html += '<tr class="border-b border-slate-800 text-gray-300">';
+            html +=
+              '<td class="p-2 text-white font-medium">' +
+              esc(d.merk || "-") +
+              "</td>";
+            html +=
+              '<td class="p-2">' +
+              esc(d.tipe || "-") +
+              (d.storage ? " " + esc(d.storage) : "") +
+              (d.warna ? " " + esc(d.warna) : "") +
+              "</td>";
+            html +=
+              '<td class="p-2 font-mono text-xs">' +
+              esc(d.imei1 || "-") +
+              "</td>";
+            html +=
+              '<td class="p-2">' +
+              (d.harga_fob_usd ? "$" + d.harga_fob_usd : "-") +
+              "</td>";
+            html +=
+              '<td class="p-2">' +
+              (d.total_pungutan
+                ? "Rp" + d.total_pungutan.toLocaleString()
+                : "-") +
+              "</td>";
+            html +=
+              '<td class="p-2">' + esc(d.cara_pembayaran || "-") + "</td>";
+            html +=
+              '<td class="p-2 text-xs">' + esc(d.kantor_nama || "-") + "</td>";
+            html += "</tr>";
+          });
+          html += "</tbody></table></div></details>";
+        }
+
+        // ── CEISA RECORDS (collapsible) ──
+        if (ceisa && ceisa.length > 0) {
+          html += '<details class="mb-4">';
+          html +=
+            '<summary class="bg-slate-800/70 rounded-lg p-3 cursor-pointer text-white font-semibold hover:bg-slate-700/70"><i class="fas fa-file-invoice text-green-400 mr-2"></i>Data CEISA / HKT (' +
+            ceisa.length +
+            ")</summary>";
+          html += '<div class="mt-2 space-y-2 max-h-64 overflow-y-auto">';
+          ceisa.forEach((c) => {
+            html +=
+              '<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50 text-sm">';
+            html += '<div class="flex flex-wrap items-center gap-3">';
+            html +=
+              '<span class="text-white font-semibold">' +
+              esc(c.nomor_dokumen || "-") +
+              "</span>";
+            if (c.tanggal_dokumen)
+              html +=
+                '<span class="text-gray-500">' +
+                new Date(c.tanggal_dokumen).toLocaleDateString("id-ID") +
+                "</span>";
+            if (c.status_penelitian) {
+              const clr =
+                c.status_penelitian === "BILLING"
+                  ? "text-red-400 bg-red-500/20"
+                  : "text-green-400 bg-green-500/20";
+              html +=
+                '<span class="' +
+                clr +
+                ' px-2 py-0.5 rounded text-xs">' +
+                esc(c.status_penelitian) +
+                "</span>";
+            }
+            if (c.nama_petugas)
+              html +=
+                '<span class="text-gray-500 text-xs">Petugas: ' +
+                esc(c.nama_petugas) +
+                "</span>";
+            html += "</div>";
+            if (c.hkt1 || c.hkt2) {
+              html +=
+                '<div class="mt-1 text-xs text-gray-400">HKT: ' +
+                esc(c.hkt1 || "-") +
+                (c.hkt2 ? " | " + esc(c.hkt2) : "") +
+                "</div>";
+            }
+            html += "</div>";
+          });
+          html += "</div></details>";
+        }
+
+        container.innerHTML = html;
+      }
+
+      // HTML escape utility (if not already defined)
+      function esc(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = String(text);
+        return div.innerHTML;
       }
     </script>
     <script src="/edit-price.js"></script>
