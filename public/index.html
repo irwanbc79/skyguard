@@ -240,6 +240,9 @@
       .menu-manifest {
         color: #f97316;
       }
+      .menu-intel {
+        color: #ef4444;
+      }
       .menu-dashboard {
         color: #14b8a6;
       }
@@ -552,6 +555,13 @@
             data-menu="manifest"
           >
             <i class="fas fa-file-alt"></i> MANIFEST
+          </button>
+          <button
+            onclick="setMainMenu('intel')"
+            class="main-menu-item menu-intel flex items-center gap-2 whitespace-nowrap"
+            data-menu="intel"
+          >
+            <i class="fas fa-user-secret"></i> INTELIJEN
           </button>
           <button
             onclick="setMainMenu('flights')"
@@ -2095,6 +2105,9 @@
         <!-- end dashContent -->
       </div>
 
+      <!-- Intelligence Center Content -->
+      <div id="content-intel" class="content-section fade-in"></div>
+
       <!-- Flight Radar Content -->
       <div id="content-flights" class="content-section fade-in"></div>
     </main>
@@ -2215,6 +2228,18 @@
           ],
           color: "#f97316",
         },
+        intel: {
+          subMenus: [
+            {
+              id: "search",
+              label: "Pencarian Lanjutan",
+              icon: "fa-search-plus",
+            },
+            { id: "tracking", label: "Pelacakan", icon: "fa-crosshairs" },
+            { id: "routemap", label: "Peta Rute", icon: "fa-map-marked-alt" },
+          ],
+          color: "#ef4444",
+        },
         dashboard: { subMenus: [], color: "#14b8a6" },
         flights: {
           subMenus: [
@@ -2307,6 +2332,7 @@
             "cargo",
             "flights",
             "manifest",
+            "intel",
           ].includes(menu) &&
           menuConfig[menu].subMenus &&
           menuConfig[menu].subMenus.length > 0
@@ -2418,6 +2444,1712 @@
           loadFlightsSubContent(subId);
         } else if (menu === "manifest") {
           loadManifestSubContent(subId);
+        } else if (menu === "intel") {
+          loadIntelSubContent(subId);
+        }
+      }
+
+      // ==================== INTELLIGENCE CENTER ====================
+      let intelMap = null;
+      let intelMapMarkers = [];
+      let intelMapRoutes = [];
+
+      function loadIntelSubContent(subId) {
+        const container = document.getElementById("content-intel");
+        if (!container) return;
+        if (subId === "search") {
+          container.innerHTML = getIntelSearchContent();
+        } else if (subId === "tracking") {
+          container.innerHTML = getIntelTrackingContent();
+          loadIntelTracking();
+        } else if (subId === "routemap") {
+          container.innerHTML = getIntelRouteMapContent();
+          setTimeout(() => initIntelMap(), 100);
+        }
+      }
+
+      // ─── Pencarian Lanjutan ───
+      function getIntelSearchContent() {
+        return `
+        <style>
+          .ic-hero { background: linear-gradient(135deg, #1a0a0a 0%, #2d1015 50%, #3b1520 100%); border-radius: 1.5rem; padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+          .ic-hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(239,68,68,0.12) 0%, transparent 70%); pointer-events: none; }
+          .ic-search-box { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 1.25rem; backdrop-filter: blur(12px); }
+          .ic-type-btn { padding: 0.5rem 1rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #94a3b8; cursor: pointer; transition: all 0.3s; font-size: 0.85rem; }
+          .ic-type-btn.active { background: linear-gradient(135deg, #ef4444, #f87171); color: #fff; border-color: #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+          .ic-type-btn:hover:not(.active) { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+          .ic-result-card { background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1.25rem; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden; }
+          .ic-result-card:hover { background: rgba(60,20,30,0.4); border-color: rgba(239,68,68,0.4); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+          .ic-result-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+          .ic-result-card.suspect::before { background: linear-gradient(90deg, #ef4444, #f97316); }
+          .ic-result-card.normal::before { background: linear-gradient(90deg, #22c55e, #10b981); }
+          .ic-badge { padding: 0.2rem 0.6rem; border-radius: 2rem; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.3rem; }
+          .ic-badge-red { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+          .ic-badge-yellow { background: rgba(234,179,8,0.2); color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); }
+          .ic-badge-green { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+          .ic-badge-blue { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+          .ic-badge-purple { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+          .ic-section { background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem; }
+          .ic-section-title { font-size: 1rem; font-weight: 700; color: #e2e8f0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+          .ic-stat-card { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.03)); border: 1px solid rgba(239,68,68,0.12); border-radius: 1rem; padding: 1.25rem; text-align: center; }
+          .ic-stat-value { font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, #f87171, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+          .ic-stat-label { font-size: 0.7rem; color: #94a3b8; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+          .ic-back-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); padding: 0.5rem 1.25rem; border-radius: 0.75rem; color: #94a3b8; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+          .ic-back-btn:hover { background: rgba(255,255,255,0.15); color: #e2e8f0; }
+          .ic-timeline-item { display: flex; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); align-items: center; }
+          .ic-timeline-item:last-child { border-bottom: none; }
+          .ic-companion-card { background: rgba(30,27,75,0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.75rem; padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.3s; }
+          .ic-companion-card:hover { background: rgba(60,20,30,0.3); border-color: rgba(239,68,68,0.3); }
+          .ic-tab-btn { padding: 0.6rem 1.25rem; border-radius: 0.75rem; border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.85rem; transition: all 0.3s; font-weight: 500; }
+          .ic-tab-btn.active { background: rgba(239,68,68,0.2); color: #f87171; font-weight: 600; }
+          .ic-tab-btn:hover:not(.active) { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+          .ic-anomaly { padding: 0.85rem 1.25rem; border-radius: 0.75rem; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+          .ic-anomaly.HIGH { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); }
+          .ic-anomaly.MEDIUM { background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.3); }
+          .ic-anomaly.LOW { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); }
+          .ic-tracking-card { background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1rem; transition: all 0.3s; }
+          .ic-tracking-card:hover { border-color: rgba(239,68,68,0.3); }
+          .ic-pulse { animation: pulse 2s infinite; }
+          @keyframes icFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+          .ic-fadein { animation: icFadeIn 0.5s ease; }
+          .ic-identity-card { background: linear-gradient(135deg, #1a0a0a 0%, #3b1520 50%, #4a1a2e 100%); border-radius: 1.25rem; padding: 2rem; position: relative; overflow: hidden; border: 1px solid rgba(239,68,68,0.3); }
+          .ic-identity-card::before { content: ''; position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%); }
+          .ic-identity-card .passport-stripe { position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+          .ic-route-bar { height: 28px; border-radius: 0.5rem; display: flex; align-items: center; padding: 0 0.75rem; font-size: 0.8rem; font-weight: 600; color: #fff; margin-bottom: 0.4rem; transition: all 0.3s; min-width: 40px; }
+          .ic-device-card { background: rgba(15,23,42,0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.5rem; }
+          .ic-ceisa-record { background: rgba(15,23,42,0.4); border-radius: 0.5rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-left: 3px solid; font-size: 0.85rem; }
+          .ic-ceisa-record.BILLING { border-left-color: #ef4444; }
+          .ic-ceisa-record.OTHER { border-left-color: #6366f1; }
+        </style>
+
+        <div class="ic-hero">
+          <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+              <div style="width:52px;height:52px;border-radius:1rem;background:linear-gradient(135deg,#ef4444,#f87171);display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-user-secret" style="font-size:1.5rem;color:#fff;"></i>
+              </div>
+              <div>
+                <h2 style="font-size:1.5rem;font-weight:800;color:#fff;margin:0;">Pusat Intelijen</h2>
+                <p style="color:#94a3b8;font-size:0.85rem;margin:0.25rem 0 0;">Pencarian komprehensif lintas basis data — paspor, nama, IMEI, nomor penerbangan, PNR</p>
+              </div>
+            </div>
+            <div class="ic-search-box">
+              <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+                <button class="ic-type-btn active" onclick="setIntelSearchType(this,'auto')"><i class="fas fa-magic"></i> Auto-Detect</button>
+                <button class="ic-type-btn" onclick="setIntelSearchType(this,'passport')"><i class="fas fa-passport"></i> Paspor</button>
+                <button class="ic-type-btn" onclick="setIntelSearchType(this,'name')"><i class="fas fa-user"></i> Nama</button>
+                <button class="ic-type-btn" onclick="setIntelSearchType(this,'flight')"><i class="fas fa-plane"></i> No. Penerbangan</button>
+                <button class="ic-type-btn" onclick="setIntelSearchType(this,'imei')"><i class="fas fa-mobile-alt"></i> IMEI</button>
+                <button class="ic-type-btn" onclick="setIntelSearchType(this,'pnr')"><i class="fas fa-ticket-alt"></i> PNR</button>
+              </div>
+              <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:250px;position:relative;">
+                  <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#ef4444;font-size:1.1rem;"></i>
+                  <input type="text" id="icSearchInput" placeholder="Masukkan paspor, nama, IMEI, nomor penerbangan, atau PNR..."
+                    style="width:100%;padding:0.9rem 1rem 0.9rem 3rem;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:0.75rem;color:#fff;font-size:1rem;outline:none;"
+                    onkeypress="if(event.key==='Enter')executeIntelSearch()" onfocus="this.style.borderColor='rgba(239,68,68,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+                  >
+                </div>
+                <button onclick="executeIntelSearch()" style="padding:0 1.75rem;background:linear-gradient(135deg,#ef4444,#f87171);border:none;border-radius:0.75rem;color:#fff;font-weight:700;cursor:pointer;font-size:1rem;display:flex;align-items:center;gap:0.5rem;transition:all 0.3s;white-space:nowrap;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+                  <i class="fas fa-search"></i> Telusuri
+                </button>
+              </div>
+              <div style="margin-top:0.75rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <label style="color:#64748b;font-size:0.75rem;">DARI</label>
+                  <input type="date" id="icDateFrom" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.4rem 0.6rem;color:#e2e8f0;font-size:0.8rem;">
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <label style="color:#64748b;font-size:0.75rem;">SAMPAI</label>
+                  <input type="date" id="icDateTo" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.4rem 0.6rem;color:#e2e8f0;font-size:0.8rem;">
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <label style="color:#64748b;font-size:0.75rem;">KEWARGANEGARAAN</label>
+                  <input type="text" id="icNationality" placeholder="cth: IDN" maxlength="3" style="width:70px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.4rem 0.6rem;color:#e2e8f0;font-size:0.8rem;text-transform:uppercase;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="icSearchResults"></div>
+        <div id="icDossierView"></div>
+        `;
+      }
+
+      let intelSearchType = "auto";
+      function setIntelSearchType(btn, type) {
+        intelSearchType = type;
+        document
+          .querySelectorAll(".ic-type-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      }
+
+      async function executeIntelSearch() {
+        const q = document.getElementById("icSearchInput")?.value?.trim();
+        if (!q || q.length < 2)
+          return showToast("Masukkan minimal 2 karakter", "warning");
+        const dateFrom = document.getElementById("icDateFrom")?.value || "";
+        const dateTo = document.getElementById("icDateTo")?.value || "";
+        const nationality =
+          document.getElementById("icNationality")?.value?.trim() || "";
+
+        const container = document.getElementById("icSearchResults");
+        const dossierView = document.getElementById("icDossierView");
+        if (dossierView) dossierView.innerHTML = "";
+        if (!container) return;
+
+        container.innerHTML =
+          '<div style="text-align:center;padding:3rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#ef4444;"></i><p style="color:#94a3b8;margin-top:1rem;">Menelusuri semua basis data...</p></div>';
+
+        try {
+          const params = new URLSearchParams({ q, type: intelSearchType });
+          if (dateFrom) params.set("dateFrom", dateFrom);
+          if (dateTo) params.set("dateTo", dateTo);
+          if (nationality) params.set("nationality", nationality);
+
+          const res = await fetch("/api/intel/search?" + params);
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+
+          renderIntelSearchResults(json, container);
+        } catch (err) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#f87171;"><i class="fas fa-exclamation-triangle fa-2x"></i><p style="margin-top:0.5rem;">' +
+            err.message +
+            "</p></div>";
+        }
+      }
+
+      function renderIntelSearchResults(json, container) {
+        const { data, total, search_type, query } = json;
+        if (!data || data.length === 0) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="fas fa-search fa-3x" style="opacity:0.3;"></i><p style="margin-top:1rem;font-size:1.1rem;">Tidak ditemukan hasil untuk &quot;' +
+            query +
+            '&quot;</p><p style="font-size:0.85rem;">Coba kata kunci lain atau ubah filter pencarian</p></div>';
+          return;
+        }
+
+        const typeLabels = {
+          passport: "PASPOR",
+          name: "NAMA",
+          flight: "PENERBANGAN",
+          imei: "IMEI",
+          pnr: "PNR",
+        };
+        let html =
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">';
+        html +=
+          '<div><span style="color:#e2e8f0;font-weight:700;font-size:1.1rem;">' +
+          total +
+          ' Hasil</span> <span class="ic-badge ic-badge-blue"><i class="fas fa-tag"></i> ' +
+          (typeLabels[search_type] || search_type) +
+          "</span></div>";
+        html += "</div>";
+
+        html += '<div style="display:grid;gap:0.75rem;">';
+        for (const item of data) {
+          if (item.type === "device") {
+            html += renderIntelDeviceCard(item);
+          } else {
+            html += renderIntelPassengerCard(item);
+          }
+        }
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function renderIntelPassengerCard(item) {
+        const isSuspect = item.is_suspect;
+        const cardClass = isSuspect ? "suspect" : "normal";
+        const onClick = item.passport_number
+          ? "loadIntelDossier('" +
+            item.passport_number.replace(/'/g, "\\'") +
+            "')"
+          : "";
+
+        let badges = "";
+        if (isSuspect)
+          badges +=
+            '<span class="ic-badge ic-badge-red"><i class="fas fa-skull-crossbones"></i> SUSPECT</span> ';
+        if (item.source === "manifest")
+          badges +=
+            '<span class="ic-badge ic-badge-blue"><i class="fas fa-plane"></i> MANIFEST</span> ';
+        if (item.source === "ceisa")
+          badges +=
+            '<span class="ic-badge ic-badge-purple"><i class="fas fa-building"></i> CEISA</span> ';
+        if (item.ceisa_count > 0)
+          badges +=
+            '<span class="ic-badge ic-badge-yellow"><i class="fas fa-file-alt"></i> ' +
+            item.ceisa_count +
+            "× CEISA</span> ";
+        if (item.imei_count > 0)
+          badges +=
+            '<span class="ic-badge ic-badge-green"><i class="fas fa-mobile-alt"></i> ' +
+            item.imei_count +
+            " DEVICE</span> ";
+
+        const fmtDate = (d) => {
+          if (!d) return "-";
+          try {
+            return new Date(d).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return d;
+          }
+        };
+
+        let html =
+          '<div class="ic-result-card ' +
+          cardClass +
+          '" ' +
+          (onClick ? 'onclick="' + onClick + '"' : "") +
+          ' style="' +
+          (onClick ? "" : "cursor:default;") +
+          '">';
+        html +=
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.75rem;">';
+        html += '<div style="flex:1;min-width:200px;">';
+        html +=
+          '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">';
+        html +=
+          '<div style="width:40px;height:40px;border-radius:50%;background:' +
+          (isSuspect ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.15)") +
+          ';display:flex;align-items:center;justify-content:center;"><i class="fas fa-user" style="color:' +
+          (isSuspect ? "#f87171" : "#4ade80") +
+          ';"></i></div>';
+        html += "<div>";
+        html +=
+          '<div style="font-weight:700;color:#fff;font-size:1rem;">' +
+          (item.name || "-") +
+          "</div>";
+        html +=
+          '<div style="color:#94a3b8;font-size:0.8rem;">' +
+          (item.passport_number || "-") +
+          " · " +
+          (item.nationality || "-") +
+          " · " +
+          (item.gender || "-") +
+          "</div>";
+        html += "</div></div>";
+        html +=
+          '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">' +
+          badges +
+          "</div>";
+        html += "</div>";
+
+        html +=
+          '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;text-align:center;">';
+        if (item.total_flights) {
+          html +=
+            '<div><div style="font-weight:800;color:#f87171;font-size:1.2rem;">' +
+            item.total_flights +
+            '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Penerbangan</div></div>';
+        }
+        if (item.seats?.length) {
+          html +=
+            '<div><div style="font-weight:600;color:#60a5fa;font-size:0.9rem;">' +
+            item.seats.filter(Boolean).join(", ") +
+            '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Seat</div></div>';
+        }
+        if (item.last_seen) {
+          html +=
+            '<div><div style="font-weight:600;color:#e2e8f0;font-size:0.9rem;">' +
+            fmtDate(item.last_seen) +
+            '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Terakhir</div></div>';
+        }
+        if (item.flight_number) {
+          html +=
+            '<div><div style="font-weight:600;color:#fbbf24;font-size:0.9rem;">' +
+            item.flight_number +
+            '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Flight</div></div>';
+        }
+        if (item.seat_no) {
+          html +=
+            '<div><div style="font-weight:600;color:#60a5fa;font-size:0.9rem;">' +
+            item.seat_no +
+            '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Seat</div></div>';
+        }
+        if (item.pnr) {
+          html +=
+            '<div><div style="font-weight:600;color:#c084fc;font-size:0.9rem;">' +
+            item.pnr +
+            '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">PNR</div></div>';
+        }
+        html += "</div>";
+        html += "</div>";
+        html += "</div>";
+        return html;
+      }
+
+      function renderIntelDeviceCard(item) {
+        const onClick = item.passport_number
+          ? "loadIntelDossier('" +
+            item.passport_number.replace(/'/g, "\\'") +
+            "')"
+          : "";
+        const fmtDate = (d) => {
+          if (!d) return "-";
+          try {
+            return new Date(d).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return d;
+          }
+        };
+        const fmtMoney = (n) =>
+          n ? "$" + Number(n).toLocaleString("en-US") : "-";
+
+        let html =
+          '<div class="ic-result-card normal" ' +
+          (onClick ? 'onclick="' + onClick + '"' : "") +
+          ' style="cursor:' +
+          (onClick ? "pointer" : "default") +
+          '">';
+        html +=
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.75rem;">';
+        html += '<div style="flex:1;min-width:200px;">';
+        html +=
+          '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">';
+        html +=
+          '<div style="width:40px;height:40px;border-radius:50%;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;"><i class="fas fa-mobile-alt" style="color:#60a5fa;"></i></div>';
+        html += "<div>";
+        html +=
+          '<div style="font-weight:700;color:#fff;font-size:1rem;">' +
+          (item.merk || "") +
+          " " +
+          (item.tipe || "") +
+          "</div>";
+        html +=
+          '<div style="color:#94a3b8;font-size:0.8rem;">' +
+          (item.name || "-") +
+          " · " +
+          (item.passport_number || "-") +
+          "</div>";
+        html += "</div></div>";
+        html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">';
+        html +=
+          '<span class="ic-badge ic-badge-blue"><i class="fas fa-mobile-alt"></i> IMEI</span>';
+        if (item.cara_pembayaran === "BILLING")
+          html +=
+            '<span class="ic-badge ic-badge-red"><i class="fas fa-money-bill-wave"></i> BILLING</span>';
+        html += "</div>";
+        html += "</div>";
+        html +=
+          '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;text-align:center;">';
+        html +=
+          '<div><div style="font-weight:600;color:#fbbf24;font-size:0.9rem;">' +
+          fmtMoney(item.harga_fob_usd) +
+          '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">FOB USD</div></div>';
+        html +=
+          '<div><div style="font-weight:600;color:#e2e8f0;font-size:0.9rem;">' +
+          (item.storage || "-") +
+          '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Storage</div></div>';
+        html +=
+          '<div><div style="font-weight:600;color:#e2e8f0;font-size:0.9rem;">' +
+          fmtDate(item.arrival_date) +
+          '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Waktu</div></div>';
+        html +=
+          '<div><div style="font-weight:600;color:#94a3b8;font-size:0.8rem;">' +
+          (item.kantor || "-") +
+          '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Kantor</div></div>';
+        html += "</div></div>";
+        html += "</div>";
+        return html;
+      }
+
+      // ─── Load Intel Dossier ───
+      async function loadIntelDossier(passport) {
+        const searchResults = document.getElementById("icSearchResults");
+        const dossierView = document.getElementById("icDossierView");
+        if (!dossierView) return;
+        if (searchResults) searchResults.style.display = "none";
+        dossierView.innerHTML =
+          '<div style="text-align:center;padding:3rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#ef4444;"></i><p style="color:#94a3b8;margin-top:1rem;">Memuat profil intelijen...</p></div>';
+
+        try {
+          const res = await fetch(
+            "/api/intel/dossier/" + encodeURIComponent(passport),
+          );
+          const json = await res.json();
+          if (json.status !== "ok" || !json.data?.found)
+            throw new Error("Data tidak ditemukan");
+          renderIntelDossier(json.data, dossierView);
+        } catch (err) {
+          dossierView.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#f87171;"><i class="fas fa-exclamation-triangle fa-2x"></i><p style="margin-top:0.5rem;">' +
+            err.message +
+            "</p></div>";
+        }
+      }
+
+      function renderIntelDossier(d, container) {
+        const {
+          identity: id,
+          risk,
+          summary: ts,
+          flights,
+          flight_map: fm,
+          companions,
+          devices,
+          ceisa,
+          watchlist,
+          anomalies,
+        } = { ...d, anomalies: d.risk?.anomalies || [] };
+        const tColor = risk.color || "#22c55e";
+        const tBg =
+          risk.level === "HIGH"
+            ? "rgba(239,68,68,0.15)"
+            : risk.level === "MEDIUM"
+              ? "rgba(234,179,8,0.15)"
+              : "rgba(34,197,94,0.15)";
+        const tIcon =
+          risk.level === "HIGH"
+            ? "fa-radiation-alt"
+            : risk.level === "MEDIUM"
+              ? "fa-exclamation-triangle"
+              : "fa-shield-alt";
+        const scorePct = Math.min(risk.score, 100);
+
+        const fmtDate = (dt) => {
+          if (!dt) return "-";
+          try {
+            return new Date(dt).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return dt;
+          }
+        };
+        const fmtMoney = (n) =>
+          n ? "$" + Number(n).toLocaleString("en-US") : "-";
+
+        let html = '<div class="ic-fadein">';
+
+        // Back button
+        html +=
+          "<button class=\"ic-back-btn\" onclick=\"document.getElementById('icDossierView').innerHTML='';document.getElementById('icSearchResults').style.display='block';\" style=\"margin-bottom:1rem;\"><i class=\"fas fa-arrow-left\"></i> Kembali ke Hasil</button>";
+
+        // Watchlist alert
+        if (watchlist?.is_suspect) {
+          html +=
+            '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.05));border:2px solid rgba(239,68,68,0.4);border-radius:1rem;padding:1.5rem;display:flex;align-items:center;gap:1.25rem;margin-bottom:1.25rem;" class="ic-pulse">';
+          html +=
+            '<i class="fas fa-exclamation-triangle" style="font-size:2rem;color:#ef4444;"></i>';
+          html +=
+            '<div><div style="font-weight:800;color:#f87171;font-size:1.1rem;">⚠ DAFTAR ATENSI — ' +
+            (watchlist.status || "ACTIVE") +
+            "</div>";
+          html +=
+            '<div style="color:#fca5a5;font-size:0.85rem;">Penumpang ini terdaftar di Daftar Atensi dengan level risiko: <strong>' +
+            (watchlist.risk_level || "-") +
+            "</strong></div>";
+          if (watchlist.categories)
+            html +=
+              '<div style="color:#fb923c;font-size:0.8rem;margin-top:0.25rem;">Kategori: ' +
+              (watchlist.categories || []).join(", ") +
+              "</div>";
+          if (watchlist.description)
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;margin-top:0.25rem;">' +
+              watchlist.description +
+              "</div>";
+          html += "</div></div>";
+        }
+
+        // Identity Card + Threat Assessment
+        html += '<div class="ic-identity-card" style="margin-bottom:1.25rem;">';
+        html +=
+          '<div class="passport-stripe" style="background:linear-gradient(90deg,' +
+          tColor +
+          "," +
+          tColor +
+          "88," +
+          tColor +
+          '44);"></div>';
+        html +=
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1.5rem;">';
+
+        // Left: Identity
+        html += '<div style="flex:1;min-width:250px;">';
+        html +=
+          '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">';
+        html +=
+          '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,' +
+          tColor +
+          "33," +
+          tColor +
+          "11);border:2px solid " +
+          tColor +
+          ';display:flex;align-items:center;justify-content:center;"><i class="fas fa-user" style="font-size:1.5rem;color:' +
+          tColor +
+          ';"></i></div>';
+        html +=
+          '<div><h2 style="font-size:1.4rem;font-weight:800;color:#fff;margin:0;">' +
+          (id.name || "-") +
+          "</h2></div>";
+        html += "</div>";
+        html +=
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">';
+        html +=
+          '<div><span style="color:#64748b;font-size:0.7rem;text-transform:uppercase;">Paspor</span><div style="color:#e2e8f0;font-weight:600;font-size:0.95rem;">' +
+          (id.passport_number || "N/A") +
+          "</div></div>";
+        html +=
+          '<div><span style="color:#64748b;font-size:0.7rem;text-transform:uppercase;">Kewarganegaraan</span><div style="color:#e2e8f0;font-weight:600;font-size:0.95rem;">' +
+          (id.nationality || "-") +
+          "</div></div>";
+        html +=
+          '<div><span style="color:#64748b;font-size:0.7rem;text-transform:uppercase;">Gender</span><div style="color:#e2e8f0;font-weight:600;font-size:0.95rem;">' +
+          (id.gender || "-") +
+          "</div></div>";
+        html += "</div></div>";
+
+        // Right: Threat assessment
+        html += '<div style="min-width:220px;text-align:center;">';
+        html +=
+          '<div style="background:' +
+          tBg +
+          ";border:1px solid " +
+          tColor +
+          '44;border-radius:1rem;padding:1.25rem;">';
+        html +=
+          '<div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem;">Threat Level</div>';
+        html +=
+          '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-bottom:0.75rem;">';
+        html +=
+          '<i class="fas ' +
+          tIcon +
+          '" style="font-size:1.5rem;color:' +
+          tColor +
+          ';"></i>';
+        html +=
+          '<span style="font-size:1.8rem;font-weight:900;color:' +
+          tColor +
+          ';">' +
+          risk.level +
+          "</span>";
+        html += "</div>";
+        html +=
+          '<div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#64748b;">0</span><div style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,0.1);overflow:hidden;"><div style="height:100%;border-radius:4px;width:' +
+          scorePct +
+          "%;background:linear-gradient(90deg," +
+          tColor +
+          "," +
+          tColor +
+          'cc);transition:width 1s ease;"></div></div><span style="font-size:0.7rem;color:#64748b;">100</span></div>';
+        html +=
+          '<div style="color:' +
+          tColor +
+          ';font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Score: ' +
+          risk.score +
+          "</div>";
+        html += "</div></div>";
+        html += "</div></div>";
+
+        // Summary stats
+        html +=
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.25rem;">';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          (ts.total_flights || 0) +
+          '</div><div class="ic-stat-label">Penerbangan</div></div>';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          (ts.total_ceisa || 0) +
+          '</div><div class="ic-stat-label">CEISA</div></div>';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          (ts.total_devices || 0) +
+          '</div><div class="ic-stat-label">Perangkat</div></div>';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          (ts.billing_count || 0) +
+          '</div><div class="ic-stat-label">Billing</div></div>';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          fmtMoney(ts.total_fob_usd) +
+          '</div><div class="ic-stat-label">Total FOB</div></div>';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          (ts.airlines?.length || 0) +
+          '</div><div class="ic-stat-label">Maskapai</div></div>';
+        html += "</div>";
+
+        // Anomalies
+        if (anomalies?.length) {
+          html += '<div class="ic-section" style="margin-bottom:1rem;">';
+          html +=
+            '<div class="ic-section-title"><i class="fas fa-exclamation-circle" style="color:#f87171;"></i> Anomali & Peringatan</div>';
+          const anomalyIcons = {
+            WATCHLIST: "fa-skull-crossbones",
+            BILLING: "fa-money-bill-wave",
+            DEVICES: "fa-mobile-alt",
+            FREQUENT: "fa-plane-departure",
+            VALUE: "fa-dollar-sign",
+            COMPANIONS: "fa-users",
+          };
+          for (const a of anomalies) {
+            const sev =
+              a.type === "WATCHLIST"
+                ? "HIGH"
+                : a.type === "BILLING"
+                  ? "HIGH"
+                  : "MEDIUM";
+            html +=
+              '<div class="ic-anomaly ' +
+              sev +
+              '"><i class="fas ' +
+              (anomalyIcons[a.type] || "fa-info-circle") +
+              '" style="font-size:1.1rem;"></i><div><span style="font-weight:600;">' +
+              a.type +
+              '</span><span style="margin-left:0.5rem;color:#cbd5e1;">' +
+              a.desc +
+              "</span></div></div>";
+          }
+          html += "</div>";
+        }
+
+        // Tabs: Penerbangan | Peta Rute | Teman Perjalanan | Perangkat | CEISA
+        html +=
+          '<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">';
+        html +=
+          '<button class="ic-tab-btn active" onclick="switchIntelTab(this,\'flights\')"><i class="fas fa-plane"></i> Penerbangan</button>';
+        html +=
+          '<button class="ic-tab-btn" onclick="switchIntelTab(this,\'map\')"><i class="fas fa-map-marked-alt"></i> Peta Rute</button>';
+        html +=
+          '<button class="ic-tab-btn" onclick="switchIntelTab(this,\'routes\')"><i class="fas fa-route"></i> Rute Favorit</button>';
+        html +=
+          '<button class="ic-tab-btn" onclick="switchIntelTab(this,\'companions\')"><i class="fas fa-users"></i> Teman Perjalanan (' +
+          companions.length +
+          ")</button>";
+        html +=
+          '<button class="ic-tab-btn" onclick="switchIntelTab(this,\'devices\')"><i class="fas fa-mobile-alt"></i> Perangkat (' +
+          devices.length +
+          ")</button>";
+        html +=
+          '<button class="ic-tab-btn" onclick="switchIntelTab(this,\'ceisa\')"><i class="fas fa-building"></i> CEISA (' +
+          ceisa.length +
+          ")</button>";
+        html += "</div>";
+
+        // Tab: Flights
+        html += '<div id="icTab-flights" class="ic-section">';
+        html +=
+          '<div class="ic-section-title"><i class="fas fa-clock" style="color:#60a5fa;"></i> Riwayat Penerbangan</div>';
+        if (flights.length === 0) {
+          html +=
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada data penerbangan</div>';
+        } else {
+          html += '<div style="max-height:500px;overflow-y:auto;">';
+          for (const f of flights) {
+            const dirColor =
+              f.direction === "INBOUND"
+                ? "#22c55e"
+                : f.direction === "OUTBOUND"
+                  ? "#f59e0b"
+                  : "#94a3b8";
+            const dirIcon =
+              f.direction === "INBOUND"
+                ? "fa-plane-arrival"
+                : "fa-plane-departure";
+            html += '<div class="ic-timeline-item">';
+            html +=
+              '<div style="width:10px;height:10px;border-radius:50%;background:' +
+              dirColor +
+              ';flex-shrink:0;"></div>';
+            html +=
+              '<div style="min-width:90px;"><div style="font-weight:700;color:#fbbf24;font-size:0.9rem;">' +
+              (f.flight_number || "-") +
+              '</div><div style="font-size:0.7rem;color:#64748b;">' +
+              fmtDate(f.flight_date) +
+              "</div></div>";
+            html +=
+              '<div style="display:flex;align-items:center;gap:0.5rem;flex:1;">';
+            html +=
+              '<span style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">' +
+              (f.origin || "?") +
+              "</span>";
+            html +=
+              '<i class="fas fa-long-arrow-alt-right" style="color:#64748b;"></i>';
+            html +=
+              '<span style="color:#e2e8f0;font-weight:600;font-size:0.85rem;">' +
+              (f.destination || "?") +
+              "</span>";
+            html += "</div>";
+            html += '<div style="display:flex;gap:1rem;align-items:center;">';
+            if (f.seat_no)
+              html +=
+                '<span style="color:#60a5fa;font-size:0.8rem;"><i class="fas fa-chair"></i> ' +
+                f.seat_no +
+                "</span>";
+            if (f.pnr)
+              html +=
+                '<span style="color:#c084fc;font-size:0.8rem;">' +
+                f.pnr +
+                "</span>";
+            if (f.bag_weight)
+              html +=
+                '<span style="color:#94a3b8;font-size:0.8rem;"><i class="fas fa-suitcase"></i> ' +
+                f.bag_weight +
+                "kg</span>";
+            html +=
+              '<i class="fas ' +
+              dirIcon +
+              '" style="color:' +
+              dirColor +
+              ';font-size:0.9rem;" title="' +
+              f.direction +
+              '"></i>';
+            html += "</div></div>";
+          }
+          html += "</div>";
+        }
+        html += "</div>";
+
+        // Tab: Map
+        html += '<div id="icTab-map" class="ic-section" style="display:none;">';
+        html +=
+          '<div class="ic-section-title"><i class="fas fa-map-marked-alt" style="color:#ef4444;"></i> Peta Rute Penerbangan</div>';
+        html +=
+          '<div id="icDossierMap" style="height:450px;border-radius:0.75rem;overflow:hidden;background:#0f172a;"></div>';
+        html += "</div>";
+
+        // Tab: Routes
+        html +=
+          '<div id="icTab-routes" class="ic-section" style="display:none;">';
+        html +=
+          '<div class="ic-section-title"><i class="fas fa-route" style="color:#fbbf24;"></i> Rute Teratas</div>';
+        if (ts.top_routes?.length) {
+          const maxR = Math.max(...ts.top_routes.map((r) => r.count));
+          for (const r of ts.top_routes) {
+            const pct = Math.max(15, (r.count / maxR) * 100);
+            const colors = [
+              "#ef4444",
+              "#f59e0b",
+              "#22c55e",
+              "#6366f1",
+              "#ec4899",
+              "#14b8a6",
+            ];
+            const c = colors[ts.top_routes.indexOf(r) % colors.length];
+            html +=
+              '<div class="ic-route-bar" style="width:' +
+              pct +
+              "%;background:linear-gradient(90deg," +
+              c +
+              "," +
+              c +
+              '88);">' +
+              r.route +
+              " (" +
+              r.count +
+              "×)</div>";
+          }
+        } else {
+          html +=
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada data rute</div>';
+        }
+        if (ts.airlines?.length) {
+          html +=
+            '<div style="margin-top:1rem;"><span style="color:#64748b;font-size:0.75rem;text-transform:uppercase;">Maskapai:</span> ';
+          for (const a of ts.airlines) {
+            html +=
+              '<span class="ic-badge ic-badge-blue" style="margin:0.2rem;">' +
+              a +
+              "</span>";
+          }
+          html += "</div>";
+        }
+        html += "</div>";
+
+        // Tab: Companions
+        html +=
+          '<div id="icTab-companions" class="ic-section" style="display:none;">';
+        html +=
+          '<div class="ic-section-title"><i class="fas fa-users" style="color:#c084fc;"></i> Teman Perjalanan (2+ penerbangan bersama)</div>';
+        if (companions.length === 0) {
+          html +=
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada rekan perjalanan terdeteksi</div>';
+        } else {
+          for (const c of companions) {
+            html +=
+              '<div class="ic-companion-card" onclick="loadIntelDossier(\'' +
+              c.passport_number.replace(/'/g, "\\'") +
+              '\')" style="margin-bottom:0.5rem;">';
+            html += "<div>";
+            html +=
+              '<div style="font-weight:600;color:#e2e8f0;">' +
+              (c.name || "-") +
+              "</div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;">' +
+              (c.passport_number || "-") +
+              " · " +
+              (c.nationality || "-") +
+              "</div>";
+            html += "</div>";
+            html += '<div style="text-align:right;">';
+            html +=
+              '<div style="font-weight:800;color:#c084fc;font-size:1.2rem;">' +
+              c.shared_flights +
+              "×</div>";
+            html +=
+              '<div style="color:#64748b;font-size:0.65rem;">BERSAMA</div>';
+            html += "</div></div>";
+          }
+        }
+        html += "</div>";
+
+        // Tab: Devices
+        html +=
+          '<div id="icTab-devices" class="ic-section" style="display:none;">';
+        html +=
+          '<div class="ic-section-title"><i class="fas fa-mobile-alt" style="color:#60a5fa;"></i> Riwayat Perangkat IMEI</div>';
+        if (devices.length === 0) {
+          html +=
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada perangkat tercatat</div>';
+        } else {
+          for (const dv of devices) {
+            const isBilling = dv.cara_pembayaran === "BILLING";
+            html +=
+              '<div class="ic-device-card" style="border-left:3px solid ' +
+              (isBilling ? "#ef4444" : "#60a5fa") +
+              ';">';
+            html +=
+              '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">';
+            html += "<div>";
+            html +=
+              '<div style="font-weight:700;color:#e2e8f0;">' +
+              (dv.merk || "") +
+              " " +
+              (dv.tipe || "") +
+              "</div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;">' +
+              (dv.storage || "-") +
+              " · " +
+              (dv.warna || "-") +
+              " · IMEI: " +
+              (dv.imei1 || "-") +
+              "</div>";
+            html += "</div>";
+            html += '<div style="text-align:right;">';
+            html +=
+              '<div style="font-weight:700;color:#fbbf24;">' +
+              fmtMoney(dv.harga_fob_usd) +
+              "</div>";
+            html +=
+              '<div style="font-size:0.7rem;color:#94a3b8;">' +
+              fmtDate(dv.tanggal) +
+              " · " +
+              (dv.kantor || "-") +
+              "</div>";
+            if (isBilling)
+              html +=
+                '<span class="ic-badge ic-badge-red" style="margin-top:0.25rem;"><i class="fas fa-money-bill-wave"></i> BILLING</span>';
+            html += "</div></div></div>";
+          }
+        }
+        html += "</div>";
+
+        // Tab: CEISA
+        html +=
+          '<div id="icTab-ceisa" class="ic-section" style="display:none;">';
+        html +=
+          '<div class="ic-section-title"><i class="fas fa-building" style="color:#a78bfa;"></i> Data CEISA</div>';
+        if (ceisa.length === 0) {
+          html +=
+            '<div style="text-align:center;padding:2rem;color:#64748b;">Tidak ada rekaman CEISA</div>';
+        } else {
+          for (const c of ceisa) {
+            const cType =
+              c.status_penelitian === "BILLING" ? "BILLING" : "OTHER";
+            html += '<div class="ic-ceisa-record ' + cType + '">';
+            html +=
+              '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">';
+            html +=
+              '<div><span style="font-weight:600;color:#e2e8f0;">' +
+              (c.nomor_dokumen || "-") +
+              "</span>";
+            html +=
+              ' <span style="color:#94a3b8;font-size:0.75rem;">' +
+              fmtDate(c.tanggal) +
+              "</span></div>";
+            html += "<div>";
+            if (c.status_penelitian)
+              html +=
+                '<span class="ic-badge ' +
+                (c.status_penelitian === "BILLING"
+                  ? "ic-badge-red"
+                  : "ic-badge-green") +
+                '">' +
+                c.status_penelitian +
+                "</span>";
+            html += "</div></div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;margin-top:0.25rem;">' +
+              (c.kantor || "-") +
+              "</div>";
+            html += "</div>";
+          }
+        }
+        html += "</div>";
+
+        html += "</div>"; // end ic-fadein
+        container.innerHTML = html;
+
+        // Store flight_map data for deferred map init
+        container._flightMapData = fm;
+      }
+
+      function switchIntelTab(btn, tabId) {
+        document
+          .querySelectorAll('[id^="icTab-"]')
+          .forEach((el) => (el.style.display = "none"));
+        document
+          .querySelectorAll(".ic-tab-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const tabEl = document.getElementById("icTab-" + tabId);
+        if (tabEl) tabEl.style.display = "block";
+
+        // Initialize map when switching to map tab
+        if (tabId === "map") {
+          setTimeout(() => initIntelDossierMap(), 200);
+        }
+      }
+
+      function initIntelDossierMap() {
+        const mapContainer = document.getElementById("icDossierMap");
+        if (!mapContainer) return;
+        const dossierView = document.getElementById("icDossierView");
+        const fm = dossierView?._flightMapData;
+        if (!fm) return;
+
+        // Destroy existing map
+        if (mapContainer._leafletMap) {
+          mapContainer._leafletMap.remove();
+          mapContainer._leafletMap = null;
+        }
+
+        const map = L.map(mapContainer, {
+          zoomControl: true,
+          attributionControl: false,
+          scrollWheelZoom: true,
+        });
+        mapContainer._leafletMap = map;
+
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          {
+            maxZoom: 18,
+          },
+        ).addTo(map);
+
+        const bounds = [];
+
+        // Airport markers
+        if (fm.airports?.length) {
+          for (const ap of fm.airports) {
+            const size = Math.min(12 + ap.count * 2, 30);
+            const color = ap.code === "KNO" ? "#ef4444" : "#60a5fa";
+            const icon = L.divIcon({
+              className: "",
+              html:
+                '<div style="width:' +
+                size +
+                "px;height:" +
+                size +
+                "px;border-radius:50%;background:" +
+                color +
+                ";border:2px solid #fff;box-shadow:0 0 10px " +
+                color +
+                '88;display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#fff;font-weight:bold;">' +
+                (size >= 18 ? ap.code : "") +
+                "</div>",
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            });
+            const marker = L.marker([ap.lat, ap.lng], { icon }).addTo(map);
+            marker.bindPopup(
+              '<div style="color:#000;font-weight:600;">' +
+                ap.code +
+                '</div><div style="color:#333;font-size:0.8rem;">' +
+                ap.name +
+                '</div><div style="color:#666;font-size:0.75rem;">' +
+                ap.count +
+                " penerbangan</div>",
+            );
+            bounds.push([ap.lat, ap.lng]);
+          }
+        }
+
+        // Route lines
+        if (fm.routes?.length) {
+          const routeCounts = {};
+          for (const r of fm.routes) {
+            const key = [r.from, r.to].sort().join("-");
+            routeCounts[key] = (routeCounts[key] || 0) + 1;
+          }
+          const drawnRoutes = new Set();
+          for (const r of fm.routes) {
+            const key = [r.from, r.to].sort().join("-");
+            if (drawnRoutes.has(key)) continue;
+            drawnRoutes.add(key);
+            const count = routeCounts[key];
+            const weight = Math.min(1 + count, 6);
+            const opacity = Math.min(0.3 + count * 0.1, 0.8);
+            const line = L.polyline([r.fromCoords, r.toCoords], {
+              color: "#ef4444",
+              weight: weight,
+              opacity: opacity,
+              dashArray: count <= 1 ? "5, 10" : null,
+              smoothFactor: 1,
+            }).addTo(map);
+            line.bindPopup(
+              '<div style="color:#000;font-weight:600;">' +
+                r.from +
+                " → " +
+                r.to +
+                '</div><div style="color:#666;font-size:0.8rem;">' +
+                count +
+                " penerbangan</div>",
+            );
+          }
+        }
+
+        if (bounds.length > 0) {
+          map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
+        } else {
+          map.setView([1.3, 103.8], 5);
+        }
+      }
+
+      // ─── Pelacakan (Tracking Dashboard) ───
+      function getIntelTrackingContent() {
+        return `
+        <div class="ic-hero" style="padding:1.5rem;">
+          <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+              <div style="display:flex;align-items:center;gap:1rem;">
+                <div style="width:44px;height:44px;border-radius:1rem;background:linear-gradient(135deg,#ef4444,#f87171);display:flex;align-items:center;justify-content:center;">
+                  <i class="fas fa-crosshairs" style="font-size:1.2rem;color:#fff;"></i>
+                </div>
+                <div>
+                  <h2 style="font-size:1.3rem;font-weight:800;color:#fff;margin:0;">Dashboard Pelacakan</h2>
+                  <p style="color:#94a3b8;font-size:0.8rem;margin:0;">Suspect hits, billing alerts, anomali perangkat real-time</p>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.75rem;">
+                <select id="icTrackingDays" onchange="loadIntelTracking()" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.4rem 0.6rem;color:#e2e8f0;font-size:0.85rem;">
+                  <option value="7">7 Hari</option>
+                  <option value="14">14 Hari</option>
+                  <option value="30">30 Hari</option>
+                </select>
+                <button onclick="loadIntelTracking()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:0.5rem 1rem;border-radius:0.5rem;cursor:pointer;font-size:0.85rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="icTrackingBody" style="margin-top:1rem;"><div style="text-align:center;padding:3rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#ef4444;"></i></div></div>
+        `;
+      }
+
+      async function loadIntelTracking() {
+        const days = document.getElementById("icTrackingDays")?.value || 7;
+        const container = document.getElementById("icTrackingBody");
+        if (!container) return;
+
+        container.innerHTML =
+          '<div style="text-align:center;padding:3rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#ef4444;"></i><p style="color:#94a3b8;margin-top:1rem;">Memuat data pelacakan...</p></div>';
+
+        try {
+          const res = await fetch("/api/intel/tracking?days=" + days);
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          renderIntelTracking(json.data, container);
+        } catch (err) {
+          container.innerHTML =
+            '<div style="text-align:center;padding:2rem;color:#f87171;"><i class="fas fa-exclamation-triangle fa-2x"></i><p style="margin-top:0.5rem;">' +
+            err.message +
+            "</p></div>";
+        }
+      }
+
+      function renderIntelTracking(data, container) {
+        const fmtDate = (dt) => {
+          if (!dt) return "-";
+          try {
+            return new Date(dt).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+          } catch (e) {
+            return dt;
+          }
+        };
+        let html = "";
+
+        // Summary stats
+        html +=
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;margin-bottom:1.25rem;">';
+        html +=
+          '<div class="ic-stat-card"><div class="ic-stat-value">' +
+          (data.recent_flights?.length || 0) +
+          '</div><div class="ic-stat-label">Penerbangan Terkini</div></div>';
+        html +=
+          '<div class="ic-stat-card" style="background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(239,68,68,0.04));border-color:rgba(239,68,68,0.2);"><div class="ic-stat-value" style="background:linear-gradient(135deg,#f87171,#ef4444);-webkit-background-clip:text;">' +
+          (data.suspect_hits?.length || 0) +
+          '</div><div class="ic-stat-label">⚠ Suspect Hits</div></div>';
+        html +=
+          '<div class="ic-stat-card" style="background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(234,179,8,0.04));border-color:rgba(234,179,8,0.2);"><div class="ic-stat-value" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;">' +
+          (data.billing_alerts?.length || 0) +
+          '</div><div class="ic-stat-label">Billing Alerts</div></div>';
+        html +=
+          '<div class="ic-stat-card" style="background:linear-gradient(135deg,rgba(168,85,247,0.12),rgba(168,85,247,0.04));border-color:rgba(168,85,247,0.2);"><div class="ic-stat-value" style="background:linear-gradient(135deg,#c084fc,#a855f7);-webkit-background-clip:text;">' +
+          (data.bulk_device_alerts?.length || 0) +
+          '</div><div class="ic-stat-label">Bulk Device</div></div>';
+        html += "</div>";
+
+        // Suspect Hits (most critical — RED)
+        if (data.suspect_hits?.length) {
+          html +=
+            '<div class="ic-section" style="border:1px solid rgba(239,68,68,0.3);margin-bottom:1rem;">';
+          html +=
+            '<div class="ic-section-title"><i class="fas fa-skull-crossbones" style="color:#ef4444;"></i> Suspect Hits — Penumpang Atensi Terdeteksi</div>';
+          for (const h of data.suspect_hits) {
+            html +=
+              '<div class="ic-tracking-card" style="border-left:3px solid #ef4444;margin-bottom:0.5rem;cursor:pointer;" onclick="loadIntelDossierFromTracking(\'' +
+              (h.passport || "").replace(/'/g, "\\'") +
+              "')\">";
+            html +=
+              '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">';
+            html +=
+              '<div><div style="font-weight:700;color:#f87171;">' +
+              (h.name || "-") +
+              "</div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;">' +
+              (h.passport || "-") +
+              " · Seat: " +
+              (h.seat_no || "-") +
+              "</div></div>";
+            html +=
+              '<div style="text-align:right;"><div style="font-weight:600;color:#fbbf24;">' +
+              (h.flight_number || "-") +
+              "</div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.75rem;">' +
+              fmtDate(h.flight_date) +
+              "</div></div>";
+            html += "</div>";
+            if (h.suspect) {
+              html +=
+                '<div style="margin-top:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">';
+              if (h.suspect.risk_level)
+                html +=
+                  '<span class="ic-badge ' +
+                  (h.suspect.risk_level === "HIGH"
+                    ? "ic-badge-red"
+                    : h.suspect.risk_level === "MEDIUM"
+                      ? "ic-badge-yellow"
+                      : "ic-badge-green") +
+                  '">' +
+                  h.suspect.risk_level +
+                  "</span>";
+              if (h.suspect.categories?.length)
+                h.suspect.categories.forEach((c) => {
+                  html +=
+                    '<span class="ic-badge ic-badge-purple">' + c + "</span>";
+                });
+              html += "</div>";
+            }
+            html += "</div>";
+          }
+          html += "</div>";
+        }
+
+        // Active Suspects
+        if (data.active_suspects?.length) {
+          html += '<div class="ic-section" style="margin-bottom:1rem;">';
+          html +=
+            '<div class="ic-section-title"><i class="fas fa-user-secret" style="color:#f87171;"></i> Suspect Aktif (' +
+            data.active_suspects.length +
+            ")</div>";
+          html +=
+            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.75rem;">';
+          for (const s of data.active_suspects) {
+            html +=
+              '<div class="ic-tracking-card" style="cursor:pointer;" onclick="loadIntelDossierFromTracking(\'' +
+              (s.passport || "").replace(/'/g, "\\'") +
+              "')\">";
+            html +=
+              '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+            html +=
+              '<div><div style="font-weight:600;color:#e2e8f0;">' +
+              (s.name || "-") +
+              "</div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;">' +
+              (s.passport || "-") +
+              "</div></div>";
+            html +=
+              '<span class="ic-badge ' +
+              (s.risk_level === "HIGH"
+                ? "ic-badge-red"
+                : s.risk_level === "MEDIUM"
+                  ? "ic-badge-yellow"
+                  : "ic-badge-green") +
+              '">' +
+              (s.risk_level || "-") +
+              "</span>";
+            html += "</div>";
+            if (s.categories?.length) {
+              html +=
+                '<div style="margin-top:0.5rem;display:flex;gap:0.3rem;flex-wrap:wrap;">';
+              s.categories.forEach((c) => {
+                html +=
+                  '<span class="ic-badge ic-badge-purple" style="font-size:0.6rem;">' +
+                  c +
+                  "</span>";
+              });
+              html += "</div>";
+            }
+            html += "</div>";
+          }
+          html += "</div></div>";
+        }
+
+        // Billing Alerts
+        if (data.billing_alerts?.length) {
+          html += '<div class="ic-section" style="margin-bottom:1rem;">';
+          html +=
+            '<div class="ic-section-title"><i class="fas fa-money-bill-wave" style="color:#fbbf24;"></i> Billing Alerts</div>';
+          html +=
+            '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.85rem;">';
+          html +=
+            '<thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#64748b;text-align:left;"><th style="padding:0.5rem;">Nama</th><th>Paspor</th><th>Perangkat</th><th style="text-align:right;">USD</th><th style="text-align:right;">Pungutan</th><th>Tanggal</th><th>Kantor</th></tr></thead>';
+          html += "<tbody>";
+          for (const b of data.billing_alerts) {
+            html +=
+              '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;" onclick="loadIntelDossierFromTracking(\'' +
+              (b.passport || "").replace(/'/g, "\\'") +
+              "')\">";
+            html +=
+              '<td style="padding:0.5rem;color:#e2e8f0;">' +
+              (b.name || "-") +
+              "</td>";
+            html +=
+              '<td style="color:#94a3b8;">' + (b.passport || "-") + "</td>";
+            html += '<td style="color:#60a5fa;">' + (b.device || "-") + "</td>";
+            html +=
+              '<td style="text-align:right;color:#fbbf24;font-weight:600;">$' +
+              (b.harga_usd || 0).toLocaleString() +
+              "</td>";
+            html +=
+              '<td style="text-align:right;color:#f87171;font-weight:600;">Rp ' +
+              (b.total_pungutan || 0).toLocaleString() +
+              "</td>";
+            html +=
+              '<td style="color:#94a3b8;">' + fmtDate(b.tanggal) + "</td>";
+            html +=
+              '<td style="color:#94a3b8;font-size:0.75rem;">' +
+              (b.kantor || "-") +
+              "</td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table></div></div>";
+        }
+
+        // Bulk Device Alerts
+        if (data.bulk_device_alerts?.length) {
+          html += '<div class="ic-section" style="margin-bottom:1rem;">';
+          html +=
+            '<div class="ic-section-title"><i class="fas fa-boxes" style="color:#c084fc;"></i> Anomali Perangkat — Bawa ≥3 unit</div>';
+          html +=
+            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:0.75rem;">';
+          for (const d of data.bulk_device_alerts) {
+            html +=
+              '<div class="ic-tracking-card" style="cursor:pointer;" onclick="loadIntelDossierFromTracking(\'' +
+              (d.passport || "").replace(/'/g, "\\'") +
+              "')\">";
+            html +=
+              '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+            html +=
+              '<div><div style="font-weight:600;color:#e2e8f0;">' +
+              (d.name || "-") +
+              "</div>";
+            html +=
+              '<div style="color:#94a3b8;font-size:0.8rem;">' +
+              (d.passport || "-") +
+              "</div></div>";
+            html +=
+              '<div style="text-align:right;"><div style="font-weight:800;color:#c084fc;font-size:1.3rem;">' +
+              d.total_devices +
+              '</div><div style="color:#64748b;font-size:0.6rem;">PERANGKAT</div></div>';
+            html += "</div>";
+            html +=
+              '<div style="display:flex;justify-content:space-between;margin-top:0.5rem;color:#94a3b8;font-size:0.75rem;">';
+            html +=
+              '<span>Total FOB: <strong style="color:#fbbf24;">$' +
+              (d.total_fob_usd || 0).toLocaleString() +
+              "</strong></span>";
+            html += "<span>" + fmtDate(d.last_date) + "</span>";
+            html += "</div></div>";
+          }
+          html += "</div></div>";
+        }
+
+        // Recent Flights
+        if (data.recent_flights?.length) {
+          html += '<div class="ic-section">';
+          html +=
+            '<div class="ic-section-title"><i class="fas fa-plane" style="color:#60a5fa;"></i> Penerbangan Terkini</div>';
+          html +=
+            '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.85rem;">';
+          html +=
+            '<thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#64748b;text-align:left;"><th style="padding:0.5rem;">No. Penerbangan</th><th>Tanggal</th><th>Rute</th><th>Maskapai</th><th style="text-align:right;">Pax</th><th>Status</th></tr></thead>';
+          html += "<tbody>";
+          for (const f of data.recent_flights) {
+            html +=
+              '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+            html +=
+              '<td style="padding:0.5rem;color:#fbbf24;font-weight:600;">' +
+              (f.flight_number || "-") +
+              "</td>";
+            html +=
+              '<td style="color:#e2e8f0;">' + fmtDate(f.flight_date) + "</td>";
+            html +=
+              '<td style="color:#60a5fa;">' +
+              (f.origin || "?") +
+              " → " +
+              (f.destination || "?") +
+              "</td>";
+            html +=
+              '<td style="color:#94a3b8;">' + (f.carrier || "-") + "</td>";
+            html +=
+              '<td style="text-align:right;color:#e2e8f0;font-weight:600;">' +
+              (f.pax_count || 0) +
+              "</td>";
+            html +=
+              '<td><span class="ic-badge ' +
+              (f.status === "synced" ? "ic-badge-green" : "ic-badge-blue") +
+              '">' +
+              (f.status || "-") +
+              "</span></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table></div></div>";
+        }
+
+        if (
+          !data.suspect_hits?.length &&
+          !data.billing_alerts?.length &&
+          !data.bulk_device_alerts?.length &&
+          !data.recent_flights?.length
+        ) {
+          html +=
+            '<div style="text-align:center;padding:3rem;color:#64748b;"><i class="fas fa-check-circle fa-3x" style="opacity:0.3;"></i><p style="margin-top:1rem;font-size:1.1rem;">Tidak ada alert dalam periode ini</p></div>';
+        }
+
+        container.innerHTML = html;
+      }
+
+      function loadIntelDossierFromTracking(passport) {
+        if (!passport) return;
+        // Switch to search sub-tab and load dossier there
+        setSubMenu("search");
+        setTimeout(() => {
+          loadIntelDossier(passport);
+        }, 100);
+      }
+
+      // ─── Peta Rute (Standalone Route Map) ───
+      function getIntelRouteMapContent() {
+        return `
+        <div class="ic-hero" style="padding:1.5rem;margin-bottom:1rem;">
+          <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+              <div style="width:44px;height:44px;border-radius:1rem;background:linear-gradient(135deg,#ef4444,#f87171);display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-map-marked-alt" style="font-size:1.2rem;color:#fff;"></i>
+              </div>
+              <div>
+                <h2 style="font-size:1.3rem;font-weight:800;color:#fff;margin:0;">Peta Rute Penerbangan</h2>
+                <p style="color:#94a3b8;font-size:0.8rem;margin:0;">Visualisasi rute penerbangan penumpang pada peta interaktif</p>
+              </div>
+            </div>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+              <div style="flex:1;min-width:250px;position:relative;">
+                <i class="fas fa-passport" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#ef4444;"></i>
+                <input type="text" id="icMapPassport" placeholder="Masukkan nomor paspor penumpang..."
+                  style="width:100%;padding:0.75rem 1rem 0.75rem 3rem;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:0.75rem;color:#fff;font-size:0.95rem;outline:none;"
+                  onkeypress="if(event.key==='Enter')loadIntelRouteMap()" onfocus="this.style.borderColor='rgba(239,68,68,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+              </div>
+              <button onclick="loadIntelRouteMap()" style="padding:0.75rem 1.5rem;background:linear-gradient(135deg,#ef4444,#f87171);border:none;border-radius:0.75rem;color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;white-space:nowrap;">
+                <i class="fas fa-map-marked-alt"></i> Tampilkan Peta
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="icRouteMapInfo" style="margin-bottom:0.75rem;"></div>
+        <div class="ic-section" style="padding:0;overflow:hidden;">
+          <div id="icRouteMapContainer" style="height:550px;background:#0f172a;"></div>
+        </div>
+        <div id="icRouteMapStats" style="margin-top:1rem;"></div>
+        `;
+      }
+
+      function initIntelMap() {
+        const mapContainer = document.getElementById("icRouteMapContainer");
+        if (!mapContainer) return;
+        if (mapContainer._leafletMap) {
+          mapContainer._leafletMap.remove();
+          mapContainer._leafletMap = null;
+        }
+        const map = L.map(mapContainer, {
+          zoomControl: true,
+          attributionControl: false,
+          scrollWheelZoom: true,
+        });
+        mapContainer._leafletMap = map;
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          { maxZoom: 18 },
+        ).addTo(map);
+        map.setView([3.6, 103.0], 5);
+
+        // Add KNO marker by default
+        const knoIcon = L.divIcon({
+          className: "",
+          html: '<div style="width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;box-shadow:0 0 15px rgba(239,68,68,0.6);"></div>',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        });
+        L.marker([3.6422, 98.8853], { icon: knoIcon })
+          .addTo(map)
+          .bindPopup(
+            '<div style="color:#000;font-weight:600;">KNO</div><div style="color:#333;font-size:0.8rem;">Kualanamu, Medan</div>',
+          );
+      }
+
+      async function loadIntelRouteMap() {
+        const passport = document
+          .getElementById("icMapPassport")
+          ?.value?.trim();
+        if (!passport || passport.length < 3)
+          return showToast("Masukkan nomor paspor", "warning");
+
+        const info = document.getElementById("icRouteMapInfo");
+        const stats = document.getElementById("icRouteMapStats");
+        if (info)
+          info.innerHTML =
+            '<div style="text-align:center;padding:1rem;"><i class="fas fa-spinner fa-spin" style="color:#ef4444;"></i> Memuat data rute...</div>';
+        if (stats) stats.innerHTML = "";
+
+        try {
+          const res = await fetch(
+            "/api/intel/dossier/" + encodeURIComponent(passport),
+          );
+          const json = await res.json();
+          if (json.status !== "ok" || !json.data?.found)
+            throw new Error("Data tidak ditemukan");
+
+          const d = json.data;
+          const fm = d.flight_map;
+
+          // Update info bar
+          if (info) {
+            info.innerHTML =
+              '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:0.75rem;padding:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;">' +
+              '<div style="display:flex;align-items:center;gap:0.75rem;"><i class="fas fa-user-circle" style="font-size:1.5rem;color:#ef4444;"></i><div><div style="font-weight:700;color:#e2e8f0;">' +
+              (d.identity.name || "-") +
+              '</div><div style="color:#94a3b8;font-size:0.8rem;">' +
+              (d.identity.passport_number || "-") +
+              " · " +
+              (d.identity.nationality || "-") +
+              "</div></div></div>" +
+              '<div style="display:flex;gap:1.5rem;text-align:center;">' +
+              '<div><div style="font-weight:800;color:#ef4444;font-size:1.2rem;">' +
+              (d.summary.total_flights || 0) +
+              '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Penerbangan</div></div>' +
+              '<div><div style="font-weight:800;color:#60a5fa;font-size:1.2rem;">' +
+              (fm.airports?.length || 0) +
+              '</div><div style="color:#64748b;font-size:0.65rem;text-transform:uppercase;">Bandara</div></div>' +
+              '<div><span class="ic-badge ' +
+              (d.risk.level === "HIGH"
+                ? "ic-badge-red"
+                : d.risk.level === "MEDIUM"
+                  ? "ic-badge-yellow"
+                  : "ic-badge-green") +
+              '" style="font-size:0.8rem;padding:0.3rem 0.8rem;">' +
+              d.risk.level +
+              "</span></div>" +
+              "</div></div>";
+          }
+
+          // Render map
+          const mapContainer = document.getElementById("icRouteMapContainer");
+          if (!mapContainer) return;
+          if (mapContainer._leafletMap) {
+            mapContainer._leafletMap.remove();
+            mapContainer._leafletMap = null;
+          }
+
+          const map = L.map(mapContainer, {
+            zoomControl: true,
+            attributionControl: false,
+            scrollWheelZoom: true,
+          });
+          mapContainer._leafletMap = map;
+          L.tileLayer(
+            "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            { maxZoom: 18 },
+          ).addTo(map);
+
+          const bounds = [];
+
+          // Airport markers
+          if (fm.airports?.length) {
+            for (const ap of fm.airports) {
+              const size = Math.min(14 + ap.count * 2, 32);
+              const isHome = ap.code === "KNO";
+              const color = isHome ? "#ef4444" : "#60a5fa";
+              const icon = L.divIcon({
+                className: "",
+                html:
+                  '<div style="width:' +
+                  size +
+                  "px;height:" +
+                  size +
+                  "px;border-radius:50%;background:" +
+                  color +
+                  ";border:2px solid #fff;box-shadow:0 0 12px " +
+                  color +
+                  "88;display:flex;align-items:center;justify-content:center;font-size:" +
+                  (size >= 20 ? "0.55rem" : "0.45rem") +
+                  ';color:#fff;font-weight:bold;">' +
+                  (size >= 16 ? ap.code : "") +
+                  "</div>",
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size / 2],
+              });
+              L.marker([ap.lat, ap.lng], { icon })
+                .addTo(map)
+                .bindPopup(
+                  '<div style="color:#000;font-weight:600;">' +
+                    ap.code +
+                    '</div><div style="color:#333;font-size:0.8rem;">' +
+                    ap.name +
+                    '</div><div style="color:#666;font-size:0.75rem;">' +
+                    ap.count +
+                    " penerbangan</div>",
+                );
+              bounds.push([ap.lat, ap.lng]);
+            }
+          }
+
+          // Route lines with animation
+          if (fm.routes?.length) {
+            const routeCounts = {};
+            for (const r of fm.routes) {
+              const key = [r.from, r.to].sort().join("-");
+              routeCounts[key] = (routeCounts[key] || 0) + 1;
+            }
+            const drawnRoutes = new Set();
+            const routeColors = [
+              "#ef4444",
+              "#f59e0b",
+              "#22c55e",
+              "#6366f1",
+              "#ec4899",
+              "#14b8a6",
+              "#f97316",
+              "#8b5cf6",
+            ];
+            let ci = 0;
+            for (const r of fm.routes) {
+              const key = [r.from, r.to].sort().join("-");
+              if (drawnRoutes.has(key)) continue;
+              drawnRoutes.add(key);
+              const count = routeCounts[key];
+              const weight = Math.min(2 + count, 7);
+              const color = routeColors[ci % routeColors.length];
+              ci++;
+              L.polyline([r.fromCoords, r.toCoords], {
+                color: color,
+                weight: weight,
+                opacity: 0.7,
+                dashArray: count <= 1 ? "5, 10" : null,
+                smoothFactor: 1,
+              })
+                .addTo(map)
+                .bindPopup(
+                  '<div style="color:#000;font-weight:600;">' +
+                    r.from +
+                    " → " +
+                    r.to +
+                    '</div><div style="color:#666;font-size:0.8rem;">' +
+                    count +
+                    " penerbangan</div>",
+                );
+            }
+          }
+
+          if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 });
+          } else {
+            map.setView([1.3, 103.8], 5);
+          }
+
+          // Route stats below map
+          if (stats && d.summary.top_routes?.length) {
+            let sh =
+              '<div class="ic-section"><div class="ic-section-title"><i class="fas fa-chart-bar" style="color:#fbbf24;"></i> Statistik Rute</div>';
+            const maxR = Math.max(...d.summary.top_routes.map((r) => r.count));
+            const routeColors = [
+              "#ef4444",
+              "#f59e0b",
+              "#22c55e",
+              "#6366f1",
+              "#ec4899",
+              "#14b8a6",
+            ];
+            d.summary.top_routes.forEach((r, i) => {
+              const pct = Math.max(15, (r.count / maxR) * 100);
+              const c = routeColors[i % routeColors.length];
+              sh +=
+                '<div class="ic-route-bar" style="width:' +
+                pct +
+                "%;background:linear-gradient(90deg," +
+                c +
+                "," +
+                c +
+                '88);">' +
+                r.route +
+                " (" +
+                r.count +
+                "×)</div>";
+            });
+            sh += "</div>";
+            stats.innerHTML = sh;
+          }
+        } catch (err) {
+          if (info)
+            info.innerHTML =
+              '<div style="text-align:center;padding:1rem;color:#f87171;"><i class="fas fa-exclamation-triangle"></i> ' +
+              err.message +
+              "</div>";
         }
       }
 

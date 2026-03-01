@@ -102,6 +102,9 @@ app.use("/api/scraper", require("./routes/scraper"));
 // Unified Passport Search (Pencarian Terpadu)
 app.use("/api/unified", require("./routes/unified"));
 
+// Intelligence Center (Pusat Intelijen)
+app.use("/api/intel", require("./routes/intel"));
+
 app.get("/api/health", (req, res) => {
   const isDbUp = mongoose.connection.readyState === 1;
   res.status(isDbUp ? 200 : 503).json({
