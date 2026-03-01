@@ -338,35 +338,171 @@ function parseAPISText(rawText = "") {
 // Format: "PASSENGER MANIFEST" dari Lion Air / Batik Air
 // Contoh baris: " 26F  F  ABIDIN LINA MRS   ID X1356564"
 
+// ==================== AIRLINE NAME LOOKUP ====================
+const DCS_AIRLINE_MAP = {
+  "LION AIRLINES": "Lion Air",
+  "LION AIR": "Lion Air",
+  "BATIK AIR": "Batik Air",
+  MALINDO: "Malindo",
+  "MALAYSIA AIRLINES": "Malaysia Airlines",
+  "MALAYSIAN AIRLINE": "Malaysia Airlines",
+  MAS: "Malaysia Airlines",
+  "SINGAPORE AIRLINES": "Singapore Airlines",
+  SIA: "Singapore Airlines",
+  "GARUDA INDONESIA": "Garuda Indonesia",
+  GARUDA: "Garuda Indonesia",
+  CITILINK: "Citilink",
+  "SRIWIJAYA AIR": "Sriwijaya Air",
+  SRIWIJAYA: "Sriwijaya Air",
+  "NAM AIR": "NAM Air",
+  "WINGS AIR": "Wings Air",
+  "SUPER AIR JET": "Super Air Jet",
+  TRANSNUSA: "TransNusa",
+  "PELITA AIR": "Pelita Air",
+  "THAI LION AIR": "Thai Lion Air",
+  "THAI LION": "Thai Lion Air",
+  FIREFLY: "Firefly",
+  "SILK AIR": "SilkAir",
+  SILKAIR: "SilkAir",
+  SCOOT: "Scoot",
+  "CATHAY PACIFIC": "Cathay Pacific",
+  "THAI AIRWAYS": "Thai Airways",
+  "KOREAN AIR": "Korean Air",
+  "CHINA AIRLINES": "China Airlines",
+  EMIRATES: "Emirates",
+  "QATAR AIRWAYS": "Qatar Airways",
+  "JETSTAR ASIA": "Jetstar Asia",
+  JETSTAR: "Jetstar",
+  "CEBU PACIFIC": "Cebu Pacific",
+  AIRASIA: "AirAsia",
+  "AIR ASIA": "AirAsia",
+  "PHILIPPINE AIRLINES": "Philippine Airlines",
+  "JAPAN AIRLINES": "Japan Airlines",
+  "ALL NIPPON": "ANA",
+  "TURKISH AIRLINES": "Turkish Airlines",
+  "ETIHAD AIRWAYS": "Etihad Airways",
+  "ROYAL BRUNEI": "Royal Brunei",
+  SAUDIA: "Saudia",
+  "ETHIOPIAN AIRLINES": "Ethiopian Airlines",
+  "VIETJET AIR": "VietJet Air",
+  VIETJET: "VietJet Air",
+};
+
+const IATA_CARRIER_MAP = {
+  JT: "Lion Air",
+  ID: "Batik Air",
+  IW: "Wings Air",
+  OD: "Malindo",
+  MH: "Malaysia Airlines",
+  SQ: "Singapore Airlines",
+  GA: "Garuda Indonesia",
+  QG: "Citilink",
+  SJ: "Sriwijaya Air",
+  IN: "NAM Air",
+  IU: "Super Air Jet",
+  "8B": "TransNusa",
+  IP: "Pelita Air",
+  SL: "Thai Lion Air",
+  MI: "SilkAir",
+  TR: "Scoot",
+  CX: "Cathay Pacific",
+  TG: "Thai Airways",
+  KE: "Korean Air",
+  CI: "China Airlines",
+  EK: "Emirates",
+  QR: "Qatar Airways",
+  "3K": "Jetstar Asia",
+  JQ: "Jetstar",
+  "5J": "Cebu Pacific",
+  QZ: "AirAsia Indonesia",
+  AK: "AirAsia",
+  PR: "Philippine Airlines",
+  JL: "Japan Airlines",
+  NH: "ANA",
+  TK: "Turkish Airlines",
+  EY: "Etihad Airways",
+  BI: "Royal Brunei",
+  SV: "Saudia",
+  ET: "Ethiopian Airlines",
+  VJ: "VietJet Air",
+};
+
+function detectCarrierFromText(lines) {
+  // Search first 15 lines for airline name
+  const headerLines = lines.slice(0, 15).map((l) => l.trim().toUpperCase());
+  for (const headerLine of headerLines) {
+    for (const [keyword, name] of Object.entries(DCS_AIRLINE_MAP)) {
+      if (headerLine.includes(keyword.toUpperCase())) return name;
+    }
+  }
+  return null;
+}
+
 function parseLionAirManifest(rawText = "") {
   const lines = rawText.split(/\r?\n/);
-  const isLionManifest =
-    lines.some((l) => /PASSENGER MANIFEST/i.test(l)) &&
-    lines.some((l) => /LION AIRLINES|BATIK AIR|MALINDO/i.test(l));
-  if (!isLionManifest) return null;
+
+  // Accept ANY airline that uses the standard DCS "PASSENGER MANIFEST" format
+  const isManifest = lines.some((l) => /PASSENGER MANIFEST/i.test(l));
+  if (!isManifest) return null;
 
   let flightNumber = null;
   let flightDate = null;
   let origin = null;
   let destination = null;
-  let carrier = null;
+  let carrier = detectCarrierFromText(lines);
 
   for (const line of lines) {
-    if (/LION AIRLINES/i.test(line)) carrier = "Lion Air";
-    if (/BATIK AIR/i.test(line)) carrier = "Batik Air";
-    if (/MALINDO/i.test(line)) carrier = "Malindo";
-
+    // FLIGHT/DATE - JT  0133 09FEB26   or   FLIGHT/DATE - MH 0872 12FEB26
     const fltMatch = line.match(
       /FLIGHT\/DATE\s*-\s*([A-Z0-9]{2})\s*(\d{3,4})\s+(\d{2}[A-Za-z]{3}\d{2})/i,
     );
     if (fltMatch) {
       flightNumber = `${fltMatch[1]} ${fltMatch[2]}`;
       flightDate = parseFlightDate(fltMatch[3]);
+      // Derive carrier from IATA code if not yet found
+      if (!carrier) {
+        carrier = IATA_CARRIER_MAP[fltMatch[1].toUpperCase()] || fltMatch[1];
+      }
     }
     const fromMatch = line.match(/^FROM\s+(.+?)(?:\s{5,}|$)/i);
     if (fromMatch && !origin) origin = fromMatch[1].trim().slice(0, 3);
     const toMatch = line.match(/^TO\s+(.+?)(?:\s{5,}|$)/i);
     if (toMatch && !destination) destination = toMatch[1].trim().slice(0, 3);
+  }
+
+  // Also detect destination from city lines below FROM (e.g. "MEDAN KUALA NAMU-INDONESIA")
+  // In standard DCS, the line after FROM contains the destination city with IATA code at start or end
+  if (!destination) {
+    const fromIdx = lines.findIndex((l) => /^FROM\s+/i.test(l));
+    if (fromIdx >= 0) {
+      // Look up to 3 lines below FROM for destination city or IATA code
+      for (let j = fromIdx + 1; j < Math.min(fromIdx + 4, lines.length); j++) {
+        const cityLine = lines[j].trim();
+        if (!cityLine || /^SEAT\s+GEN/i.test(cityLine)) break;
+        // Try to extract 3-letter IATA from line like "MEDAN KUALA NAMU-INDONESIA"
+        // or "TO  KUALA LUMPUR" or just look for known patterns
+        const iataMatch = cityLine.match(/\b([A-Z]{3})\b/);
+        if (iataMatch && cityLine.length > 5) {
+          // Use flight number destination code if available from route
+          // Otherwise attempt to use first 3 chars
+          destination = cityLine.slice(0, 3).toUpperCase();
+          // Better: check if there's a .TO SEE BELOW pattern
+          if (/TO SEE BELOW/i.test(cityLine)) continue;
+          break;
+        }
+      }
+    }
+  }
+
+  // Extract destination from TOTAL line: "TOTAL KNO  PASSENGER"
+  if (!destination) {
+    for (const line of lines) {
+      const totalDest = line.match(/^TOTAL\s+([A-Z]{3})\s+PASSENGER/i);
+      if (totalDest) {
+        destination = totalDest[1];
+        break;
+      }
+    }
   }
 
   const passengers = [];
@@ -379,21 +515,30 @@ function parseLionAirManifest(rawText = "") {
     }
     if (!inPaxSection) continue;
     if (!line.trim()) continue;
+    // Stop at total line
+    if (/^TOTAL\s+[A-Z]{3}\s+PASSENGER/i.test(line.trim())) break;
+    if (/^TOTAL\s+PASSENGER/i.test(line.trim())) break;
+
+    // Skip INFT lines (infant linked to previous passenger)
+    if (/^\s*INFT:/i.test(line.trim())) continue;
 
     // Format: " 26F  F  ABIDIN LINA MRS                         ID X1356564"
+    // Also handle: "12A  I  HARVEY LOUIS                            IDNX4813727"
     const paxMatch = line.match(
-      /^\s*(\d+[A-Z])\s+([MFImfi])\s+(.+?)\s{3,}([A-Z]{2})\s*([A-Z0-9]+)\s*[¥*]?\s*$/,
+      /^\s*(\d+[A-Z])\s+([MFImfi])\s+(.+?)\s{2,}([A-Z]{2,3})\s*([A-Z0-9]+)\s*[¥*]?\s*$/,
     );
     if (paxMatch) {
       const seat = paxMatch[1].trim();
       const gender =
         paxMatch[2].toUpperCase() === "I" ? "I" : paxMatch[2].toUpperCase();
       const name = paxMatch[3]
-        .replace(/\s+(MR|MRS|MISS|MS|MSTR|DR)\.?\s*$/i, "")
+        .replace(/\s+(MR|MRS|MISS|MS|MSTR|DR|BINT|MIS)\.?\s*$/i, "")
         .trim();
-      const nationality = paxMatch[4].trim();
+      const natDoc = paxMatch[4].trim();
       const docNumber = paxMatch[5].trim();
-      const status = gender === "I" ? "checked_in" : "checked_in";
+
+      // natDoc can be 2-char ("ID", "MY", "SG") or 3-char ("IDN")
+      const nationality = natDoc.length === 3 ? natDoc.slice(0, 2) : natDoc;
 
       passengers.push({
         seat_no: seat,
@@ -402,7 +547,37 @@ function parseLionAirManifest(rawText = "") {
         nationality,
         passport_number: docNumber,
         doc_type: "P",
-        status,
+        status: "checked_in",
+        raw_line: line.trim(),
+      });
+      continue;
+    }
+
+    // Fallback: looser pattern for lines with truncated names or unusual spacing
+    const fallbackMatch = line.match(
+      /^\s*(\d+[A-Z])\s+([MFImfi])\s+(.{5,}?)\s+([A-Z]{2,3})\s*([A-Z0-9]{5,})\s*[¥*]?\s*$/,
+    );
+    if (fallbackMatch) {
+      const seat = fallbackMatch[1].trim();
+      const gender =
+        fallbackMatch[2].toUpperCase() === "I"
+          ? "I"
+          : fallbackMatch[2].toUpperCase();
+      const name = fallbackMatch[3]
+        .replace(/\s+(MR|MRS|MISS|MS|MSTR|DR|BINT|MIS)\.?\s*$/i, "")
+        .trim();
+      const natDoc = fallbackMatch[4].trim();
+      const nationality = natDoc.length === 3 ? natDoc.slice(0, 2) : natDoc;
+      const docNumber = fallbackMatch[5].trim();
+
+      passengers.push({
+        seat_no: seat,
+        gender,
+        name,
+        nationality,
+        passport_number: docNumber,
+        doc_type: "P",
+        status: "checked_in",
         raw_line: line.trim(),
       });
     }
@@ -410,8 +585,43 @@ function parseLionAirManifest(rawText = "") {
 
   if (!passengers.length) return null;
 
+  // Extract totals from footer: "MALE- 50  FEMALE- 80  INFANT-  2    TOTAL PAX-132"
+  let totalMale = 0,
+    totalFemale = 0,
+    totalInfant = 0,
+    totalPax = 0;
+  for (const line of lines) {
+    const totMatch = line.match(
+      /MALE-\s*(\d+)\s+FEMALE-\s*(\d+)\s+INFANT-\s*(\d+)\s+TOTAL PAX-\s*(\d+)/i,
+    );
+    if (totMatch) {
+      totalMale = Number(totMatch[1]);
+      totalFemale = Number(totMatch[2]);
+      totalInfant = Number(totMatch[3]);
+      totalPax = Number(totMatch[4]);
+    }
+  }
+
+  // Determine format name based on carrier
+  let formatName = "dcs_manifest";
+  if (
+    carrier === "Lion Air" ||
+    carrier === "Batik Air" ||
+    carrier === "Wings Air"
+  )
+    formatName = "lion_manifest";
+  else if (carrier === "Malaysia Airlines") formatName = "mh_manifest";
+  else if (
+    carrier === "Singapore Airlines" ||
+    carrier === "SilkAir" ||
+    carrier === "Scoot"
+  )
+    formatName = "sq_manifest";
+  else if (carrier === "Garuda Indonesia" || carrier === "Citilink")
+    formatName = "ga_manifest";
+
   return {
-    format: "lion_manifest",
+    format: formatName,
     flight_number: flightNumber,
     flight_date: flightDate,
     origin,
@@ -419,6 +629,12 @@ function parseLionAirManifest(rawText = "") {
     carrier,
     passengers,
     no_shows: [],
+    totals: {
+      male: totalMale,
+      female: totalFemale,
+      infant: totalInfant,
+      total_passengers: totalPax || passengers.length,
+    },
   };
 }
 
@@ -747,26 +963,292 @@ function classifyByFilename(filename = "") {
   return nonManifest[prefix] || null;
 }
 
-// ==================== FORMAT DETECTOR ====================
+// ==================== CSV MANIFEST PARSER ====================
+// Handles CSV/TSV manifests from any airline (column-based with headers)
 
-function detectAndParseText(rawText = "", filename = "") {
-  // Coba APIS dulu (paling informatif)
+function parseCSVManifest(rawText = "", filename = "") {
+  if (!/\.csv$/i.test(filename)) return null;
+
+  const lines = rawText.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return null;
+
+  // Detect delimiter (comma, semicolon, tab)
+  const firstLine = lines[0];
+  let delimiter = ",";
+  if (firstLine.split("\t").length > firstLine.split(",").length)
+    delimiter = "\t";
+  else if (firstLine.split(";").length > firstLine.split(",").length)
+    delimiter = ";";
+
+  const headers = lines[0]
+    .split(delimiter)
+    .map((h) => h.trim().toLowerCase().replace(/["']/g, ""));
+  if (headers.length < 3) return null;
+
+  // Map common column names to our fields
+  const FIELD_MAP = {
+    name: [
+      "name",
+      "nama",
+      "passenger_name",
+      "passenger",
+      "pax_name",
+      "full_name",
+      "fullname",
+    ],
+    pnr: ["pnr", "booking_ref", "booking", "reservation", "booking_code"],
+    seat: ["seat", "seat_no", "seat_number", "kursi"],
+    gender: ["gender", "sex", "jenis_kelamin", "gen", "g"],
+    nationality: [
+      "nationality",
+      "nat",
+      "kebangsaan",
+      "kewarganegaraan",
+      "ctry",
+      "country",
+    ],
+    passport: [
+      "passport",
+      "passport_number",
+      "doc_number",
+      "document_number",
+      "doc_no",
+      "paspor",
+    ],
+    flight: ["flight", "flight_number", "flight_no", "flt", "penerbangan"],
+    date: ["date", "flight_date", "tanggal", "tgl", "departure_date"],
+    origin: ["origin", "from", "departure", "dep", "asal"],
+    destination: ["destination", "dest", "to", "arrival", "arr", "tujuan"],
+    dob: ["dob", "date_of_birth", "birth_date", "tgl_lahir"],
+    ticket: ["ticket", "ticket_number", "tkt"],
+    status: ["status", "boarding_status"],
+  };
+
+  function findColumn(fieldNames) {
+    for (const fn of fieldNames) {
+      const idx = headers.indexOf(fn);
+      if (idx >= 0) return idx;
+      // Partial match
+      const partial = headers.findIndex(
+        (h) => h.includes(fn) || fn.includes(h),
+      );
+      if (partial >= 0) return partial;
+    }
+    return -1;
+  }
+
+  const colMap = {};
+  for (const [field, aliases] of Object.entries(FIELD_MAP)) {
+    colMap[field] = findColumn(aliases);
+  }
+
+  // Must have at least a name column
+  if (colMap.name < 0) return null;
+
+  const passengers = [];
+  let flightNumber = null;
+  let flightDate = null;
+  let origin = null;
+  let destination = null;
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i]
+      .split(delimiter)
+      .map((c) => c.trim().replace(/^"|"$/g, ""));
+    const name = cols[colMap.name] || "";
+    if (!name || name.length < 2) continue;
+
+    const pax = {
+      name,
+      status: "checked_in",
+      raw_line: lines[i],
+      row_index: i,
+    };
+
+    if (colMap.pnr >= 0) pax.pnr = cols[colMap.pnr] || null;
+    if (colMap.seat >= 0) pax.seat_no = cols[colMap.seat] || null;
+    if (colMap.gender >= 0)
+      pax.gender = (cols[colMap.gender] || "").toUpperCase().charAt(0) || null;
+    if (colMap.nationality >= 0)
+      pax.nationality = cols[colMap.nationality] || null;
+    if (colMap.passport >= 0)
+      pax.passport_number = cols[colMap.passport] || null;
+    if (colMap.dob >= 0) pax.date_of_birth = cols[colMap.dob] || null;
+    if (colMap.ticket >= 0) pax.ticket_number = cols[colMap.ticket] || null;
+    if (colMap.status >= 0)
+      pax.status = (cols[colMap.status] || "checked_in").toLowerCase();
+
+    // Extract flight info from first valid row
+    if (!flightNumber && colMap.flight >= 0)
+      flightNumber = cols[colMap.flight] || null;
+    if (!flightDate && colMap.date >= 0) {
+      const dt = cols[colMap.date];
+      if (dt) flightDate = parseFlightDate(dt) || new Date(dt) || null;
+    }
+    if (!origin && colMap.origin >= 0) origin = cols[colMap.origin] || null;
+    if (!destination && colMap.destination >= 0)
+      destination = cols[colMap.destination] || null;
+
+    passengers.push(pax);
+  }
+
+  if (!passengers.length) return null;
+
+  return {
+    format: "csv_manifest",
+    flight_number: flightNumber,
+    flight_date: flightDate,
+    origin,
+    destination,
+    carrier: null,
+    passengers,
+    no_shows: [],
+  };
+}
+
+// ==================== XLS/XLSX MANIFEST PARSER ====================
+// Parse Excel files using the xlsx package
+
+function parseXLSXManifest(buffer, filename = "") {
+  if (!/\.(xls|xlsx)$/i.test(filename)) return null;
+
+  let XLSX;
+  try {
+    XLSX = require("xlsx");
+  } catch {
+    console.warn("[Manifest] xlsx package not available for Excel parsing");
+    return null;
+  }
+
+  let workbook;
+  try {
+    workbook = XLSX.read(buffer, { type: "buffer" });
+  } catch (err) {
+    console.warn("[Manifest] Failed to read Excel file:", err.message);
+    return null;
+  }
+
+  // Try each sheet
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const csvText = XLSX.utils.sheet_to_csv(sheet);
+    if (!csvText || csvText.trim().length < 20) continue;
+
+    // First try CSV parser
+    const csvResult = parseCSVManifest(csvText, "manifest.csv");
+    if (csvResult && csvResult.passengers.length > 0) {
+      csvResult.format = "xlsx_manifest";
+      return csvResult;
+    }
+
+    // Then try all text-based parsers on the converted text
+    const textResult = detectAndParseTextOnly(csvText, filename);
+    if (textResult) {
+      textResult.format = "xlsx_" + textResult.format;
+      return textResult;
+    }
+  }
+
+  return null;
+}
+
+// ==================== GENERIC FALLBACK TEXT PARSER ====================
+// Best-effort parser for unrecognized manifest formats
+// Tries to find passenger-like lines with names + document numbers
+
+function parseGenericManifest(rawText = "") {
+  const lines = rawText.split(/\r?\n/);
+  const passengers = [];
+
+  let flightNumber = null;
+  let flightDate = null;
+  let origin = null;
+  let destination = null;
+  let carrier = null;
+
+  // Try to extract flight info from common patterns
+  for (const line of lines) {
+    if (!flightNumber) {
+      // Pattern: "Flight: XX 1234" or "Flight No: XX1234" or "FLT: XX 1234"
+      const fltMatch = line.match(
+        /(?:Flight|FLT|Penerbangan)[:\s#]*\s*([A-Z]{2})\s*(\d{2,4})/i,
+      );
+      if (fltMatch) {
+        flightNumber = `${fltMatch[1]} ${fltMatch[2]}`;
+        carrier = IATA_CARRIER_MAP[fltMatch[1].toUpperCase()] || null;
+      }
+    }
+    if (!flightDate) {
+      const dateMatch = line.match(/(\d{2}[A-Za-z]{3}\d{2})/);
+      if (dateMatch) flightDate = parseFlightDate(dateMatch[1]);
+    }
+    if (!origin) {
+      const routeMatch = line.match(/([A-Z]{3})\s*[-–>]+\s*([A-Z]{3})/);
+      if (routeMatch) {
+        origin = routeMatch[1];
+        destination = routeMatch[2];
+      }
+    }
+  }
+
+  // Try to find passenger data lines
+  // Pattern 1: "NUM  NAME  <spaces>  PASSPORT/DOC"
+  // Pattern 2: Lines with passport-like numbers (letter + 6-9 digits)
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length < 10) continue;
+
+    // Skip obvious header/footer lines
+    if (/^(#|No|Cnt|Seat|---)/i.test(trimmed)) continue;
+    if (/^(Total|MALE|FEMALE|Page|Printed)/i.test(trimmed)) continue;
+
+    // Pattern: sequence + name + passport number
+    const seqNameDoc = trimmed.match(
+      /^\s*(\d{1,4})[.)\s]+([A-Za-z][A-Za-z\s,/.-]{3,40})\s{2,}.*?([A-Z]\d{6,9}|\d{9,})\s*$/,
+    );
+    if (seqNameDoc) {
+      const name = seqNameDoc[2]
+        .replace(/\s+(MR|MRS|MISS|MS|MSTR|DR)\.?\s*$/i, "")
+        .trim();
+      passengers.push({
+        seq_no: Number(seqNameDoc[1]),
+        name,
+        passport_number: seqNameDoc[3],
+        status: "checked_in",
+        raw_line: trimmed,
+      });
+    }
+  }
+
+  if (passengers.length < 3) return null; // Need at least 3 passengers to consider valid
+
+  return {
+    format: "generic_manifest",
+    flight_number: flightNumber,
+    flight_date: flightDate,
+    origin,
+    destination,
+    carrier,
+    passengers,
+    no_shows: [],
+  };
+}
+
+// ==================== FORMAT DETECTOR (text-only, no XLS) ====================
+
+function detectAndParseTextOnly(rawText = "", filename = "") {
   const apis = parseAPISText(rawText);
   if (apis) return apis;
 
-  // Coba ENH Enhanced Manifest
   const enh = parseENHManifest(rawText);
   if (enh) return enh;
 
-  // Coba Lion Air Manifest
-  const lion = parseLionAirManifest(rawText);
-  if (lion) return lion;
+  const dcs = parseLionAirManifest(rawText);
+  if (dcs) return dcs;
 
-  // Coba AirAsia Baggage List
   const bag = parseBaggageList(rawText);
   if (bag) return bag;
 
-  // Fallback ke AirAsia PAX format (sudah ada)
   const segments = parseManifestText(rawText);
   if (segments.length) {
     const summary = buildManifestSummary(segments);
@@ -779,7 +1261,19 @@ function detectAndParseText(rawText = "", filename = "") {
     };
   }
 
+  const csv = parseCSVManifest(rawText, filename);
+  if (csv) return csv;
+
+  const generic = parseGenericManifest(rawText);
+  if (generic) return generic;
+
   return null;
+}
+
+// ==================== FORMAT DETECTOR (main) ====================
+
+function detectAndParseText(rawText = "", filename = "") {
+  return detectAndParseTextOnly(rawText, filename);
 }
 
 module.exports = {
@@ -790,6 +1284,12 @@ module.exports = {
   parseLionAirManifest,
   parseENHManifest,
   parseBaggageList,
+  parseCSVManifest,
+  parseXLSXManifest,
+  parseGenericManifest,
   classifyByFilename,
   detectAndParseText,
+  detectAndParseTextOnly,
+  IATA_CARRIER_MAP,
+  DCS_AIRLINE_MAP,
 };

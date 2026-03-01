@@ -6,6 +6,7 @@ const {
   getFileType,
   detectAndParseText,
   classifyByFilename,
+  parseXLSXManifest,
 } = require("./manifestService");
 const { notifyManifestReceived } = require("./notificationService");
 
@@ -68,38 +69,38 @@ async function createManifestFromFile({
   });
 
   const isTextBased = ["txt", "csv", "pdf", "docx"].includes(fileType);
+  const isExcel = ["xls", "xlsx"].includes(fileType);
+
+  let parsed = null;
 
   if (isTextBased) {
     const rawText = await extractText(buffer, fileType);
-    const parsed = detectAndParseText(rawText, filename);
-
-    if (parsed) {
-      manifest.parsed_fields = {
-        format: parsed.format,
-        segments: parsed.segments || [],
-        passengers: parsed.passengers || [],
-        no_shows: parsed.no_shows || [],
-      };
-      manifest.status = "parsed";
-      manifest.flight_number = parsed.flight_number || null;
-      manifest.flight_date = parsed.flight_date || null;
-      manifest.origin = parsed.origin || null;
-      manifest.destination = parsed.destination || null;
-      manifest.carrier = parsed.carrier || null;
-    } else {
-      // Try filename-based classification for non-manifest docs
-      const docClass = classifyByFilename(filename);
-      if (docClass) {
-        manifest.status = "classified";
-        manifest.parsing_notes = `Dokumen operasional: ${docClass}. Bukan manifest penumpang.`;
-        manifest.parsed_fields = { format: docClass, doc_type: docClass };
-      } else {
-        manifest.status = "needs_review";
-        manifest.parsing_notes = `Format tidak dikenali (${fileType}). Perlu review manual.`;
-      }
+    parsed = detectAndParseText(rawText, filename);
+  } else if (isExcel) {
+    // Parse XLS/XLSX using xlsx package
+    try {
+      parsed = parseXLSXManifest(buffer, filename);
+    } catch (err) {
+      console.warn(`[Manifest Ingest] Excel parse gagal: ${err.message}`);
     }
+  }
+
+  if (parsed) {
+    manifest.parsed_fields = {
+      format: parsed.format,
+      segments: parsed.segments || [],
+      passengers: parsed.passengers || [],
+      no_shows: parsed.no_shows || [],
+      totals: parsed.totals || null,
+    };
+    manifest.status = "parsed";
+    manifest.flight_number = parsed.flight_number || null;
+    manifest.flight_date = parsed.flight_date || null;
+    manifest.origin = parsed.origin || null;
+    manifest.destination = parsed.destination || null;
+    manifest.carrier = parsed.carrier || null;
   } else {
-    // For unsupported file types, try filename classification first
+    // Try filename-based classification for non-manifest docs
     const docClass = classifyByFilename(filename);
     if (docClass) {
       manifest.status = "classified";
@@ -107,7 +108,11 @@ async function createManifestFromFile({
       manifest.parsed_fields = { format: docClass, doc_type: docClass };
     } else {
       manifest.status = "needs_review";
-      manifest.parsing_notes = `Format ${fileType} tidak didukung untuk parsing otomatis.`;
+      manifest.parsing_notes = isExcel
+        ? `Format Excel (${fileType}) tidak berhasil di-parsing. Perlu review manual.`
+        : isTextBased
+          ? `Format tidak dikenali (${fileType}). Perlu review manual.`
+          : `Format ${fileType} tidak didukung untuk parsing otomatis.`;
     }
   }
 

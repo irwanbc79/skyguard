@@ -162,6 +162,7 @@ router.post("/bulk-reparse", async (req, res) => {
     const {
       detectAndParseText,
       classifyByFilename,
+      parseXLSXManifest,
     } = require("../services/manifestService");
 
     const manifests = await Manifest.find({ status: "needs_review" }).lean();
@@ -196,8 +197,16 @@ router.post("/bulk-reparse", async (req, res) => {
         }
 
         let rawText = "";
+        let parsed = null;
         const ext = (m.file_type || "").toLowerCase();
-        if (ext === "pdf") {
+        if (ext === "xls" || ext === "xlsx") {
+          try {
+            const buffer = fs.readFileSync(m.file_path);
+            parsed = parseXLSXManifest(buffer, m.filename);
+          } catch (e) {
+            parsed = null;
+          }
+        } else if (ext === "pdf") {
           try {
             const pdfParse = require("pdf-parse");
             const buffer = fs.readFileSync(m.file_path);
@@ -219,7 +228,10 @@ router.post("/bulk-reparse", async (req, res) => {
           rawText = fs.readFileSync(m.file_path, "utf-8");
         }
 
-        const parsed = detectAndParseText(rawText, m.filename);
+        if (!parsed && rawText) {
+          parsed = detectAndParseText(rawText, m.filename);
+        }
+
         if (parsed) {
           const paxCount =
             (parsed.passengers || []).length +
@@ -652,6 +664,7 @@ router.post("/:id/reparse", async (req, res) => {
     const {
       detectAndParseText,
       classifyByFilename,
+      parseXLSXManifest,
     } = require("../services/manifestService");
     const manifest = await Manifest.findById(req.params.id);
     if (!manifest)
@@ -665,8 +678,12 @@ router.post("/:id/reparse", async (req, res) => {
       });
     }
     let rawText = "";
+    let parsed = null;
     const ext = (manifest.file_type || "").toLowerCase();
-    if (ext === "pdf") {
+    if (ext === "xls" || ext === "xlsx") {
+      const buffer = fs.readFileSync(manifest.file_path);
+      parsed = parseXLSXManifest(buffer, manifest.filename);
+    } else if (ext === "pdf") {
       const pdfParse = require("pdf-parse");
       const buffer = fs.readFileSync(manifest.file_path);
       const data = await pdfParse(buffer);
@@ -679,7 +696,9 @@ router.post("/:id/reparse", async (req, res) => {
     } else {
       rawText = fs.readFileSync(manifest.file_path, "utf-8");
     }
-    const parsed = detectAndParseText(rawText, manifest.filename);
+    if (!parsed && rawText) {
+      parsed = detectAndParseText(rawText, manifest.filename);
+    }
     if (!parsed) {
       // Try filename classification
       const docClass = classifyByFilename(manifest.filename);
