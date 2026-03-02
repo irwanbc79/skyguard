@@ -16,6 +16,7 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
       select option {
         background: #1a3a5c;
@@ -591,6 +592,13 @@
           >
             <i class="fas fa-chart-line"></i> DASHBOARD
           </button>
+          <button
+            onclick="setMainMenu('regulasi')"
+            class="main-menu-item menu-regulasi flex items-center gap-2 whitespace-nowrap"
+            data-menu="regulasi"
+          >
+            <i class="fas fa-book-open"></i> REGULASI
+          </button>
         </div>
       </div>
     </nav>
@@ -842,112 +850,152 @@
           </ol>
         </div>
 
-        <!-- KETENTUAN BARANG BAWAAN PENUMPANG -->
-        <div
-          class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700"
-        >
-          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
-            <i class="fas fa-suitcase-rolling text-cyan-400"></i> Ketentuan
-            Barang Bawaan Penumpang
-          </h3>
-          <p class="text-gray-400 text-sm mb-4">
-            Berdasarkan PMK Nomor 34 Tahun 2025 (berlaku sejak 6 Juni 2025)
-          </p>
-          <p class="text-yellow-400 text-xs mb-4 bg-yellow-900/30 p-2 rounded">
-            <i class="fas fa-info-circle mr-1"></i><strong>Catatan:</strong> PPN
-            masih menggunakan tarif 11% sesuai implementasi CEISA saat ini.
-            Tarif PPN 12% sesuai PMK 34/2025 akan diterapkan setelah sistem
-            CEISA diperbarui.
-          </p>
-
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-              <i class="fas fa-gift text-green-400 text-2xl mb-2"></i>
-              <p class="text-2xl font-bold text-white">USD 500</p>
-              <p class="text-gray-400 text-sm">Pembebasan/Orang</p>
-            </div>
-            <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-              <i class="fas fa-percentage text-blue-400 text-2xl mb-2"></i>
-              <p class="text-2xl font-bold text-white">10%</p>
-              <p class="text-gray-400 text-sm">Bea Masuk (Flat)</p>
-            </div>
-            <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-              <i class="fas fa-receipt text-purple-400 text-2xl mb-2"></i>
-              <p class="text-2xl font-bold text-white">11%</p>
-              <p class="text-gray-400 text-sm">PPN</p>
-            </div>
-            <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-              <i class="fas fa-mobile-alt text-orange-400 text-2xl mb-2"></i>
-              <p class="text-2xl font-bold text-white">2 Unit</p>
-              <p class="text-gray-400 text-sm">Max IMEI/Paspor</p>
-            </div>
-          </div>
-
-          <!-- Rumus Perhitungan -->
-          <div class="bg-slate-900/50 rounded-lg p-4 mb-4">
-            <h4 class="text-cyan-400 font-semibold mb-2">
-              <i class="fas fa-calculator mr-2"></i>Rumus Perhitungan:
-            </h4>
-            <div class="text-gray-300 space-y-1 font-mono text-sm">
-              <p>Nilai Pabean = (FOB - USD 500) × Kurs</p>
-              <p>Bea Masuk = 10% × Nilai Pabean</p>
-              <p>PPN = 11% × (Nilai Pabean + Bea Masuk)</p>
-              <p class="text-yellow-400 font-bold">
-                Total Pajak = Bea Masuk + PPN
-              </p>
-            </div>
-          </div>
-
-          <!-- Ketentuan BKC -->
-          <div class="bg-slate-900/50 rounded-lg p-4">
-            <h4 class="text-cyan-400 font-semibold mb-2">
-              <i class="fas fa-smoking mr-2"></i>Barang Kena Cukai (BKC):
-            </h4>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div class="flex items-center gap-2 text-gray-300">
-                <i class="fas fa-smoking text-orange-400"></i>
-                <span>Rokok: <strong>200 batang</strong></span>
-              </div>
-              <div class="flex items-center gap-2 text-gray-300">
-                <i class="fas fa-wine-bottle text-purple-400"></i>
-                <span>Minol: <strong>1 liter</strong></span>
+        <!-- EXECUTIVE COMMAND CENTER -->
+        <div id="homeCommandCenter">
+          <div class="bg-gradient-to-r from-slate-800/80 to-slate-900/80 rounded-2xl p-5 mb-6 border border-cyan-500/30 shadow-xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                <i class="fas fa-tachometer-alt text-cyan-400"></i> Command Center
+              </h3>
+              <div class="flex items-center gap-2">
+                <span id="homeLiveIndicator" class="flex items-center gap-1 text-xs text-green-400">
+                  <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> LIVE
+                </span>
+                <button onclick="loadHomeCharts()" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 transition text-xs" title="Refresh">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
               </div>
             </div>
-            <p class="text-gray-500 text-xs mt-2">*Sesuai PMK 82 Tahun 2024</p>
-          </div>
-        </div>
 
-        <!-- DASAR HUKUM -->
-        <div
-          class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700"
-        >
-          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
-            <i class="fas fa-balance-scale text-yellow-400"></i> Dasar Hukum
-          </h3>
-          <ul class="text-gray-300 space-y-2">
-            <li class="flex items-start gap-2">
-              <i class="fas fa-file-alt text-yellow-400 mt-1"></i>
-              <span
-                ><strong>PMK Nomor 34 Tahun 2025</strong> tentang Perubahan atas
-                PMK 203/PMK.04/2017 <em>(berlaku 6 Juni 2025)</em></span
-              >
-            </li>
-            <li class="flex items-start gap-2">
-              <i class="fas fa-file-alt text-yellow-400 mt-1"></i>
-              <span
-                ><strong>PMK Nomor 203/PMK.04/2017</strong> tentang Ketentuan
-                Ekspor dan Impor Barang yang Dibawa oleh Penumpang dan Awak
-                Sarana Pengangkut</span
-              >
-            </li>
-            <li class="flex items-start gap-2">
-              <i class="fas fa-file-alt text-yellow-400 mt-1"></i>
-              <span
-                ><strong>PMK Nomor 82 Tahun 2024</strong> tentang Pembebasan
-                Cukai untuk Barang Kena Cukai</span
-              >
-            </li>
-          </ul>
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="homeKpiCards">
+              <div class="bg-slate-700/60 rounded-xl p-3 text-center border border-slate-600/50 hover:border-cyan-500/40 transition">
+                <i class="fas fa-users text-blue-400 text-lg mb-1"></i>
+                <p class="text-xl font-bold text-white" id="kpi-pax">-</p>
+                <p class="text-gray-400 text-xs">Penumpang</p>
+                <p class="text-xs mt-1" id="kpi-pax-trend"></p>
+              </div>
+              <div class="bg-slate-700/60 rounded-xl p-3 text-center border border-slate-600/50 hover:border-teal-500/40 transition">
+                <i class="fas fa-ship text-teal-400 text-lg mb-1"></i>
+                <p class="text-xl font-bold text-white" id="kpi-cargo">-</p>
+                <p class="text-gray-400 text-xs">Cargo</p>
+                <p class="text-xs mt-1" id="kpi-cargo-trend"></p>
+              </div>
+              <div class="bg-slate-700/60 rounded-xl p-3 text-center border border-slate-600/50 hover:border-green-500/40 transition">
+                <i class="fas fa-mobile-alt text-green-400 text-lg mb-1"></i>
+                <p class="text-xl font-bold text-white" id="kpi-imei">-</p>
+                <p class="text-gray-400 text-xs">IMEI Terdaftar</p>
+                <p class="text-xs mt-1 text-green-400" id="kpi-imei-sub"></p>
+              </div>
+              <div class="bg-slate-700/60 rounded-xl p-3 text-center border border-slate-600/50 hover:border-yellow-500/40 transition">
+                <i class="fas fa-coins text-yellow-400 text-lg mb-1"></i>
+                <p class="text-xl font-bold text-white" id="kpi-pungutan">-</p>
+                <p class="text-gray-400 text-xs">Total Pungutan</p>
+                <p class="text-xs mt-1 text-yellow-400" id="kpi-pungutan-sub"></p>
+              </div>
+              <div class="bg-slate-700/60 rounded-xl p-3 text-center border border-slate-600/50 hover:border-orange-500/40 transition">
+                <i class="fas fa-file-alt text-orange-400 text-lg mb-1"></i>
+                <p class="text-xl font-bold text-white" id="kpi-manifest">-</p>
+                <p class="text-gray-400 text-xs">Manifest</p>
+                <p class="text-xs mt-1 text-orange-400" id="kpi-manifest-sub"></p>
+              </div>
+              <div class="bg-slate-700/60 rounded-xl p-3 text-center border border-slate-600/50 hover:border-red-500/40 transition">
+                <i class="fas fa-user-secret text-red-400 text-lg mb-1"></i>
+                <p class="text-xl font-bold text-white" id="kpi-suspect">-</p>
+                <p class="text-gray-400 text-xs">Suspect Aktif</p>
+                <p class="text-xs mt-1 text-red-400" id="kpi-suspect-sub"></p>
+              </div>
+            </div>
+
+            <!-- Charts Row 1: Monthly Trend + Risk -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+              <div class="lg:col-span-3 bg-slate-900/60 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-chart-area text-cyan-400"></i> Tren Aktivitas Bulanan
+                </h4>
+                <div style="height:220px;position:relative;">
+                  <canvas id="homeMonthlyChart"></canvas>
+                </div>
+              </div>
+              <div class="lg:col-span-2 bg-slate-900/60 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-shield-alt text-red-400"></i> Distribusi Risiko Penumpang
+                </h4>
+                <div style="height:220px;position:relative;">
+                  <canvas id="homeRiskChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts Row 2: Pungutan + Device Brands -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              <div class="bg-slate-900/60 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-money-bill-wave text-yellow-400"></i> Komposisi Pungutan
+                </h4>
+                <div style="height:200px;position:relative;">
+                  <canvas id="homePungutanChart"></canvas>
+                </div>
+              </div>
+              <div class="bg-slate-900/60 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-mobile-alt text-green-400"></i> Top Brand IMEI
+                </h4>
+                <div style="height:200px;position:relative;">
+                  <canvas id="homeBrandChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 3: Recent Activity + Quick Stats -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <div class="lg:col-span-3 bg-slate-900/60 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-history text-purple-400"></i> Aktivitas Terkini
+                </h4>
+                <div id="homeRecentActivity" class="space-y-2 max-h-48 overflow-y-auto">
+                  <p class="text-gray-500 text-sm text-center py-4">Memuat data...</p>
+                </div>
+              </div>
+              <div class="lg:col-span-2 bg-slate-900/60 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-chart-pie text-teal-400"></i> Status Manifest
+                </h4>
+                <div style="height:180px;position:relative;">
+                  <canvas id="homeManifestChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Navigation -->
+          <div class="bg-slate-800/50 rounded-xl p-4 mb-6 border border-slate-700">
+            <h4 class="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+              <i class="fas fa-bolt text-yellow-400"></i> Akses Cepat
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <button onclick="setMainMenu('regulasi')" class="bg-slate-700/50 hover:bg-indigo-500/20 border border-slate-600/50 hover:border-indigo-500/50 rounded-lg p-3 text-center transition group">
+                <i class="fas fa-book-open text-indigo-400 text-xl mb-1 group-hover:scale-110 transition-transform"></i>
+                <p class="text-white text-xs font-semibold">Regulasi</p>
+                <p class="text-gray-500 text-[10px]">Ketentuan & SOP</p>
+              </button>
+              <button onclick="setMainMenu('imei');setTimeout(()=>setSubMenu('kalkulator'),100)" class="bg-slate-700/50 hover:bg-green-500/20 border border-slate-600/50 hover:border-green-500/50 rounded-lg p-3 text-center transition group">
+                <i class="fas fa-calculator text-green-400 text-xl mb-1 group-hover:scale-110 transition-transform"></i>
+                <p class="text-white text-xs font-semibold">Kalkulator</p>
+                <p class="text-gray-500 text-[10px]">Hitung BM & PPN</p>
+              </button>
+              <button onclick="setMainMenu('manifest')" class="bg-slate-700/50 hover:bg-orange-500/20 border border-slate-600/50 hover:border-orange-500/50 rounded-lg p-3 text-center transition group">
+                <i class="fas fa-satellite-dish text-orange-400 text-xl mb-1 group-hover:scale-110 transition-transform"></i>
+                <p class="text-white text-xs font-semibold">Manifest Intel</p>
+                <p class="text-gray-500 text-[10px]">Radar & Crosscheck</p>
+              </button>
+              <button onclick="setMainMenu('dashboard')" class="bg-slate-700/50 hover:bg-teal-500/20 border border-slate-600/50 hover:border-teal-500/50 rounded-lg p-3 text-center transition group">
+                <i class="fas fa-chart-line text-teal-400 text-xl mb-1 group-hover:scale-110 transition-transform"></i>
+                <p class="text-white text-xs font-semibold">Dashboard</p>
+                <p class="text-gray-500 text-[10px]">Analisis Lengkap</p>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- FOOTER -->
@@ -2176,6 +2224,241 @@
 
       <!-- Flight Radar Content -->
       <div id="content-flights" class="content-section fade-in"></div>
+
+      <!-- REGULASI Content -->
+      <div id="content-regulasi" class="content-section fade-in">
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-bold text-white flex items-center justify-center gap-3">
+            <i class="fas fa-book-open text-indigo-400"></i> Pusat Regulasi & SOP
+          </h2>
+          <p class="text-gray-400 text-sm mt-1">Referensi peraturan, ketentuan, dan prosedur operasional KPPBC TMP B Kualanamu</p>
+        </div>
+
+        <!-- Quick Reference Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-4 text-center border border-green-500/30">
+            <i class="fas fa-gift text-green-400 text-2xl mb-2"></i>
+            <p class="text-2xl font-bold text-white">USD 500</p>
+            <p class="text-gray-400 text-xs">Pembebasan/Orang</p>
+          </div>
+          <div class="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-4 text-center border border-blue-500/30">
+            <i class="fas fa-percentage text-blue-400 text-2xl mb-2"></i>
+            <p class="text-2xl font-bold text-white">10%</p>
+            <p class="text-gray-400 text-xs">Bea Masuk (Flat)</p>
+          </div>
+          <div class="bg-gradient-to-br from-purple-900/40 to-purple-800/20 rounded-xl p-4 text-center border border-purple-500/30">
+            <i class="fas fa-receipt text-purple-400 text-2xl mb-2"></i>
+            <p class="text-2xl font-bold text-white">11%</p>
+            <p class="text-gray-400 text-xs">PPN</p>
+          </div>
+          <div class="bg-gradient-to-br from-orange-900/40 to-orange-800/20 rounded-xl p-4 text-center border border-orange-500/30">
+            <i class="fas fa-mobile-alt text-orange-400 text-2xl mb-2"></i>
+            <p class="text-2xl font-bold text-white">2 Unit</p>
+            <p class="text-gray-400 text-xs">Max IMEI/Paspor</p>
+          </div>
+        </div>
+
+        <!-- Ketentuan Barang Bawaan Penumpang -->
+        <div class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700">
+          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-suitcase-rolling text-cyan-400"></i> Ketentuan Barang Bawaan Penumpang
+          </h3>
+          <p class="text-gray-400 text-sm mb-4">Berdasarkan PMK Nomor 34 Tahun 2025 (berlaku sejak 6 Juni 2025)</p>
+          <p class="text-yellow-400 text-xs mb-4 bg-yellow-900/30 p-2 rounded">
+            <i class="fas fa-info-circle mr-1"></i><strong>Catatan:</strong> PPN masih menggunakan tarif 11% sesuai implementasi CEISA saat ini. Tarif PPN 12% sesuai PMK 34/2025 akan diterapkan setelah sistem CEISA diperbarui.
+          </p>
+
+          <!-- Rumus Perhitungan -->
+          <div class="bg-slate-900/50 rounded-lg p-4 mb-4">
+            <h4 class="text-cyan-400 font-semibold mb-2"><i class="fas fa-calculator mr-2"></i>Rumus Perhitungan:</h4>
+            <div class="text-gray-300 space-y-1 font-mono text-sm">
+              <p>Nilai Pabean = (FOB - USD 500) x Kurs</p>
+              <p>Bea Masuk = 10% x Nilai Pabean</p>
+              <p>PPN = 11% x (Nilai Pabean + Bea Masuk)</p>
+              <p class="text-yellow-400 font-bold">Total Pajak = Bea Masuk + PPN</p>
+            </div>
+          </div>
+
+          <!-- Contoh Perhitungan -->
+          <div class="bg-slate-900/50 rounded-lg p-4 mb-4">
+            <h4 class="text-cyan-400 font-semibold mb-2"><i class="fas fa-lightbulb mr-2"></i>Contoh Perhitungan:</h4>
+            <div class="text-gray-300 text-sm space-y-1">
+              <p>Seorang penumpang membawa HP seharga <strong class="text-white">USD 800</strong> (Kurs: Rp 16.000)</p>
+              <p>Nilai Pabean = (800 - 500) x 16.000 = <strong class="text-white">Rp 4.800.000</strong></p>
+              <p>Bea Masuk = 10% x 4.800.000 = <strong class="text-white">Rp 480.000</strong></p>
+              <p>PPN = 11% x (4.800.000 + 480.000) = <strong class="text-white">Rp 580.800</strong></p>
+              <p class="text-yellow-400 font-bold mt-2">Total Pajak = Rp 480.000 + Rp 580.800 = Rp 1.060.800</p>
+            </div>
+          </div>
+
+          <!-- Ketentuan BKC -->
+          <div class="bg-slate-900/50 rounded-lg p-4">
+            <h4 class="text-cyan-400 font-semibold mb-2"><i class="fas fa-smoking mr-2"></i>Barang Kena Cukai (BKC):</h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="flex items-center gap-2 text-gray-300">
+                <i class="fas fa-smoking text-orange-400"></i>
+                <span>Rokok: <strong>200 batang</strong></span>
+              </div>
+              <div class="flex items-center gap-2 text-gray-300">
+                <i class="fas fa-wine-bottle text-purple-400"></i>
+                <span>Minol: <strong>1 liter</strong></span>
+              </div>
+            </div>
+            <p class="text-gray-500 text-xs mt-2">*Sesuai PMK 82 Tahun 2024</p>
+          </div>
+        </div>
+
+        <!-- Kategori Barang dan Penanganannya -->
+        <div class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700">
+          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-th-list text-purple-400"></i> Kategori Barang & Penanganan
+          </h3>
+          <div class="space-y-3">
+            <div class="bg-slate-900/50 rounded-lg p-4 border-l-4 border-green-500">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs font-bold rounded">BEBAS</span>
+                <span class="text-white font-semibold text-sm">Personal Use (Barang Pribadi)</span>
+              </div>
+              <p class="text-gray-400 text-xs">Barang keperluan pribadi penumpang yang wajar, tidak untuk diperjualbelikan. Nilai FOB maksimal USD 500 per orang bebas bea masuk.</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 border-l-4 border-yellow-500">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs font-bold rounded">KENA PAJAK</span>
+                <span class="text-white font-semibold text-sm">Barang Melebihi Pembebasan</span>
+              </div>
+              <p class="text-gray-400 text-xs">Kelebihan di atas USD 500 dikenakan BM 10% dan PPN 11%. Petugas wajib menghitung dengan kurs pajak yang berlaku.</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 border-l-4 border-orange-500">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs font-bold rounded">LARTAS</span>
+                <span class="text-white font-semibold text-sm">Barang Larangan & Pembatasan</span>
+              </div>
+              <p class="text-gray-400 text-xs">Barang yang dibatasi masuknya sesuai peraturan K/L terkait (narkotika, senjata, HAKI, dsb). Wajib koordinasi dengan instansi terkait.</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 border-l-4 border-red-500">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-bold rounded">WAJIB IMEI</span>
+                <span class="text-white font-semibold text-sm">Perangkat Telekomunikasi</span>
+              </div>
+              <p class="text-gray-400 text-xs">Maksimal 2 unit HKT per paspor. Wajib registrasi IMEI melalui CEISA. Perangkat melebihi kuota dikenakan pungutan tambahan.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SOP Operasional -->
+        <div class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700">
+          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-clipboard-list text-teal-400"></i> SOP Operasional Lapangan
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-900/50 rounded-lg p-4">
+              <h4 class="text-teal-400 font-semibold text-sm mb-3"><i class="fas fa-plane-arrival mr-2"></i>Kedatangan Penumpang</h4>
+              <ol class="text-gray-300 text-xs space-y-2">
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-teal-500/30 rounded-full flex items-center justify-center text-teal-400 text-xs font-bold">1</span> Periksa Customs Declaration (CD) penumpang</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-teal-500/30 rounded-full flex items-center justify-center text-teal-400 text-xs font-bold">2</span> Identifikasi barang yang melebihi pembebasan USD 500</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-teal-500/30 rounded-full flex items-center justify-center text-teal-400 text-xs font-bold">3</span> Hitung pungutan menggunakan kurs pajak mingguan</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-teal-500/30 rounded-full flex items-center justify-center text-teal-400 text-xs font-bold">4</span> Proses billing melalui CEISA</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-teal-500/30 rounded-full flex items-center justify-center text-teal-400 text-xs font-bold">5</span> Catat registrasi IMEI (maks. 2 unit per paspor)</li>
+              </ol>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4">
+              <h4 class="text-orange-400 font-semibold text-sm mb-3"><i class="fas fa-exclamation-triangle mr-2"></i>Penanganan Red Channel</h4>
+              <ol class="text-gray-300 text-xs space-y-2">
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-orange-500/30 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">1</span> Verifikasi data manifest dengan paspor penumpang</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-orange-500/30 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">2</span> Cek SkyGuard untuk riwayat perjalanan & profiling</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-orange-500/30 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">3</span> Lakukan pemeriksaan fisik barang bawaan</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-orange-500/30 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">4</span> Dokumentasikan temuan di berita acara</li>
+                <li class="flex gap-2"><span class="flex-shrink-0 w-5 h-5 bg-orange-500/30 rounded-full flex items-center justify-center text-orange-400 text-xs font-bold">5</span> Koordinasi dengan unit intelijen jika diperlukan</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alur Proses Visual -->
+        <div class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700">
+          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-project-diagram text-blue-400"></i> Alur Proses Pemeriksaan
+          </h3>
+          <div class="flex flex-wrap items-center justify-center gap-2 text-xs">
+            <div class="bg-blue-500/20 text-blue-300 px-3 py-2 rounded-lg border border-blue-500/30 text-center">
+              <i class="fas fa-plane-arrival block text-lg mb-1"></i>Kedatangan
+            </div>
+            <i class="fas fa-arrow-right text-gray-600"></i>
+            <div class="bg-cyan-500/20 text-cyan-300 px-3 py-2 rounded-lg border border-cyan-500/30 text-center">
+              <i class="fas fa-id-card block text-lg mb-1"></i>Verifikasi CD
+            </div>
+            <i class="fas fa-arrow-right text-gray-600"></i>
+            <div class="bg-purple-500/20 text-purple-300 px-3 py-2 rounded-lg border border-purple-500/30 text-center">
+              <i class="fas fa-search block text-lg mb-1"></i>X-Ray / Fisik
+            </div>
+            <i class="fas fa-arrow-right text-gray-600"></i>
+            <div class="bg-yellow-500/20 text-yellow-300 px-3 py-2 rounded-lg border border-yellow-500/30 text-center">
+              <i class="fas fa-calculator block text-lg mb-1"></i>Penetapan
+            </div>
+            <i class="fas fa-arrow-right text-gray-600"></i>
+            <div class="bg-green-500/20 text-green-300 px-3 py-2 rounded-lg border border-green-500/30 text-center">
+              <i class="fas fa-money-bill block text-lg mb-1"></i>Pembayaran
+            </div>
+            <i class="fas fa-arrow-right text-gray-600"></i>
+            <div class="bg-teal-500/20 text-teal-300 px-3 py-2 rounded-lg border border-teal-500/30 text-center">
+              <i class="fas fa-check-circle block text-lg mb-1"></i>SPPB
+            </div>
+          </div>
+        </div>
+
+        <!-- Dasar Hukum -->
+        <div class="bg-slate-800/50 rounded-xl p-6 mb-6 border border-slate-700">
+          <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-balance-scale text-yellow-400"></i> Dasar Hukum
+          </h3>
+          <div class="space-y-3">
+            <div class="bg-slate-900/50 rounded-lg p-4 flex items-start gap-3 border-l-4 border-yellow-500">
+              <div>
+                <p class="text-white font-semibold text-sm">PMK Nomor 34 Tahun 2025</p>
+                <p class="text-gray-400 text-xs">Perubahan atas PMK 203/PMK.04/2017 tentang Ketentuan Ekspor dan Impor Barang yang Dibawa oleh Penumpang dan Awak Sarana Pengangkut</p>
+                <span class="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">Berlaku 6 Juni 2025</span>
+              </div>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 flex items-start gap-3 border-l-4 border-yellow-500">
+              <div>
+                <p class="text-white font-semibold text-sm">PMK Nomor 203/PMK.04/2017</p>
+                <p class="text-gray-400 text-xs">Ketentuan Ekspor dan Impor Barang yang Dibawa oleh Penumpang dan Awak Sarana Pengangkut</p>
+                <span class="inline-block mt-1 px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">Peraturan Dasar</span>
+              </div>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 flex items-start gap-3 border-l-4 border-yellow-500">
+              <div>
+                <p class="text-white font-semibold text-sm">PMK Nomor 82 Tahun 2024</p>
+                <p class="text-gray-400 text-xs">Pembebasan Cukai untuk Barang Kena Cukai yang dibawa penumpang (rokok 200 batang, minol 1 liter)</p>
+                <span class="inline-block mt-1 px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">Cukai / BKC</span>
+              </div>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 flex items-start gap-3 border-l-4 border-yellow-500">
+              <div>
+                <p class="text-white font-semibold text-sm">Permendag No. 36 Tahun 2023</p>
+                <p class="text-gray-400 text-xs">Kebijakan dan Pengaturan Impor mengenai registrasi IMEI perangkat telekomunikasi (HKT)</p>
+                <span class="inline-block mt-1 px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded">IMEI / HKT</span>
+              </div>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-4 flex items-start gap-3 border-l-4 border-yellow-500">
+              <div>
+                <p class="text-white font-semibold text-sm">UU No. 17 Tahun 2006</p>
+                <p class="text-gray-400 text-xs">Perubahan atas UU No. 10 Tahun 1995 tentang Kepabeanan</p>
+                <span class="inline-block mt-1 px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Undang-Undang</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-indigo-500/30 rounded-xl p-4 text-center">
+          <p class="text-gray-400 text-xs">
+            <i class="fas fa-info-circle text-indigo-400 mr-1"></i>
+            Halaman ini akan terus diperbarui sesuai dengan perubahan regulasi terbaru.
+            Untuk update regulasi, hubungi admin SkyGuard atau lihat menu <strong class="text-indigo-300">DASHBOARD</strong> untuk informasi terkini.
+          </p>
+        </div>
+      </div>
     </main>
 
     <!-- Toast -->
@@ -2313,6 +2596,7 @@
           color: "#ef4444",
         },
         dashboard: { subMenus: [], color: "#14b8a6" },
+        regulasi: { subMenus: [], color: "#818cf8" },
         flights: {
           subMenus: [
             { id: "board", label: "Flight Board", icon: "fa-plane-arrival" },
@@ -2413,6 +2697,9 @@
           setSubMenu(menuConfig[menu].subMenus[0].id);
         } else {
           currentSubMenu = "";
+        }
+        if (menu === "home") {
+          loadHomeCharts();
         }
         if (menu === "dashboard") {
           loadDashboard();
@@ -12160,6 +12447,272 @@
           console.error("Upload logs error:", e);
         }
       }
+
+      // ==================== HOME COMMAND CENTER ====================
+      let homeChartsLoaded = false;
+      let homeChartInstances = {};
+
+      function destroyHomeChart(id) {
+        if (homeChartInstances[id]) {
+          homeChartInstances[id].destroy();
+          delete homeChartInstances[id];
+        }
+      }
+
+      function fmtNum(n) {
+        if (n >= 1e9) return (n / 1e9).toFixed(1) + 'M';
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'Jt';
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + 'Rb';
+        return String(n);
+      }
+
+      function trendBadge(pct) {
+        if (pct > 0) return '<span class="text-green-400"><i class="fas fa-arrow-up text-[10px]"></i> +' + pct + '%</span>';
+        if (pct < 0) return '<span class="text-red-400"><i class="fas fa-arrow-down text-[10px]"></i> ' + pct + '%</span>';
+        return '<span class="text-gray-500">-</span>';
+      }
+
+      async function loadHomeCharts() {
+        try {
+          const res = await fetch('/api/dashboard/summary');
+          const json = await res.json();
+          if (json.status !== 'ok') return;
+          const d = json.data;
+
+          // KPI Cards
+          const el = (id) => document.getElementById(id);
+          if (el('kpi-pax')) el('kpi-pax').textContent = num(d.kpi.totalPassengerRecords || 0);
+          if (el('kpi-pax-trend')) el('kpi-pax-trend').innerHTML = trendBadge(d.trends.paxTrend);
+          if (el('kpi-cargo')) el('kpi-cargo').textContent = num(d.kpi.totalCargo || 0);
+          if (el('kpi-cargo-trend')) el('kpi-cargo-trend').innerHTML = trendBadge(d.trends.cargoTrend);
+          if (el('kpi-imei')) el('kpi-imei').textContent = num(d.kpi.totalImeiDetails || 0);
+          if (el('kpi-imei-sub')) el('kpi-imei-sub').textContent = (d.kpi.uniqueImei || 0) + ' unik';
+          if (el('kpi-pungutan')) el('kpi-pungutan').textContent = 'Rp ' + fmtNum(d.kpi.totalPungutan || 0);
+          if (el('kpi-pungutan-sub')) el('kpi-pungutan-sub').textContent = 'FOB $' + fmtNum(d.kpi.totalFobUsd || 0);
+          if (el('kpi-manifest')) el('kpi-manifest').textContent = num(d.kpi.totalManifests || 0);
+          if (el('kpi-manifest-sub')) el('kpi-manifest-sub').textContent = (d.kpi.frequentTravelers || 0) + ' frequent';
+          if (el('kpi-suspect')) el('kpi-suspect').textContent = num(d.kpi.activeSuspects || 0);
+          if (el('kpi-suspect-sub')) el('kpi-suspect-sub').textContent = (d.kpi.totalSuspects || 0) + ' total';
+
+          const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: '#94a3b8', font: { size: 11 } } }
+            }
+          };
+
+          // Monthly Trend Chart (Bar + Line combo)
+          const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+          const cargoTrend = (d.charts.cargoMonthlyTrend || []).sort((a,b) => a._id.y !== b._id.y ? a._id.y - b._id.y : a._id.m - b._id.m);
+          const paxTrend = (d.charts.paxMonthlyTrend || []).sort((a,b) => a._id.y !== b._id.y ? a._id.y - b._id.y : a._id.m - b._id.m);
+          const allMonths = {};
+          cargoTrend.forEach(r => { const k = r._id.y + '-' + r._id.m; allMonths[k] = { label: monthNames[r._id.m-1] + ' ' + String(r._id.y).slice(2), cargo: r.count, pax: 0 }; });
+          paxTrend.forEach(r => { const k = r._id.y + '-' + r._id.m; if (!allMonths[k]) allMonths[k] = { label: monthNames[r._id.m-1] + ' ' + String(r._id.y).slice(2), cargo: 0, pax: 0 }; allMonths[k].pax = r.count; });
+          const sortedMonths = Object.entries(allMonths).sort(([a],[b]) => a.localeCompare(b)).slice(-12);
+          const monthLabels = sortedMonths.map(([,v]) => v.label);
+          const cargoVals = sortedMonths.map(([,v]) => v.cargo);
+          const paxVals = sortedMonths.map(([,v]) => v.pax);
+
+          destroyHomeChart('monthly');
+          const monthlyCtx = document.getElementById('homeMonthlyChart');
+          if (monthlyCtx) {
+            homeChartInstances['monthly'] = new Chart(monthlyCtx, {
+              type: 'bar',
+              data: {
+                labels: monthLabels,
+                datasets: [
+                  {
+                    label: 'Cargo',
+                    data: cargoVals,
+                    backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                    borderColor: '#14b8a6',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 2
+                  },
+                  {
+                    label: 'Penumpang',
+                    data: paxVals,
+                    type: 'line',
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#3b82f6',
+                    borderWidth: 2,
+                    order: 1
+                  }
+                ]
+              },
+              options: {
+                ...chartDefaults,
+                scales: {
+                  x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(100,116,139,0.1)' } },
+                  y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(100,116,139,0.15)' }, beginAtZero: true }
+                },
+                plugins: { ...chartDefaults.plugins, tooltip: { mode: 'index', intersect: false } }
+              }
+            });
+          }
+
+          // Risk Distribution Doughnut
+          const risk = d.risk || { high: 0, medium: 0, low: 0 };
+          destroyHomeChart('risk');
+          const riskCtx = document.getElementById('homeRiskChart');
+          if (riskCtx) {
+            homeChartInstances['risk'] = new Chart(riskCtx, {
+              type: 'doughnut',
+              data: {
+                labels: ['Tinggi', 'Sedang', 'Rendah'],
+                datasets: [{
+                  data: [risk.high, risk.medium, risk.low],
+                  backgroundColor: ['#ef4444', '#f59e0b', '#22c55e'],
+                  borderColor: ['#b91c1c', '#d97706', '#16a34a'],
+                  borderWidth: 2,
+                  hoverOffset: 8
+                }]
+              },
+              options: {
+                ...chartDefaults,
+                cutout: '55%',
+                plugins: {
+                  ...chartDefaults.plugins,
+                  legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: 'circle' } }
+                }
+              }
+            });
+          }
+
+          // Pungutan Breakdown Doughnut
+          const pungutan = d.pungutan || { totalBM: 0, totalPPN: 0, totalPPH: 0 };
+          destroyHomeChart('pungutan');
+          const pungutanCtx = document.getElementById('homePungutanChart');
+          if (pungutanCtx) {
+            homeChartInstances['pungutan'] = new Chart(pungutanCtx, {
+              type: 'doughnut',
+              data: {
+                labels: ['Bea Masuk', 'PPN', 'PPH'],
+                datasets: [{
+                  data: [pungutan.totalBM, pungutan.totalPPN, pungutan.totalPPH],
+                  backgroundColor: ['#3b82f6', '#a855f7', '#f97316'],
+                  borderColor: ['#2563eb', '#9333ea', '#ea580c'],
+                  borderWidth: 2,
+                  hoverOffset: 8
+                }]
+              },
+              options: {
+                ...chartDefaults,
+                cutout: '55%',
+                plugins: {
+                  ...chartDefaults.plugins,
+                  legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+                  tooltip: {
+                    callbacks: {
+                      label: function(ctx) { return ctx.label + ': Rp ' + num(Math.round(ctx.raw)); }
+                    }
+                  }
+                }
+              }
+            });
+          }
+
+          // Top Brands Horizontal Bar
+          const brands = (d.charts.imeiBrandDist || []).slice(0, 8);
+          destroyHomeChart('brands');
+          const brandCtx = document.getElementById('homeBrandChart');
+          if (brandCtx) {
+            homeChartInstances['brands'] = new Chart(brandCtx, {
+              type: 'bar',
+              data: {
+                labels: brands.map(b => b._id || 'N/A'),
+                datasets: [{
+                  label: 'Jumlah',
+                  data: brands.map(b => b.count),
+                  backgroundColor: [
+                    'rgba(59,130,246,0.7)','rgba(34,197,94,0.7)','rgba(249,115,22,0.7)',
+                    'rgba(168,85,247,0.7)','rgba(236,72,153,0.7)','rgba(20,184,166,0.7)',
+                    'rgba(245,158,11,0.7)','rgba(239,68,68,0.7)'
+                  ],
+                  borderRadius: 4,
+                  borderSkipped: false
+                }]
+              },
+              options: {
+                ...chartDefaults,
+                indexAxis: 'y',
+                scales: {
+                  x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(100,116,139,0.1)' }, beginAtZero: true },
+                  y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } }
+                },
+                plugins: { ...chartDefaults.plugins, legend: { display: false } }
+              }
+            });
+          }
+
+          // Manifest Status Pie
+          const mStatus = d.charts.manifestStatusBreakdown || [];
+          destroyHomeChart('manifest');
+          const manifestCtx = document.getElementById('homeManifestChart');
+          if (manifestCtx) {
+            const statusColors = { parsed: '#22c55e', synced: '#3b82f6', error: '#ef4444', pending: '#f59e0b', processing: '#a855f7' };
+            homeChartInstances['manifest'] = new Chart(manifestCtx, {
+              type: 'pie',
+              data: {
+                labels: mStatus.map(s => (s._id || 'Unknown').toUpperCase()),
+                datasets: [{
+                  data: mStatus.map(s => s.count),
+                  backgroundColor: mStatus.map(s => statusColors[(s._id||'').toLowerCase()] || '#64748b'),
+                  borderWidth: 2,
+                  borderColor: '#0f172a',
+                  hoverOffset: 6
+                }]
+              },
+              options: {
+                ...chartDefaults,
+                plugins: {
+                  ...chartDefaults.plugins,
+                  legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, padding: 8, usePointStyle: true, pointStyle: 'circle' } }
+                }
+              }
+            });
+          }
+
+          // Recent Activity
+          const actEl = document.getElementById('homeRecentActivity');
+          if (actEl) {
+            const manifests = (d.tables.recentManifests || []).slice(0, 3);
+            const uploads = (d.tables.recentUploads || []).slice(0, 3);
+            let html = '';
+            manifests.forEach(m => {
+              const dt = m.createdAt ? new Date(m.createdAt).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
+              html += '<div class="flex items-center gap-3 bg-slate-800/60 rounded-lg px-3 py-2 text-xs">' +
+                '<div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0"><i class="fas fa-file-alt text-orange-400"></i></div>' +
+                '<div class="flex-1 min-w-0"><p class="text-white font-semibold truncate">' + (m.flight_number || 'N/A') + ' <span class="text-gray-500 font-normal">' + (m.carrier || '') + '</span></p>' +
+                '<p class="text-gray-500">' + (m.origin || '?') + ' → ' + (m.destination || '?') + ' | ' + dt + '</p></div>' +
+                '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (m.status === 'parsed' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400') + '">' + (m.status || '').toUpperCase() + '</span></div>';
+            });
+            uploads.forEach(u => {
+              const dt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
+              html += '<div class="flex items-center gap-3 bg-slate-800/60 rounded-lg px-3 py-2 text-xs">' +
+                '<div class="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center flex-shrink-0"><i class="fas fa-upload text-teal-400"></i></div>' +
+                '<div class="flex-1 min-w-0"><p class="text-white font-semibold truncate">' + (u.type || u.filename || 'Upload') + '</p>' +
+                '<p class="text-gray-500">' + (u.records || 0) + ' records | ' + dt + '</p></div>' +
+                '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-500/20 text-teal-400">UPLOAD</span></div>';
+            });
+            if (!html) html = '<p class="text-gray-500 text-sm text-center py-4">Belum ada aktivitas</p>';
+            actEl.innerHTML = html;
+          }
+
+          homeChartsLoaded = true;
+        } catch (err) {
+          console.error('[HomeCharts]', err);
+        }
+      }
+
+      // Load home charts on first page load
+      loadHomeCharts();
 
       // ==================== DASHBOARD FUNCTIONS ====================
       async function loadDashboard() {
