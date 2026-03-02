@@ -9782,7 +9782,7 @@
                     <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
                         <i class="fas fa-trophy text-yellow-400"></i>
                         Top 10 Petugas
-                        <span class="text-xs text-gray-500 font-normal ml-2">(berdasarkan jumlah penanganan)</span>
+                        <span class="text-xs text-gray-500 font-normal ml-2">(berdasarkan total penanganan)</span>
                     </h3>
                     <div id="topOfficers" class="space-y-2"></div>
                 </div>
@@ -10583,24 +10583,47 @@
             document.getElementById("otherPct").textContent = otherPct + "%";
           }
 
-          // Top 10 Petugas
+          // Top 10 Petugas (sorted by total penanganan)
           const offC = document.getElementById("topOfficers");
           if (offC && a.topPetugas?.length) {
+            const maxTotal = Math.max(...a.topPetugas.map(o => o.total || 0), 1);
             offC.innerHTML = a.topPetugas
               .slice(0, 10)
               .map((o, i) => {
-                const medal =
-                  i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
-                return `<div class="flex justify-between items-center py-2 ${i < 9 ? "border-b border-white/5" : ""}" title="Total penumpang yang ditangani">
-                            <div class="flex items-center gap-3">
-                                <span class="w-7 h-7 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center font-bold">${medal || i + 1}</span>
-                                <div>
-                                    <span class="text-sm font-medium">${o.nama || o._id || "Unknown"}</span>
-                                    <span class="text-xs text-gray-500 ml-2">${o.billing || 0} billing</span>
-                                </div>
-                            </div>
-                            <span class="text-purple-400 font-bold">${(o.total || 0).toLocaleString()}</span>
-                        </div>`;
+                const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+                const total = o.total || 0;
+                const billing = o.billing || 0;
+                const pembebasan = o.pembebasan || 0;
+                const lainnya = Math.max(0, total - billing - pembebasan);
+                const rate = o.billingRate || (total > 0 ? ((billing / total) * 100).toFixed(1) : 0);
+                const barW = Math.max(Math.round((total / maxTotal) * 100), 3);
+                const billingW = total > 0 ? Math.round((billing / total) * 100) : 0;
+                const pembebasanW = total > 0 ? Math.round((pembebasan / total) * 100) : 0;
+                return `<div class="py-2.5 ${i < 9 ? "border-b border-white/5" : ""}">
+                  <div class="flex items-center gap-3 mb-1.5">
+                    <span class="w-7 h-7 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center font-bold flex-shrink-0">${medal || i + 1}</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium truncate">${o.nama || o._id || "Unknown"}</span>
+                        <span class="text-purple-400 font-bold text-sm ml-2 flex-shrink-0">${total.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ml-10">
+                    <div class="h-2 bg-slate-700/60 rounded-full overflow-hidden mb-1.5" style="width:${barW}%">
+                      <div class="h-full flex">
+                        <div class="bg-red-500 h-full" style="width:${billingW}%" title="Billing"></div>
+                        <div class="bg-green-500 h-full" style="width:${pembebasanW}%" title="Pembebasan"></div>
+                        <div class="bg-slate-500 h-full flex-1" title="Lainnya"></div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-[10px] text-gray-400">
+                      <span><span class="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-0.5"></span> Billing: <strong class="text-red-400">${billing.toLocaleString()}</strong> (${rate}%)</span>
+                      <span><span class="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-0.5"></span> Bebas: <strong class="text-green-400">${pembebasan.toLocaleString()}</strong></span>
+                      ${lainnya > 0 ? `<span><span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-500 mr-0.5"></span> Lain: ${lainnya.toLocaleString()}</span>` : ""}
+                    </div>
+                  </div>
+                </div>`;
               })
               .join("");
           }
