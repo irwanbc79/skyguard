@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SkyGuard Intelligence - BC Kualanamu</title>
+    <link rel="icon" type="image/png" href="assets/logo-bc-kualanamu.png?v=3" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css"
@@ -444,9 +445,14 @@
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-4">
             <div
-              class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center glow-blue"
+              class="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden bg-black/30 shrink-0"
+              style="padding:2px;"
             >
-              <i class="fas fa-shield-alt text-lg"></i>
+              <img
+                src="assets/logo-bc-kualanamu.png?v=3"
+                alt="BC Kualanamu"
+                class="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h1
@@ -609,9 +615,14 @@
         <!-- Header Section -->
         <div class="text-center mb-8">
           <div
-            class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl mb-4 shadow-lg"
+            class="inline-flex items-center justify-center rounded-2xl mb-4 shadow-lg overflow-hidden bg-black/40 p-2"
+            style="width:140px;height:100px;"
           >
-            <i class="fas fa-shield-alt text-4xl text-white"></i>
+            <img
+              src="assets/logo-bc-kualanamu.png?v=3"
+              alt="Bea Cukai Kualanamu"
+              class="w-full h-full object-contain"
+            />
           </div>
           <h1 class="text-3xl font-bold text-white mb-2">
             SkyGuard Intelligence
@@ -685,33 +696,27 @@
           class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-6 mb-6 border border-blue-500/30 shadow-xl"
         >
           <h3 class="text-white font-bold text-lg mb-3 flex items-center gap-2">
-            <i class="fas fa-search-plus text-cyan-400"></i> Pencarian Terpadu
+            <i class="fas fa-search text-cyan-400"></i> Pencarian Sentral
           </h3>
           <p class="text-gray-400 text-sm mb-4">
-            Cari berdasarkan nomor paspor — agregasi data dari
-            <strong class="text-blue-300"
-              >Manifest, IMEI Detail, IMEI Registration, CEISA,</strong
-            >
-            dan <strong class="text-blue-300">Daftar Atensi</strong> dalam satu
-            tampilan.
+            Satu pintu pencarian — paspor, nama, IMEI, no. penerbangan, no. dokumen. Hasil konsisten dan setiap baris bisa diklik ke halaman detail.
           </p>
           <div class="flex gap-2">
             <input
-              id="unifiedPassportInput"
+              id="dashboardSearchInput"
               type="text"
-              placeholder="Masukkan nomor paspor..."
-              class="flex-1 bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder-gray-500 uppercase"
-              onkeydown="if (event.key === 'Enter') doUnifiedSearch();"
+              placeholder="Cari paspor, nama, IMEI, no. penerbangan..."
+              class="flex-1 bg-slate-700 text-white border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder-gray-500"
+              onkeydown="if (event.key === 'Enter') doDashboardSearch();"
             />
             <button
-              onclick="doUnifiedSearch()"
+              onclick="doDashboardSearch()"
               class="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all flex items-center gap-2 shadow-lg"
             >
               <i class="fas fa-search"></i> Cari
             </button>
           </div>
-          <!-- Results container -->
-          <div id="unifiedSearchResults" class="mt-4 hidden"></div>
+          <p class="text-gray-500 text-xs mt-2">Hasil akan ditampilkan di menu <strong class="text-cyan-400">PENCARIAN</strong> dengan link ke Penumpang Lookup, Daftar Atensi, dan IMEI.</p>
         </div>
 
         <!-- DISCLAIMER UTAMA -->
@@ -2530,6 +2535,61 @@
         }
       }
 
+      // Navigasi dari hasil pencarian ke halaman detail (satu pintu → link ke data)
+      function goToDetail(type, data) {
+        const payload = typeof data === "string" ? { passport: data } : data || {};
+        switch (type) {
+          case "passport": {
+            setMainMenu("penumpang");
+            setSubMenu("lookup");
+            setTimeout(function () {
+              const inp = document.getElementById("pasporInput");
+              if (inp) {
+                inp.value = payload.passport || payload;
+                searchPaspor();
+              }
+            }, 400);
+            break;
+          }
+          case "suspect": {
+            const id = payload.suspect_id || payload;
+            if (!id) return;
+            setMainMenu("penumpang");
+            setSubMenu("atensi");
+            setTimeout(function () {
+              viewSuspectDetail(id);
+            }, 400);
+            break;
+          }
+          case "manifest": {
+            const mid = payload.manifest_id || payload;
+            if (!mid) return;
+            setMainMenu("manifest");
+            setSubMenu("inbox");
+            setTimeout(function () {
+              selectManifest(mid);
+            }, 400);
+            break;
+          }
+          case "imei": {
+            const imei = payload.imei || payload.imei1 || payload;
+            if (!imei) return;
+            setMainMenu("imei");
+            setSubMenu("devicedetail");
+            setTimeout(function () {
+              const inp = document.getElementById("devImeiSearchInput");
+              if (inp) {
+                inp.value = imei;
+                if (typeof searchDeviceByImei === "function") searchDeviceByImei();
+              }
+            }, 500);
+            break;
+          }
+          default:
+            break;
+        }
+      }
+
       // Helper: Redirect banner for old search pages
       function psRedirectBanner(ctx) {
         return `<div style="background:linear-gradient(135deg,rgba(6,182,212,0.12),rgba(6,182,212,0.04));border:1px solid rgba(6,182,212,0.25);border-radius:1rem;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
@@ -2625,7 +2685,7 @@
               </div>
               <div>
                 <h2 style="font-size:1.5rem;font-weight:800;color:#fff;margin:0;">Pusat Intelijen</h2>
-                <p style="color:#94a3b8;font-size:0.85rem;margin:0.25rem 0 0;">Pencarian komprehensif lintas basis data — paspor, nama, IMEI, nomor penerbangan, PNR</p>
+                <p style="color:#94a3b8;font-size:0.85rem;margin:0.25rem 0 0;">Cari di sini akan membuka <strong style="color:#22d3ee;">Pencarian Sentral</strong> (menu Pencarian) — hasil konsisten dan setiap baris bisa diklik ke detail.</p>
               </div>
             </div>
             <div class="ic-search-box">
@@ -2681,40 +2741,11 @@
         btn.classList.add("active");
       }
 
-      async function executeIntelSearch() {
+      // Intel search mengarahkan ke Pencarian Sentral (satu API, hasil konsisten + link detail)
+      function executeIntelSearch() {
         const q = document.getElementById("icSearchInput")?.value?.trim();
-        if (!q || q.length < 2)
-          return showToast("Masukkan minimal 2 karakter", "warning");
-        const dateFrom = document.getElementById("icDateFrom")?.value || "";
-        const dateTo = document.getElementById("icDateTo")?.value || "";
-        const nationality =
-          document.getElementById("icNationality")?.value?.trim() || "";
-
-        const container = document.getElementById("icSearchResults");
-        const dossierView = document.getElementById("icDossierView");
-        if (dossierView) dossierView.innerHTML = "";
-        if (!container) return;
-
-        container.innerHTML =
-          '<div style="text-align:center;padding:3rem;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#ef4444;"></i><p style="color:#94a3b8;margin-top:1rem;">Menelusuri semua basis data...</p></div>';
-
-        try {
-          const params = new URLSearchParams({ q, type: intelSearchType });
-          if (dateFrom) params.set("dateFrom", dateFrom);
-          if (dateTo) params.set("dateTo", dateTo);
-          if (nationality) params.set("nationality", nationality);
-
-          const res = await fetch("/api/intel/search?" + params);
-          const json = await res.json();
-          if (json.status !== "ok") throw new Error(json.message);
-
-          renderIntelSearchResults(json, container);
-        } catch (err) {
-          container.innerHTML =
-            '<div style="text-align:center;padding:2rem;color:#f87171;"><i class="fas fa-exclamation-triangle fa-2x"></i><p style="margin-top:0.5rem;">' +
-            err.message +
-            "</p></div>";
-        }
+        if (!q || q.length < 2) return showToast("Masukkan minimal 2 karakter", "warning");
+        if (runCentralSearch(q)) showToast("Membuka Pencarian Sentral dengan hasil lengkap dan link ke detail", "info");
       }
 
       function renderIntelSearchResults(json, container) {
@@ -17269,7 +17300,7 @@
         if (Notification.permission === "granted") {
           new Notification(title, {
             body: body,
-            icon: "/favicon.ico",
+            icon: "assets/logo-bc-kualanamu.png?v=3",
             tag: "skyguard-alert",
           });
         } else if (Notification.permission !== "denied") {
@@ -17277,7 +17308,7 @@
             if (p === "granted")
               new Notification(title, {
                 body: body,
-                icon: "/favicon.ico",
+                icon: "assets/logo-bc-kualanamu.png?v=3",
                 tag: "skyguard-alert",
               });
           });
@@ -18201,6 +18232,16 @@
           html +=
             '<span class="ps-badge ps-badge-red"><i class="fas fa-exclamation-triangle"></i> DAFTAR ATENSI</span>';
         html += "</div>";
+        // Link ke detail: Penumpang Lookup & Daftar Atensi
+        const safePassport = (passport || "").replace(/'/g, "\\'");
+        html +=
+          '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.75rem;">';
+        html +=
+          '<button type="button" onclick="goToDetail(\'passport\',\'' + safePassport + '\')" style="padding:0.5rem 1rem;border-radius:0.5rem;background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;color:#fff;font-weight:600;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.4rem;"><i class="fas fa-external-link-alt"></i> Buka di Penumpang Lookup</button>';
+        if (multiResult.suspect_id)
+          html +=
+            '<button type="button" onclick="goToDetail(\'suspect\',{suspect_id:\'' + (multiResult.suspect_id + '').replace(/'/g, "\\'") + '\'})" style="padding:0.5rem 1rem;border-radius:0.5rem;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);color:#f87171;font-weight:600;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.4rem;"><i class="fas fa-user-secret"></i> Lihat di Daftar Atensi</button>';
+        html += "</div>";
         html += "</div>";
 
         // Stats right side
@@ -18721,10 +18762,11 @@
             r.grouped.length +
             " paspor ditemukan</div>";
           for (const g of r.grouped) {
+            const safePassport = (g.passport || "").replace(/'/g, "\\'");
             html +=
-              "<div class=\"ps-card\" onclick=\"document.getElementById('psSearchInput').value='" +
-              g.passport +
-              "';psSearchType='paspor';doPsSearch();\">";
+              "<div class=\"ps-card\" onclick=\"goToDetail('passport','" +
+              safePassport +
+              "')\" title=\"Buka profil di Penumpang → Lookup\">";
             html +=
               '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">';
             html += "<div>";
@@ -18824,12 +18866,13 @@
             html +=
               '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.4rem;">';
             fg.passengers.forEach((p) => {
-              html +=
-                '<div style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:0.5rem;padding:0.5rem;font-size:0.8rem;cursor:pointer;" onclick="if(\'' +
-                (p.passport || "") +
-                "'){document.getElementById('psSearchInput').value='" +
-                (p.passport || "") +
-                "';psSearchType='paspor';doPsSearch();}\">";
+            const pPassport = (p.passport || "").replace(/'/g, "\\'");
+            html +=
+              '<div style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:0.5rem;padding:0.5rem;font-size:0.8rem;cursor:pointer;" onclick="if(\'' +
+                pPassport +
+                "'){goToDetail('passport','" +
+                pPassport +
+                "');}\" title=\"Buka profil di Penumpang → Lookup\">";
               html +=
                 '<div style="color:#e2e8f0;font-weight:500;">' +
                 (p.name || "-") +
@@ -18906,17 +18949,18 @@
           });
           html += "</tr></thead><tbody>";
           for (const item of src.items) {
-            const hasPassport = item.passport || item.no_identitas;
+            const passport = item.passport || item.no_identitas;
+            const hasPassport = !!passport;
+            const hasImei = src.source === "imei_detail" && (item.imei || item.imei1);
+            const safePassport = (passport || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            const safeImei = (item.imei || item.imei1 || "").replace(/'/g, "\\'");
+            let rowClick = "";
+            if (hasImei) rowClick = "onclick=\"goToDetail('imei',{imei:'" + safeImei + "'})\" title=\"Buka di IMEI → Cari IMEI\"";
+            else if (hasPassport) rowClick = "onclick=\"goToDetail('passport','" + safePassport + "')\" title=\"Buka profil di Penumpang → Lookup\"";
             html +=
               '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:' +
-              (hasPassport ? "pointer" : "default") +
-              ';" ' +
-              (hasPassport
-                ? "onclick=\"document.getElementById('psSearchInput').value='" +
-                  (item.passport || item.no_identitas) +
-                  "';psSearchType='paspor';doPsSearch();\""
-                : "") +
-              ">";
+              (hasPassport || hasImei ? "pointer" : "default") +
+              ';" ' + rowClick + ">";
             keys.forEach((k) => {
               let val = item[k] ?? "-";
               if (typeof val === "number") val = val.toLocaleString();
@@ -18997,8 +19041,8 @@
         <div class="ig-hero">
           <div style="position:relative;z-index:1;">
             <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
-              <div style="width:52px;height:52px;border-radius:1rem;background:linear-gradient(135deg,#22c55e,#10b981);display:flex;align-items:center;justify-content:center;">
-                <i class="fas fa-shield-alt" style="font-size:1.5rem;color:#fff;"></i>
+              <div style="width:52px;height:52px;border-radius:1rem;background:rgba(0,0,0,0.35);padding:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                <img src="assets/logo-bc-kualanamu.png?v=3" alt="BC Kualanamu" style="width:100%;height:100%;object-fit:contain;" />
               </div>
               <div>
                 <h2 style="font-size:1.5rem;font-weight:800;color:#fff;margin:0;">Pusat Integritas Data</h2>
@@ -20250,39 +20294,40 @@
         container.innerHTML = html;
       }
 
-      // ═══════════════════════════════════════════════════════════
-      // PENCARIAN TERPADU — Unified Passport Search
-      // ═══════════════════════════════════════════════════════════
-      async function doUnifiedSearch() {
-        const input = document.getElementById("unifiedPassportInput");
-        const container = document.getElementById("unifiedSearchResults");
-        const passport = (input.value || "").trim().toUpperCase();
-        if (!passport || passport.length < 3) {
-          showToast("Masukkan minimal 3 karakter nomor paspor", "warning");
+      // Satu pintu: jalankan pencarian sentral (menu Pencarian) dengan query
+      function runCentralSearch(q) {
+        const query = (q || "").trim();
+        if (!query || query.length < 2) return false;
+        setMainMenu("pencarian");
+        setTimeout(function () {
+          const psInput = document.getElementById("psSearchInput");
+          if (psInput) {
+            psInput.value = query;
+            doPsSearch();
+          }
+        }, 350);
+        return true;
+      }
+
+      function doDashboardSearch() {
+        const input = document.getElementById("dashboardSearchInput") || document.getElementById("unifiedPassportInput");
+        const q = (input?.value || "").trim();
+        if (!q || q.length < 2) {
+          showToast("Masukkan minimal 2 karakter", "warning");
           return;
         }
-        container.innerHTML =
-          '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-cyan-400 text-3xl"></i><p class="text-gray-400 mt-2">Mencari di semua sumber data...</p></div>';
-        container.classList.remove("hidden");
-        try {
-          const res = await fetch(
-            "/api/unified/search/" + encodeURIComponent(passport),
-          );
-          const json = await res.json();
-          if (json.status !== "ok" || !json.data?.found) {
-            container.innerHTML =
-              '<div class="bg-slate-800/60 rounded-xl p-6 text-center"><i class="fas fa-inbox text-gray-500 text-4xl mb-3"></i><p class="text-gray-400">Tidak ditemukan data untuk paspor <strong class="text-white">' +
-              passport +
-              "</strong></p></div>";
-            return;
-          }
-          renderUnifiedResults(json.data, container);
-        } catch (err) {
-          container.innerHTML =
-            '<div class="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-400"><i class="fas fa-exclamation-triangle mr-2"></i>Gagal mengambil data: ' +
-            err.message +
-            "</div>";
+        runCentralSearch(q);
+      }
+
+      // Legacy: jika ada yang masih pakai doUnifiedSearch (paspor), arahkan ke Pencarian Sentral
+      async function doUnifiedSearch() {
+        const input = document.getElementById("unifiedPassportInput") || document.getElementById("dashboardSearchInput");
+        const passport = (input?.value || "").trim().toUpperCase();
+        if (!passport || passport.length < 2) {
+          showToast("Masukkan minimal 2 karakter", "warning");
+          return;
         }
+        doDashboardSearch();
       }
 
       function renderUnifiedResults(data, container) {
@@ -20353,6 +20398,9 @@
             s.count +
             "</strong></span>";
         });
+        const safePassportUnified = (identity.passport_number || "").replace(/'/g, "\\'");
+        html +=
+          '<button type="button" onclick="goToDetail(\'passport\',\'' + safePassportUnified + '\')" class="ml-auto px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-sm font-semibold hover:bg-cyan-500/30 inline-flex items-center gap-2"><i class="fas fa-external-link-alt"></i> Buka di Penumpang Lookup</button>';
         html += "</div>";
         html += "</div>";
 
