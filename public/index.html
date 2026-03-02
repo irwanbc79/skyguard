@@ -10710,43 +10710,37 @@
           // Monthly Trend
           const trendC = document.getElementById("monthlyTrend");
           if (trendC && a.monthlyTrend?.length) {
-            const months = [
-              "Jan",
-              "Feb",
-              "Mar",
-              "Apr",
-              "Mei",
-              "Jun",
-              "Jul",
-              "Agt",
-              "Sep",
-              "Okt",
-              "Nov",
-              "Des",
-            ];
-            const maxTotal = Math.max(...a.monthlyTrend.map((m) => m.total));
-            trendC.innerHTML = `<div class="grid grid-cols-12 gap-2 items-end h-40 mb-4">
-                        ${a.monthlyTrend
-                          .slice(0, 12)
-                          .reverse()
-                          .map((m) => {
-                            const height =
-                              maxTotal > 0 ? (m.total / maxTotal) * 100 : 0;
-                            const billingH =
-                              m.total > 0 ? (m.billing / m.total) * 100 : 0;
-                            return `<div class="flex flex-col items-center gap-1">
-                                <div class="w-full bg-white/10 rounded-t relative" style="height:${height}%" title="${m.total.toLocaleString()} total">
-                                    <div class="absolute bottom-0 w-full bg-green-500/50 rounded-t" style="height:${100 - billingH}%"></div>
-                                    <div class="absolute top-0 w-full bg-red-500/50 rounded-t" style="height:${billingH}%"></div>
+            const months = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"];
+            const data = a.monthlyTrend.slice(0, 12).reverse();
+            const maxTotal = Math.max(...data.map((m) => m.total || 0), 1);
+            const BAR_MAX_H = 140;
+            trendC.innerHTML = `<div class="flex items-end justify-between gap-1 mb-4" style="height:${BAR_MAX_H + 30}px; padding-top:20px;">
+                        ${data.map((m) => {
+                            const total = m.total || 0;
+                            const billing = m.billing || 0;
+                            const pembebasan = m.pembebasan || 0;
+                            const lain = Math.max(0, total - billing - pembebasan);
+                            const barH = Math.max(Math.round((total / maxTotal) * BAR_MAX_H), total > 0 ? 4 : 0);
+                            const billingH = total > 0 ? Math.round((billing / total) * barH) : 0;
+                            const pembebasanH = total > 0 ? Math.round((pembebasan / total) * barH) : 0;
+                            const lainH = Math.max(0, barH - billingH - pembebasanH);
+                            const label = months[(m._id?.month || 1) - 1];
+                            const yr = m._id?.year ? "'" + String(m._id.year).slice(2) : "";
+                            return `<div class="flex flex-col items-center flex-1 min-w-0" title="${label} ${yr}: ${total.toLocaleString()} total | ${billing.toLocaleString()} billing | ${pembebasan.toLocaleString()} bebas">
+                                <span class="text-[9px] text-gray-400 mb-1 ${total > 500 ? '' : 'invisible'}">${total > 999 ? (total/1000).toFixed(1)+'k' : total}</span>
+                                <div class="w-full max-w-[28px] flex flex-col rounded-t overflow-hidden" style="height:${barH}px;">
+                                    <div class="bg-red-500 w-full flex-shrink-0" style="height:${billingH}px;"></div>
+                                    <div class="bg-green-500 w-full flex-shrink-0" style="height:${pembebasanH}px;"></div>
+                                    <div class="bg-slate-500 w-full flex-1" style="min-height:${lainH}px;"></div>
                                 </div>
-                                <span class="text-xs text-gray-400">${months[(m._id?.month || 1) - 1]}</span>
+                                <span class="text-[10px] text-gray-400 mt-1">${label}</span>
                             </div>`;
-                          })
-                          .join("")}
+                          }).join("")}
                     </div>
                     <div class="flex justify-center gap-6 text-xs">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-green-500/50 rounded"></span> Pembebasan</span>
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500/50 rounded"></span> Billing</span>
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded"></span> Billing</span>
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-green-500 rounded"></span> Pembebasan</span>
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 bg-slate-500 rounded"></span> Lainnya</span>
                     </div>`;
           }
         } catch (e) {
