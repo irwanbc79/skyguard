@@ -15272,9 +15272,30 @@
                 <input type="text" id="manifestSearchFilter" placeholder="Cari flight..." oninput="debouncedManifestSearch()" class="flex-1 px-2 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none" />
               </div>
               <div class="flex gap-2 mb-3">
-                <button onclick="ingestSampleManifests()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-orange-500/80 hover:bg-orange-500 transition"><i class="fas fa-folder-open mr-1"></i> Load Samples</button>
-                <button onclick="document.getElementById('manifestUploadInput').click()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-blue-500/80 hover:bg-blue-500 transition"><i class="fas fa-upload mr-1"></i> Upload File</button>
+                <button onclick="ingestSampleManifests()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-orange-500/80 hover:bg-orange-500 transition"><i class="fas fa-folder-open mr-1"></i> Samples</button>
+                <button onclick="document.getElementById('manifestUploadInput').click()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-blue-500/80 hover:bg-blue-500 transition"><i class="fas fa-upload mr-1"></i> Upload</button>
+                <button onclick="openEmailScanner()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-emerald-500/80 hover:bg-emerald-500 transition"><i class="fas fa-envelope mr-1"></i> Scan Email</button>
                 <input type="file" id="manifestUploadInput" accept=".txt,.csv,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="uploadManifestFile(this)"/>
+              </div>
+              <!-- Email Scanner Panel (hidden by default) -->
+              <div id="emailScannerPanel" class="hidden mb-3 bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="text-emerald-400 font-semibold text-xs flex items-center gap-1"><i class="fas fa-satellite-dish"></i> Email Scanner</h4>
+                  <button onclick="document.getElementById('emailScannerPanel').classList.add('hidden')" class="text-gray-500 hover:text-white text-xs"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="flex gap-2 mb-2">
+                  <input type="text" id="emailScanSubject" placeholder="Filter subject (misal: TR)" class="flex-1 px-2 py-1.5 rounded text-xs bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none" />
+                  <select id="emailScanDays" class="px-2 py-1.5 rounded text-xs bg-white/5 border border-white/10 text-white outline-none">
+                    <option value="7">7 hari</option>
+                    <option value="14" selected>14 hari</option>
+                    <option value="30">30 hari</option>
+                  </select>
+                </div>
+                <div class="flex gap-2 mb-2">
+                  <button onclick="peekEmailInbox()" class="flex-1 px-3 py-1.5 rounded text-xs bg-slate-600 hover:bg-slate-500 transition"><i class="fas fa-eye mr-1"></i> Lihat Inbox</button>
+                  <button onclick="forcePollInbox()" class="flex-1 px-3 py-1.5 rounded text-xs bg-emerald-600 hover:bg-emerald-500 transition"><i class="fas fa-download mr-1"></i> Tarik & Proses</button>
+                </div>
+                <div id="emailScanResult" class="text-xs max-h-48 overflow-y-auto"></div>
               </div>
               <div id="manifestList" class="space-y-2 text-sm max-h-[60vh] overflow-y-auto"></div>
             </div>
@@ -15653,6 +15674,110 @@
             '<div class="glass-card-solid rounded-2xl p-6 text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error: ' +
             err.message +
             "</div>";
+        }
+      }
+
+      // ===== EMAIL SCANNER FUNCTIONS =====
+      function openEmailScanner() {
+        const panel = document.getElementById('emailScannerPanel');
+        if (panel) {
+          panel.classList.toggle('hidden');
+          if (!panel.classList.contains('hidden')) {
+            document.getElementById('emailScanResult').innerHTML = '<p class="text-gray-500 text-center py-2">Klik "Lihat Inbox" untuk melihat email terbaru, atau "Tarik & Proses" untuk langsung ingest.</p>';
+          }
+        }
+      }
+
+      async function peekEmailInbox() {
+        const resultEl = document.getElementById('emailScanResult');
+        if (!resultEl) return;
+        const days = document.getElementById('emailScanDays')?.value || 14;
+        resultEl.innerHTML = '<p class="text-emerald-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i> Mengecek inbox...</p>';
+        try {
+          const res = await fetch(`/api/manifests/inbox/peek?days=${days}&limit=30`);
+          const json = await res.json();
+          if (json.status !== 'ok') {
+            resultEl.innerHTML = `<p class="text-red-400 text-center py-2"><i class="fas fa-exclamation-circle mr-1"></i> ${json.message || 'Gagal mengakses inbox'}</p>`;
+            return;
+          }
+          const d = json.data;
+          const filterKw = (document.getElementById('emailScanSubject')?.value || '').toLowerCase();
+          let msgs = d.messages || [];
+          if (filterKw) {
+            msgs = msgs.filter(m => (m.subject || '').toLowerCase().includes(filterKw) || (m.from || '').toLowerCase().includes(filterKw));
+          }
+          if (!msgs.length) {
+            resultEl.innerHTML = `<p class="text-gray-400 text-center py-2">Tidak ada email ditemukan${filterKw ? ' dengan filter "' + filterKw + '"' : ''} (${d.total} total di inbox).</p><p class="text-gray-600 text-center text-[10px]">Account: ${d.account} | Filter: subj=${d.subjectFilter}, from=${d.fromFilter}</p>`;
+            return;
+          }
+          let html = `<p class="text-gray-500 mb-2">Ditemukan <strong class="text-white">${msgs.length}</strong> email${filterKw ? ' (filter: "'+filterKw+'")' : ''} dari ${d.total} total | <span class="text-gray-600">${d.account}</span></p>`;
+          msgs.forEach((m, i) => {
+            const dt = m.date ? new Date(m.date).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
+            const seen = m.flags?.includes('\\Seen') ? '<span class="text-gray-600">[Seen]</span>' : '<span class="text-green-400">[New]</span>';
+            const attInfo = m.attachments.length > 0 ? m.attachments.map(a => a.filename).join(', ') : '<span class="text-gray-600">No attachments</span>';
+            const hasMf = m.hasManifest ? '<span class="text-emerald-400 ml-1"><i class="fas fa-check-circle"></i></span>' : '';
+            html += `<div class="bg-white/5 rounded-lg p-2 mb-1 ${m.hasManifest ? 'border-l-2 border-emerald-500' : ''}">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                  <p class="text-white text-[11px] font-medium truncate">${m.subject || '(no subject)'}${hasMf}</p>
+                  <p class="text-gray-500 text-[10px] truncate">${m.from}</p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="text-gray-500 text-[10px]">${dt}</p>
+                  <p class="text-[10px]">${seen}</p>
+                </div>
+              </div>
+              <p class="text-gray-400 text-[10px] mt-1"><i class="fas fa-paperclip mr-1"></i>${attInfo}</p>
+            </div>`;
+          });
+          resultEl.innerHTML = html;
+        } catch (err) {
+          resultEl.innerHTML = `<p class="text-red-400 text-center py-2">${err.message}</p>`;
+        }
+      }
+
+      async function forcePollInbox() {
+        const resultEl = document.getElementById('emailScanResult');
+        if (!resultEl) return;
+        const days = document.getElementById('emailScanDays')?.value || 14;
+        const subj = document.getElementById('emailScanSubject')?.value || '';
+        resultEl.innerHTML = '<p class="text-emerald-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i> Menarik & memproses email...</p>';
+        try {
+          const res = await fetch('/api/manifests/inbox/poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: true, days: parseInt(days), subject: subj || undefined }),
+          });
+          const json = await res.json();
+          if (json.status !== 'ok') {
+            resultEl.innerHTML = `<p class="text-red-400 text-center py-2"><i class="fas fa-exclamation-circle mr-1"></i> ${json.message || 'Gagal'}</p>`;
+            return;
+          }
+          const r = json.data;
+          let html = `<div class="bg-emerald-900/30 rounded-lg p-3 mb-2">
+            <p class="text-emerald-400 font-semibold mb-1"><i class="fas fa-check-circle mr-1"></i> Selesai!</p>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div><p class="text-white font-bold">${r.processed || 0}</p><p class="text-gray-400 text-[10px]">Diproses</p></div>
+              <div><p class="text-emerald-400 font-bold">${r.ingested || 0}</p><p class="text-gray-400 text-[10px]">Diingest</p></div>
+              <div><p class="text-gray-400 font-bold">${r.skipped || 0}</p><p class="text-gray-400 text-[10px]">Dilewati</p></div>
+            </div>
+          </div>`;
+          if (r.details?.length) {
+            r.details.forEach(d => {
+              const icon = d.status === 'ingested' ? 'fa-check-circle text-emerald-400' : d.status === 'error' ? 'fa-times-circle text-red-400' : 'fa-minus-circle text-gray-500';
+              html += `<div class="flex items-center gap-2 py-1 border-b border-white/5 text-[10px]">
+                <i class="fas ${icon}"></i>
+                <span class="flex-1 truncate text-gray-300">${d.subject || d.error || '-'}</span>
+                <span class="text-gray-500">${d.status}</span>
+              </div>`;
+            });
+          }
+          resultEl.innerHTML = html;
+          if (r.ingested > 0) {
+            setTimeout(() => loadManifestList(), 1000);
+          }
+        } catch (err) {
+          resultEl.innerHTML = `<p class="text-red-400 text-center py-2">${err.message}</p>`;
         }
       }
 
