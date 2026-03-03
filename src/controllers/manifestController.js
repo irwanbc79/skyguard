@@ -137,12 +137,15 @@ async function syncManifestPassengers(req, res) {
     const format = parsed.format || "airasia_pax";
     const docs = [];
 
-    if (
-      format === "apis" ||
-      format === "lion_manifest" ||
-      format === "enh_manifest" ||
-      format === "baggage_list"
-    ) {
+    // Check flat passengers first (apis, lion_manifest, mh_manifest, sq_manifest,
+    // dcs_manifest, ga_manifest, enh_manifest, baggage_list, generic_report,
+    // csv_manifest, generic_manifest, xlsx_manifest, etc.)
+    const hasFlatPassengers = (parsed.passengers || []).length > 0;
+    const hasSegments = (parsed.segments || []).some(
+      (s) => (s.passengers || []).length > 0 || (s.no_shows || []).length > 0,
+    );
+
+    if (hasFlatPassengers) {
       // Format flat: passengers + no_shows langsung di parsed_fields
       (parsed.passengers || []).forEach((p) =>
         docs.push(buildPassengerDoc(manifest, p, "checked_in", 0)),
@@ -150,22 +153,24 @@ async function syncManifestPassengers(req, res) {
       (parsed.no_shows || []).forEach((p) =>
         docs.push(buildPassengerDoc(manifest, p, "no_show", 0)),
       );
-    } else {
-      // Format AirAsia PAX: segments[]
-      const segments = parsed.segments || [];
-      if (!segments.length) {
-        return res.status(400).json({
-          status: "error",
-          message: "Manifest belum diparse atau tidak ada penumpang",
-        });
-      }
-      segments.forEach((segment, index) => {
+    }
+
+    if (hasSegments) {
+      // Format segment-based (AirAsia PAX, etc.)
+      (parsed.segments || []).forEach((segment, index) => {
         (segment.passengers || []).forEach((p) =>
           docs.push(buildPassengerDoc(manifest, p, "checked_in", index)),
         );
         (segment.no_shows || []).forEach((p) =>
           docs.push(buildPassengerDoc(manifest, p, "no_show", index)),
         );
+      });
+    }
+
+    if (!hasFlatPassengers && !hasSegments) {
+      return res.status(400).json({
+        status: "error",
+        message: "Manifest belum diparse atau tidak ada penumpang",
       });
     }
 

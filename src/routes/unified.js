@@ -561,6 +561,7 @@ router.get("/multi-search", async (req, res) => {
         aliases: [...names].slice(1, 5),
       };
       results.is_suspect = !!suspect;
+      results.suspect_id = suspect ? String(suspect._id) : null;
       results.suspect = suspect
         ? { status: suspect.status, risk_level: suspect.risk_level }
         : null;
@@ -575,6 +576,8 @@ router.get("/multi-search", async (req, res) => {
           items: mPax
             .slice(0, 20)
             .map((p) => ({
+              _id: p._id ? String(p._id) : null,
+              passport: p.passport_number,
               name: p.name,
               flight: p.flight_number,
               date: p.flight_date,
@@ -593,6 +596,8 @@ router.get("/multi-search", async (req, res) => {
           items: ceisa
             .slice(0, 20)
             .map((c) => ({
+              _id: c._id ? String(c._id) : null,
+              passport: c.paspor,
               name: c.nama_lengkap,
               doc: c.nomor_dokumen,
               date: c.tanggal_dokumen,
@@ -611,10 +616,13 @@ router.get("/multi-search", async (req, res) => {
           items: iDet
             .slice(0, 20)
             .map((d) => ({
+              _id: d._id ? String(d._id) : null,
+              passport: d.no_identitas,
               name: d.nama,
               merk: d.merk,
               tipe: d.tipe,
               imei: d.imei1,
+              imei1: d.imei1,
               fob: d.harga_fob_usd,
               payment: d.cara_pembayaran,
               dok: d.no_dokumen,
@@ -631,6 +639,8 @@ router.get("/multi-search", async (req, res) => {
           items: iReg
             .slice(0, 20)
             .map((r) => ({
+              _id: r._id ? String(r._id) : null,
+              passport: r.no_identitas,
               name: r.nama,
               dok: r.no_dok,
               date: r.tgl_kedatangan,
@@ -763,12 +773,14 @@ router.get("/multi-search", async (req, res) => {
           color: "#3b82f6",
           count: iDet.length,
           items: iDet.map((d) => ({
+            _id: d._id ? String(d._id) : null,
             nama: d.nama,
             passport: d.no_identitas,
             merk: d.merk,
             tipe: d.tipe,
             imei1: d.imei1,
             imei2: d.imei2,
+            imei: d.imei1,
             fob: d.harga_fob_usd,
             payment: d.cara_pembayaran,
             dok: d.no_dokumen,
@@ -840,10 +852,12 @@ router.get("/multi-search", async (req, res) => {
           items: iDet
             .slice(0, 20)
             .map((d) => ({
+              _id: d._id ? String(d._id) : null,
               nama: d.nama,
               passport: d.no_identitas,
               merk: d.merk,
               tipe: d.tipe,
+              imei: d.imei1,
               payment: d.cara_pembayaran,
               dok: d.no_dokumen,
             })),
@@ -858,6 +872,7 @@ router.get("/multi-search", async (req, res) => {
           items: iReg
             .slice(0, 20)
             .map((r) => ({
+              _id: r._id ? String(r._id) : null,
               nama: r.nama,
               passport: r.no_identitas,
               dok: r.no_dok,
@@ -884,11 +899,13 @@ router.get("/multi-search", async (req, res) => {
           color: "#3b82f6",
           count: iDet.length,
           items: iDet.map((d) => ({
+            _id: d._id ? String(d._id) : null,
             nama: d.nama,
             passport: d.no_identitas,
             merk: d.merk,
             tipe: d.tipe,
             imei: d.imei1,
+            imei1: d.imei1,
             fob: d.harga_fob_usd,
             payment: d.cara_pembayaran,
           })),
@@ -901,6 +918,7 @@ router.get("/multi-search", async (req, res) => {
           color: "#22c55e",
           count: iReg.length,
           items: iReg.map((r) => ({
+            _id: r._id ? String(r._id) : null,
             nama: r.nama,
             passport: r.no_identitas,
             dok: r.no_dok,

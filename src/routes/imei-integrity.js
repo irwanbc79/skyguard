@@ -17,6 +17,13 @@ const ImeiRegistration = require("../models/ImeiRegistration");
 const ImeiDetail = require("../models/ImeiDetail");
 const ScraperSession = require("../models/ScraperSession");
 
+// Safe pagination parser — avoids NaN from invalid query params
+function parsePagination(page, limit, defaults = { page: 1, limit: 50 }) {
+  const p = Math.max(1, parseInt(String(page), 10) || defaults.page);
+  const l = Math.min(200, Math.max(1, parseInt(String(limit), 10) || defaults.limit));
+  return { page: p, limit: l, offset: (p - 1) * l };
+}
+
 // ============================================================
 // 1. GET /quality — Data Quality Dashboard
 // ============================================================
@@ -64,7 +71,7 @@ router.get("/quality", async (req, res) => {
         { $group: { _id: "$source_file", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]),
-      ScraperSession.findOne().sort({ createdAt: -1 }).lean(),
+      ScraperSession.findOne().sort({ started_at: -1 }).lean(),
       ImeiDetail.distinct("registration_id").then((a) => a.length),
     ]);
 
@@ -104,23 +111,25 @@ router.get("/quality", async (req, res) => {
       },
     };
 
-    // Scraper progress
+    // Scraper progress (field names match ScraperSession model)
     const scraperProgress = latestSession
       ? {
-          sessionId: latestSession.sessionId,
+          sessionId: latestSession.session_id,
           status: latestSession.status,
-          lastPage: latestSession.lastPage,
-          totalPages: latestSession.totalPages,
-          progress: latestSession.totalPages
-            ? (
-                ((latestSession.lastPage || 0) / latestSession.totalPages) *
-                100
-              ).toFixed(1) + "%"
-            : "N/A",
-          totalRecords: latestSession.totalRecords,
-          errors: latestSession.errors,
-          startedAt: latestSession.createdAt,
-          updatedAt: latestSession.updatedAt,
+          lastPage: latestSession.current_page,
+          totalPages: latestSession.total_pages,
+          progress:
+            latestSession.total_pages > 0
+              ? (
+                  ((latestSession.current_page || 0) /
+                    latestSession.total_pages) *
+                  100
+                ).toFixed(1) + "%"
+              : "N/A",
+          totalRecords: latestSession.total_records,
+          errors: latestSession.error_log || [],
+          startedAt: latestSession.started_at,
+          updatedAt: latestSession.last_activity,
         }
       : null;
 
@@ -154,8 +163,13 @@ router.get("/quality", async (req, res) => {
           onlyInDetail: onlyInDet,
           combinedUniqueRegistrations: combinedUnique,
           coveragePercent:
-            ((overlapCount / regDoks.length) * 100).toFixed(1) + "%",
-          description: `Dari ${regDoks.length} registrasi CSV, ${overlapCount} (${((overlapCount / regDoks.length) * 100).toFixed(1)}%) sudah ada detail device-nya. ${onlyInDet} registrasi baru ditemukan dari scraper.`,
+            regDoks.length > 0
+              ? ((overlapCount / regDoks.length) * 100).toFixed(1) + "%"
+              : "N/A",
+          description:
+            regDoks.length > 0
+              ? `Dari ${regDoks.length} registrasi CSV, ${overlapCount} (${((overlapCount / regDoks.length) * 100).toFixed(1)}%) sudah ada detail device-nya. ${onlyInDet} registrasi baru ditemukan dari scraper.`
+              : "Belum ada data registrasi CSV.",
         },
         completeness,
         scraperProgress,
@@ -180,6 +194,7 @@ router.get("/quality", async (req, res) => {
 router.get("/overlap", async (req, res) => {
   try {
     const { page = 1, limit = 50, status = "all" } = req.query;
+    const { page: p, limit: l, offset } = parsePagination(page, limit);
 
     // Get all no_dokumen from ImeiDetail (grouped by registration)
     const detRegistrations = await ImeiDetail.aggregate([
@@ -245,16 +260,15 @@ router.get("/overlap", async (req, res) => {
       }
     }
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    const paged = results.slice(offset, offset + parseInt(limit));
+    const paged = results.slice(offset, offset + l);
 
     res.json({
       status: "ok",
       total: results.length,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(results.length / parseInt(limit)),
+        page: p,
+        limit: l,
+        pages: Math.ceil(results.length / l) || 1,
       },
       data: paged,
     });
@@ -537,6 +551,7 @@ router.get("/validate/:noDok", async (req, res) => {
 router.get("/discrepancies", async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
+    const { page: p, limit: l, offset } = parsePagination(page, limit);
 
     // Get overlap records — registrations that exist in BOTH collections
     const detGrouped = await ImeiDetail.aggregate([
@@ -620,8 +635,7 @@ router.get("/discrepancies", async (req, res) => {
       }
     }
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    const paged = discrepancies.slice(offset, offset + parseInt(limit));
+    const paged = discrepancies.slice(offset, offset + l);
 
     res.json({
       status: "ok",
@@ -639,10 +653,10 @@ router.get("/discrepancies", async (req, res) => {
             : "N/A",
       },
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: p,
+        limit: l,
         total: discrepancies.length,
-        pages: Math.ceil(discrepancies.length / parseInt(limit)),
+        pages: Math.ceil(discrepancies.length / l) || 1,
       },
       discrepancies: paged,
     });
@@ -664,8 +678,9 @@ function generateRecommendations(
 ) {
   const recs = [];
 
-  const coveragePercent = (overlapCount / regUnique) * 100;
-  if (coveragePercent < 50) {
+  const coveragePercent =
+    regUnique > 0 ? (overlapCount / regUnique) * 100 : 0;
+  if (regUnique > 0 && coveragePercent < 50) {
     recs.push({
       priority: "HIGH",
       category: "coverage",
@@ -681,8 +696,7 @@ function generateRecommendations(
     });
   }
 
-  if (detUnique > regUnique) {
-    const extra = detUnique - regUnique + overlapCount;
+  if (detUnique > 0 && detUnique > regUnique) {
     recs.push({
       priority: "MEDIUM",
       category: "new_data",
@@ -690,7 +704,7 @@ function generateRecommendations(
     });
   }
 
-  if (detCount > 0 && regCount > 0) {
+  if (detCount > 0 && regCount > 0 && detUnique > 0) {
     const devicesPerReg = (detCount / detUnique).toFixed(1);
     recs.push({
       priority: "INFO",

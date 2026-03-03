@@ -224,9 +224,9 @@ async function getAdvancedStats() {
     { $sort: { count: -1 } },
   ]);
 
-  // 3. Top Petugas (by records handled)
+  // 3. Top Petugas (by billing count, then total as tiebreaker)
   const topPetugas = await Passenger.aggregate([
-    { $match: { nama_petugas: { $ne: "", $ne: null } } },
+    { $match: { nama_petugas: { $nin: ["", null] } } },
     {
       $group: {
         _id: "$nip_petugas",
@@ -234,6 +234,20 @@ async function getAdvancedStats() {
         total: { $sum: 1 },
         billing: {
           $sum: { $cond: [{ $eq: ["$status_penelitian", "BILLING"] }, 1, 0] },
+        },
+        pembebasan: {
+          $sum: { $cond: [{ $eq: ["$status_penelitian", "PEMBEBASAN"] }, 1, 0] },
+        },
+      },
+    },
+    {
+      $addFields: {
+        billingRate: {
+          $cond: [
+            { $gt: ["$total", 0] },
+            { $round: [{ $multiply: [{ $divide: ["$billing", "$total"] }, 100] }, 1] },
+            0,
+          ],
         },
       },
     },

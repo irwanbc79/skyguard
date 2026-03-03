@@ -304,8 +304,19 @@ async function getGhostPassengers(page = 1, limit = 50) {
     {
       $lookup: {
         from: "passengers",
-        localField: "_id",
-        foreignField: "paspor",
+        let: { passport_upper: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: [
+                  { $toUpper: { $trim: { input: { $ifNull: ["$paspor", ""] } } } },
+                  "$$passport_upper",
+                ],
+              },
+            },
+          },
+        ],
         as: "ceisa_match",
       },
     },
@@ -947,6 +958,10 @@ function similarityScore(a, b) {
   return (longer.length - costs[shorter.length]) / longer.length;
 }
 
+function invalidateCache() {
+  cache.flushAll();
+}
+
 module.exports = {
   getRadarOverview,
   getGhostPassengers,
@@ -954,4 +969,5 @@ module.exports = {
   getFrequentTravelers,
   getWatchlistHits,
   getMultiIdentity,
+  invalidateCache,
 };

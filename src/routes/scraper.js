@@ -5,9 +5,10 @@
 const express = require("express");
 const router = express.Router();
 const scraperService = require("../services/scraperService");
+const { requireAuth } = require("../middleware/auth");
 
 // ── POST /api/scraper/session - Create new scraping session ──
-router.post("/session", async (req, res) => {
+router.post("/session", requireAuth, async (req, res) => {
   try {
     const session = await scraperService.createSession(req.body);
     res.json({
@@ -22,7 +23,7 @@ router.post("/session", async (req, res) => {
 });
 
 // ── POST /api/scraper/ingest - Receive batch of scraped records ──
-router.post("/ingest", async (req, res) => {
+router.post("/ingest", requireAuth, async (req, res) => {
   try {
     const { session_id, records, meta } = req.body;
     if (!session_id || !records || !Array.isArray(records)) {
@@ -66,7 +67,7 @@ router.get("/latest", async (req, res) => {
 router.get("/sessions", async (req, res) => {
   try {
     const sessions = await scraperService.getAllSessions(
-      parseInt(req.query.limit) || 20,
+      Math.min(100, Math.max(1, parseInt(String(req.query.limit), 10) || 20)),
     );
     res.json({ status: "ok", sessions });
   } catch (err) {
@@ -75,7 +76,7 @@ router.get("/sessions", async (req, res) => {
 });
 
 // ── PUT /api/scraper/session/:session_id - Update session status ──
-router.put("/session/:session_id", async (req, res) => {
+router.put("/session/:session_id", requireAuth, async (req, res) => {
   try {
     const { status, notes, elapsed_seconds, current_page } = req.body;
     const extra = {};

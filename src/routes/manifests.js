@@ -1,6 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const manifestController = require("../controllers/manifestController");
+const { requireAuth } = require("../middleware/auth");
 const Manifest = require("../models/Manifest");
 const ManifestPassenger = require("../models/ManifestPassenger");
 
@@ -27,9 +28,59 @@ const upload = multer({
   },
 });
 
+const { pollInbox, peekInbox, getInboxConfig } = require("../services/manifestInboxService");
+
 const router = express.Router();
 
 router.get("/", manifestController.listManifests);
+
+// ==================== INBOX MANAGEMENT ====================
+
+router.get("/inbox/status", requireAuth, async (req, res) => {
+  try {
+    const config = getInboxConfig();
+    res.json({
+      status: "ok",
+      data: {
+        enabled: config.enabled,
+        host: config.host,
+        user: config.user,
+        mailbox: config.mailbox,
+        subjectFilter: config.subjectFilter || "ALL",
+        fromFilter: config.fromFilter || "ALL",
+        cron: config.cron,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+router.get("/inbox/peek", requireAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 50);
+    const daysBack = Math.min(Math.max(parseInt(req.query.days) || 14, 1), 60);
+    const result = await peekInbox({ limit, daysBack });
+    if (result.error) {
+      return res.status(400).json({ status: "error", message: result.error });
+    }
+    res.json({ status: "ok", data: result });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+router.post("/inbox/poll", requireAuth, async (req, res) => {
+  try {
+    const force = req.body.force === true;
+    const daysBack = parseInt(req.body.days) || undefined;
+    const subjectKeyword = req.body.subject || undefined;
+    const result = await pollInbox({ force, daysBack, subjectKeyword });
+    res.json({ status: "ok", data: result });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
 
 // MUST be before /:id to avoid param capture
 router.get("/analytics/command-center", async (req, res) => {
@@ -156,7 +207,7 @@ router.get("/analytics/command-center", async (req, res) => {
 });
 
 // POST /api/manifests/bulk-reparse — re-parse ALL needs_review manifests
-router.post("/bulk-reparse", async (req, res) => {
+router.post("/bulk-reparse", requireAuth, async (req, res) => {
   try {
     const fs = require("fs");
     const {
@@ -302,7 +353,7 @@ router.post("/bulk-reparse", async (req, res) => {
 });
 
 // POST /api/manifests/bulk-sync — sync ALL parsed manifests to ManifestPassenger collection
-router.post("/bulk-sync", async (req, res) => {
+router.post("/bulk-sync", requireAuth, async (req, res) => {
   try {
     const manifests = await Manifest.find({
       status: "parsed",
@@ -346,19 +397,22 @@ router.post("/bulk-sync", async (req, res) => {
           pax_type: p.pax_type || null,
         });
 
-        if (
-          format === "apis" ||
-          format === "lion_manifest" ||
-          format === "enh_manifest" ||
-          format === "baggage_list"
-        ) {
+        // Check flat passengers first (all formats including mh/sq/ga/dcs/generic)
+        const hasFlatPax = (parsed.passengers || []).length > 0;
+        const hasSegPax = (parsed.segments || []).some(
+          (s) =>
+            (s.passengers || []).length > 0 || (s.no_shows || []).length > 0,
+        );
+
+        if (hasFlatPax) {
           (parsed.passengers || []).forEach((p) =>
             docs.push(buildDoc(p, "checked_in", 0)),
           );
           (parsed.no_shows || []).forEach((p) =>
             docs.push(buildDoc(p, "no_show", 0)),
           );
-        } else {
+        }
+        if (hasSegPax) {
           (parsed.segments || []).forEach((seg, idx) => {
             (seg.passengers || []).forEach((p) =>
               docs.push(buildDoc(p, "checked_in", idx)),
@@ -379,6 +433,16 @@ router.post("/bulk-sync", async (req, res) => {
       } catch (err) {
         console.error(`[BULK SYNC] Error on ${m.filename}:`, err.message);
         errors++;
+      }
+    }
+
+    // Invalidate intelligence cache so radar reflects new manifest data
+    if (totalSynced > 0) {
+      try {
+        const { invalidateCache } = require("../services/intelligenceService");
+        invalidateCache();
+      } catch (e) {
+        /* ignore */
       }
     }
 
@@ -644,6 +708,7 @@ router.get("/search/passport/:no", async (req, res) => {
 router.get("/:id", manifestController.getManifestDetail);
 router.post(
   "/upload",
+  requireAuth,
   upload.single("file"),
   manifestController.uploadManifest,
 );

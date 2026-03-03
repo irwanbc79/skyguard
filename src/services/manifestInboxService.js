@@ -68,12 +68,12 @@ async function processMessage(client, message) {
 const MAX_BATCH = Number(process.env.MANIFEST_IMAP_BATCH || 30);
 const LOOKBACK_DAYS = Number(process.env.MANIFEST_IMAP_DAYS || 7);
 
-async function pollInbox() {
+async function pollInbox({ force = false, daysBack, subjectKeyword } = {}) {
   const config = getInboxConfig();
-  if (!config.enabled) return;
+  if (!force && !config.enabled) return { processed: 0, ingested: 0, skipped: 0, message: "IMAP disabled" };
   if (!config.host || !config.user || !config.pass) {
     console.warn("[Manifest Inbox] Missing IMAP credentials.");
-    return;
+    return { processed: 0, ingested: 0, skipped: 0, message: "Missing IMAP credentials" };
   }
 
   const client = new ImapFlow({
@@ -91,23 +91,34 @@ async function pollInbox() {
     await client.connect();
     await client.mailboxOpen(config.mailbox);
 
-    // Only search unseen emails from last N days
+    const lookback = daysBack || LOOKBACK_DAYS;
     const since = new Date();
-    since.setDate(since.getDate() - LOOKBACK_DAYS);
-    const unseen = await client.search({ seen: false, since });
-    if (!unseen.length) {
-      console.log("[Manifest Inbox] No new emails.");
-      return;
+    since.setDate(since.getDate() - lookback);
+
+    let searchCriteria;
+    if (force) {
+      searchCriteria = { since };
+    } else {
+      searchCriteria = { seen: false, since };
     }
-    // Limit batch size to avoid memory/timeout issues
-    const batch = unseen.slice(-MAX_BATCH);
+
+    const results = await client.search(searchCriteria);
+    if (!results.length) {
+      console.log("[Manifest Inbox] No emails found.");
+      return { processed: 0, ingested: 0, skipped: 0, message: "No emails found" };
+    }
+
+    const batch = results.slice(-MAX_BATCH);
     console.log(
-      `[Manifest Inbox] Found ${unseen.length} unseen (last ${LOOKBACK_DAYS}d), processing ${batch.length}.`,
+      `[Manifest Inbox] Found ${results.length} emails (last ${lookback}d, force=${force}), processing ${batch.length}.`,
     );
 
     let processed = 0;
     let ingested = 0;
+    let skipped = 0;
     const processedUids = [];
+    const details = [];
+
     for await (const message of client.fetch(batch, {
       source: true,
       uid: true,
@@ -118,10 +129,15 @@ async function pollInbox() {
         const subject = parsed.subject || "";
         const attachments = parsed.attachments || [];
 
-        if (attachments.length > 0) {
-          let matchSubject = true;
-          let matchFrom = true;
+        if (attachments.length === 0) {
+          skipped++;
+          continue;
+        }
 
+        let matchSubject = true;
+        let matchFrom = true;
+
+        if (!force) {
           if (parsed.subject && process.env.MANIFEST_IMAP_SUBJECT) {
             const keywords = process.env.MANIFEST_IMAP_SUBJECT.toLowerCase()
               .split(",")
@@ -140,26 +156,35 @@ async function pollInbox() {
             matchFrom =
               domains.length === 0 || domains.some((d) => sender.includes(d));
           }
-
-          if (matchSubject && matchFrom) {
-            for (const attachment of attachments) {
-              if (!attachmentAllowed(attachment.filename)) continue;
-              console.log(
-                `[Manifest Inbox] Ingesting: ${attachment.filename} from "${from}" subj: "${subject}"`,
-              );
-              await ingestManifest({
-                buffer: attachment.content,
-                filename: attachment.filename || `manifest_${Date.now()}.txt`,
-                source: "email",
-                uploadedBy: "email",
-                sender: from,
-                emailSubject: subject,
-              });
-              ingested++;
-            }
-          }
         }
-        // Collect UID for marking as seen after fetch loop
+
+        if (subjectKeyword) {
+          const kw = subjectKeyword.toLowerCase();
+          matchSubject = (parsed.subject || "").toLowerCase().includes(kw);
+        }
+
+        if (matchSubject && matchFrom) {
+          for (const attachment of attachments) {
+            if (!attachmentAllowed(attachment.filename)) continue;
+            console.log(
+              `[Manifest Inbox] Ingesting: ${attachment.filename} from "${from}" subj: "${subject}"`,
+            );
+            await ingestManifest({
+              buffer: attachment.content,
+              filename: attachment.filename || `manifest_${Date.now()}.txt`,
+              source: "email",
+              uploadedBy: "email",
+              sender: from,
+              emailSubject: subject,
+            });
+            ingested++;
+          }
+          details.push({ subject, from, attachments: attachments.length, status: "ingested" });
+        } else {
+          skipped++;
+          details.push({ subject, from, attachments: attachments.length, status: "filtered_out" });
+        }
+
         processedUids.push(message.uid);
         processed++;
       } catch (msgErr) {
@@ -167,10 +192,10 @@ async function pollInbox() {
           `[Manifest Inbox] Error processing message:`,
           msgErr.message,
         );
+        details.push({ error: msgErr.message, status: "error" });
       }
     }
 
-    // Mark all processed messages as \Seen after fetch loop completes
     if (processedUids.length > 0) {
       try {
         await client.messageFlagsAdd(processedUids, ["\\Seen"], { uid: true });
@@ -186,10 +211,12 @@ async function pollInbox() {
     }
 
     console.log(
-      `[Manifest Inbox] Done: ${processed} processed, ${ingested} attachments ingested.`,
+      `[Manifest Inbox] Done: ${processed} processed, ${ingested} ingested, ${skipped} skipped.`,
     );
+    return { processed, ingested, skipped, details };
   } catch (error) {
     console.error("[Manifest Inbox] Error:", error.message);
+    return { processed: 0, ingested: 0, skipped: 0, error: error.message };
   } finally {
     await client.logout().catch(() => {});
   }
@@ -216,6 +243,70 @@ function initManifestInbox() {
   console.log(`[Manifest Inbox] From filter: ${config.fromFilter || "ALL"}`);
 }
 
+async function peekInbox({ limit = 20, daysBack = 14 } = {}) {
+  const config = getInboxConfig();
+  if (!config.host || !config.user || !config.pass) {
+    return { error: "IMAP credentials not configured" };
+  }
+
+  const client = new ImapFlow({
+    host: config.host,
+    port: config.port,
+    secure: config.tls,
+    auth: { user: config.user, pass: config.pass },
+    logger: false,
+  });
+
+  try {
+    await client.connect();
+    await client.mailboxOpen(config.mailbox);
+
+    const since = new Date();
+    since.setDate(since.getDate() - daysBack);
+
+    const all = await client.search({ since });
+    const batch = all.slice(-limit);
+
+    const messages = [];
+    for await (const msg of client.fetch(batch, { source: true, uid: true, flags: true })) {
+      const parsed = await simpleParser(msg.source);
+      const attachments = (parsed.attachments || []).map((a) => ({
+        filename: a.filename,
+        size: a.size,
+        contentType: a.contentType,
+      }));
+      messages.push({
+        uid: msg.uid,
+        flags: msg.flags ? [...msg.flags] : [],
+        from: parsed.from?.text || "",
+        subject: parsed.subject || "",
+        date: parsed.date || null,
+        attachments,
+        hasManifest: attachments.some((a) => attachmentAllowed(a.filename)),
+      });
+    }
+
+    messages.sort((a, b) => (b.date || 0) - (a.date || 0));
+
+    return {
+      account: config.user,
+      mailbox: config.mailbox,
+      subjectFilter: config.subjectFilter || "ALL",
+      fromFilter: config.fromFilter || "ALL",
+      total: all.length,
+      scanned: messages.length,
+      messages,
+    };
+  } catch (error) {
+    return { error: error.message };
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
 module.exports = {
   initManifestInbox,
+  pollInbox,
+  peekInbox,
+  getInboxConfig,
 };
