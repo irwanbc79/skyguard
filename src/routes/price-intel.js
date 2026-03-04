@@ -554,8 +554,8 @@ router.get("/gaps", async (req, res) => {
       { $limit: 200 },
     ]);
 
-    // Get all existing reference devices
-    const allDevices = await Device.find().lean();
+    // Get all existing reference devices (capped to avoid memory spike)
+    const allDevices = await Device.find().limit(20000).lean();
     const refSet = new Set(
       allDevices.map((d) => `${d.brand}|||${d.model}`.toUpperCase()),
     );

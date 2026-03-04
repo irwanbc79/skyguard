@@ -23,12 +23,18 @@ function sanitizeCsv(val) {
 
 // Parse pagination params safely
 function parsePagination(query, defaults = {}) {
-  const page = Math.max(1, parseInt(query.page) || defaults.page || 1);
+  const page = Math.max(1, parseInt(query.page, 10) || defaults.page || 1);
   const limit = Math.min(
     200,
-    Math.max(1, parseInt(query.limit) || defaults.limit || 50),
+    Math.max(1, parseInt(query.limit, 10) || defaults.limit || 50),
   );
   return { page, limit, skip: (page - 1) * limit };
+}
+
+// Validate MongoDB ObjectId (24 hex chars)
+function isValidObjectId(id) {
+  if (!id || typeof id !== "string") return false;
+  return /^[a-fA-F0-9]{24}$/.test(id);
 }
 
 // PDF text extraction using pdf-parse v1
@@ -49,4 +55,5 @@ module.exports = {
   sanitizeCsv,
   parsePagination,
   extractPdfText,
+  isValidObjectId,
 };

@@ -17,6 +17,7 @@
  */
 const express = require("express");
 const router = express.Router();
+const { escapeRegex, parsePagination } = require("../utils/helpers");
 const ImeiDetail = require("../models/ImeiDetail");
 const ImeiRegistration = require("../models/ImeiRegistration");
 
@@ -42,23 +43,27 @@ router.get("/", async (req, res) => {
     } = req.query;
 
     const filter = {};
-    if (merk) filter.merk = new RegExp(merk, "i");
-    if (tipe) filter.tipe = new RegExp(tipe, "i");
-    if (imei)
-      filter.$or = [{ imei1: new RegExp(imei) }, { imei2: new RegExp(imei) }];
-    if (passport) filter.no_identitas = new RegExp(passport, "i");
+    if (merk) filter.merk = new RegExp(escapeRegex(merk), "i");
+    if (tipe) filter.tipe = new RegExp(escapeRegex(tipe), "i");
+    if (imei) {
+      const safe = escapeRegex(imei);
+      filter.$or = [{ imei1: new RegExp(safe, "i") }, { imei2: new RegExp(safe, "i") }];
+    }
+    if (passport) filter.no_identitas = new RegExp(escapeRegex(passport), "i");
     if (flight)
-      filter.flight_normalized = new RegExp(flight.replace(/[\s\-]/g, ""), "i");
+      filter.flight_normalized = new RegExp(escapeRegex(flight.replace(/[\s\-]/g, "")), "i");
     if (payment) filter.cara_pembayaran = payment.toUpperCase();
     if (kantor) filter.kode_kantor = kantor;
     if (bekas !== undefined) filter.bekas = bekas === "true";
     if (minPrice || maxPrice) {
       filter.harga_fob_usd = {};
-      if (minPrice) filter.harga_fob_usd.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.harga_fob_usd.$lte = parseFloat(maxPrice);
+      const min = parseFloat(minPrice);
+      const max = parseFloat(maxPrice);
+      if (Number.isFinite(min)) filter.harga_fob_usd.$gte = min;
+      if (Number.isFinite(max)) filter.harga_fob_usd.$lte = max;
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { page: p, limit: l, skip } = parsePagination(req.query, { page: 1, limit: 50 });
     const sortObj = {};
     const sortField = sort.startsWith("-") ? sort.slice(1) : sort;
     sortObj[sortField] = sort.startsWith("-") ? -1 : 1;
@@ -67,7 +72,7 @@ router.get("/", async (req, res) => {
       ImeiDetail.find(filter)
         .sort(sortObj)
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(l)
         .lean(),
       ImeiDetail.countDocuments(filter),
     ]);
@@ -76,14 +81,14 @@ router.get("/", async (req, res) => {
       success: true,
       data,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: p,
+        limit: l,
         total,
-        pages: Math.ceil(total / parseInt(limit)),
+        pages: Math.ceil(total / l) || 1,
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -255,7 +260,7 @@ router.get("/analytics", async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -307,7 +312,7 @@ router.get("/search-imei/:imei", async (req, res) => {
       records,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -397,7 +402,7 @@ router.get("/passport/:no", async (req, res) => {
       devices: records,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -527,7 +532,7 @@ router.get("/brand-intelligence", async (req, res) => {
       brandByOffice,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -692,7 +697,7 @@ router.get("/anomalies", async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -719,7 +724,7 @@ router.get("/top-devices", async (req, res) => {
 
     res.json({ success: true, total: topDevices.length, devices: topDevices });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
@@ -811,7 +816,7 @@ router.get("/price-analysis", async (req, res) => {
       topTaxPayers,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 

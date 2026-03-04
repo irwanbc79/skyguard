@@ -29,6 +29,7 @@ const upload = multer({
 });
 
 const { pollInbox, peekInbox, getInboxConfig } = require("../services/manifestInboxService");
+const { validateObjectId } = require("../middleware/validateParams");
 
 const router = express.Router();
 
@@ -705,24 +706,25 @@ router.get("/search/passport/:no", async (req, res) => {
   }
 });
 
-router.get("/:id", manifestController.getManifestDetail);
+router.get("/:id", validateObjectId("id"), manifestController.getManifestDetail);
 router.post(
   "/upload",
   requireAuth,
   upload.single("file"),
   manifestController.uploadManifest,
 );
-router.put("/:id/review", manifestController.updateManifestStatus);
-router.post("/:id/sync", manifestController.syncManifestPassengers);
-router.get("/:id/passengers", manifestController.listManifestPassengers);
+router.put("/:id/review", validateObjectId("id"), manifestController.updateManifestStatus);
+router.post("/:id/sync", validateObjectId("id"), manifestController.syncManifestPassengers);
+router.get("/:id/passengers", validateObjectId("id"), manifestController.listManifestPassengers);
 router.get(
   "/:id/passengers/export",
+  validateObjectId("id"),
   manifestController.exportManifestPassengers,
 );
-router.get("/:id/crosscheck", manifestController.crosscheckManifestHandler);
+router.get("/:id/crosscheck", validateObjectId("id"), manifestController.crosscheckManifestHandler);
 
 // POST /api/manifests/:id/reparse - Re-parse manifest file with updated parser
-router.post("/:id/reparse", async (req, res) => {
+router.post("/:id/reparse", validateObjectId("id"), async (req, res) => {
   try {
     const fs = require("fs");
     const {

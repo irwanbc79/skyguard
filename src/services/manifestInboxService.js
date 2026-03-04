@@ -68,7 +68,13 @@ async function processMessage(client, message) {
 const MAX_BATCH = Number(process.env.MANIFEST_IMAP_BATCH || 30);
 const LOOKBACK_DAYS = Number(process.env.MANIFEST_IMAP_DAYS || 7);
 
+let pollingLock = false;
+
 async function pollInbox({ force = false, daysBack, subjectKeyword } = {}) {
+  if (pollingLock) {
+    console.log("[Manifest Inbox] Skipping poll – previous run still in progress.");
+    return { processed: 0, ingested: 0, skipped: 0, message: "Poll already in progress" };
+  }
   const config = getInboxConfig();
   if (!force && !config.enabled) return { processed: 0, ingested: 0, skipped: 0, message: "IMAP disabled" };
   if (!config.host || !config.user || !config.pass) {
@@ -76,6 +82,7 @@ async function pollInbox({ force = false, daysBack, subjectKeyword } = {}) {
     return { processed: 0, ingested: 0, skipped: 0, message: "Missing IMAP credentials" };
   }
 
+  pollingLock = true;
   const client = new ImapFlow({
     host: config.host,
     port: config.port,
@@ -218,6 +225,7 @@ async function pollInbox({ force = false, daysBack, subjectKeyword } = {}) {
     console.error("[Manifest Inbox] Error:", error.message);
     return { processed: 0, ingested: 0, skipped: 0, error: error.message };
   } finally {
+    pollingLock = false;
     await client.logout().catch(() => {});
   }
 }

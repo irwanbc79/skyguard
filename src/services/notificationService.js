@@ -1,3 +1,4 @@
+const { escapeRegex } = require("../utils/helpers");
 const Notification = require("../models/Notification");
 const Suspect = require("../models/Suspect");
 const Cnpibk = require("../models/cnpibk");
@@ -206,10 +207,11 @@ async function scanCargoForSuspect(suspect) {
     if (!pp) return;
 
     // Search cargo where receiver identity matches suspect passport
+    const safePp = escapeRegex(pp);
     const cargoRecords = await Cnpibk.find({
       $or: [
-        { nomor_identitas_penerima: { $regex: new RegExp(pp, "i") } },
-        { nomor_identitas_pengirim: { $regex: new RegExp(pp, "i") } },
+        { nomor_identitas_penerima: { $regex: new RegExp(safePp, "i") } },
+        { nomor_identitas_pengirim: { $regex: new RegExp(safePp, "i") } },
       ],
     })
       .sort({ tanggal_hawb: -1 })
@@ -270,10 +272,11 @@ async function scanAllCargoForSuspects() {
       });
       if (recent) continue;
 
+      const safePp = escapeRegex(pp);
       const cargoCount = await Cnpibk.countDocuments({
         $or: [
-          { nomor_identitas_penerima: { $regex: new RegExp(pp, "i") } },
-          { nomor_identitas_pengirim: { $regex: new RegExp(pp, "i") } },
+          { nomor_identitas_penerima: { $regex: new RegExp(safePp, "i") } },
+          { nomor_identitas_pengirim: { $regex: new RegExp(safePp, "i") } },
         ],
       });
 

@@ -107,14 +107,20 @@ router.get("/db-stats", async (req, res) => {
   }
 });
 
+// Sanitize string for safe interpolation into generated JS (prevent script injection)
+function sanitizeForScript(s) {
+  if (s == null || typeof s !== "string") return "";
+  return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r|\n/g, " ").trim();
+}
+
 // ── GET /api/scraper/script - Generate browser scraper script ──
 router.get("/script", async (req, res) => {
-  const baseUrl = req.query.api_url || `${req.protocol}://${req.get("host")}`;
-  const totalPages = parseInt(req.query.pages) || 5330;
-  const dateStart = req.query.date_start || "27-12-2025";
-  const dateEnd = req.query.date_end || "25-02-2026";
-  const delay = parseInt(req.query.delay) || 250;
-  const batchSize = parseInt(req.query.batch) || 100;
+  const baseUrl = sanitizeForScript(req.query.api_url || `${req.protocol}://${req.get("host")}`).slice(0, 500);
+  const totalPages = Math.min(100000, Math.max(1, parseInt(req.query.pages, 10) || 5330));
+  const dateStart = sanitizeForScript(req.query.date_start || "27-12-2025").slice(0, 20);
+  const dateEnd = sanitizeForScript(req.query.date_end || "25-02-2026").slice(0, 20);
+  const delay = Math.min(10000, Math.max(100, parseInt(req.query.delay, 10) || 250));
+  const batchSize = Math.min(500, Math.max(1, parseInt(req.query.batch, 10) || 100));
 
   const script = generateBrowserScript({
     baseUrl,

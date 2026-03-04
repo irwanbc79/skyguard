@@ -120,9 +120,10 @@ exports.searchTransactions = async (req, res) => {
       if (to) query.tanggal_dokumen.$lte = new Date(to);
     }
     
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
     const transactions = await Transaction.find(query)
       .sort({ tanggal_dokumen: -1 })
-      .limit(parseInt(limit));
+      .limit(limitNum);
     
     res.json({ status: 'ok', data: transactions, total: transactions.length });
   } catch (err) {
@@ -145,28 +146,38 @@ exports.matchDevice = async (req, res) => {
     if (brand === 'APPLE') brand = 'Apple';
     if (brand === 'SAMSUNG') brand = 'Samsung';
     
-    // Search in device database
+    // Search in device database (escape user input to avoid ReDoS)
+    const safeBrand = escapeRegex(brand);
+    const safeModel = escapeRegex(model).replace(/\s+/g, ".*");
     const devices = await Device.find({
-      brand: new RegExp(brand, 'i'),
-      model: new RegExp(model.replace(/\s+/g, '.*'), 'i')
-    });
-    
+      brand: new RegExp(safeBrand, "i"),
+      model: new RegExp(safeModel, "i"),
+    })
+      .limit(50)
+      .lean();
+
     if (devices.length === 0) {
-      return res.json({ status: 'ok', data: null, message: 'Device tidak ditemukan di database', suggestion: 'Tambahkan device baru' });
+      return res.json({ status: "ok", data: null, message: "Device tidak ditemukan di database", suggestion: "Tambahkan device baru" });
     }
-    
-    // Get prices for matched devices
-    const results = [];
-    for (const device of devices) {
-      const price = await PriceReference.findOne({ device_id: device._id, is_latest: true });
-      results.push({
+
+    const deviceIds = devices.map((d) => d._id);
+    const prices = await PriceReference.find({
+      device_id: { $in: deviceIds },
+      is_latest: true,
+    })
+      .lean();
+    const priceByDevice = new Map(prices.map((p) => [String(p.device_id), p]));
+
+    const results = devices.map((device) => {
+      const price = priceByDevice.get(String(device._id));
+      return {
         device,
         price_usd: price?.price_usd || 0,
-        tax_idr: price?.tax_idr || 0
-      });
-    }
-    
-    res.json({ status: 'ok', data: results });
+        tax_idr: price?.tax_idr || 0,
+      };
+    });
+
+    res.json({ status: "ok", data: results });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }

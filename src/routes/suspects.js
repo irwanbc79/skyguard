@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const suspectService = require("../services/suspectService");
+const { validateObjectId } = require("../middleware/validateParams");
 
 // Multer config - memory storage for resize pipeline
 const upload = multer({
@@ -43,7 +44,7 @@ router.get("/stats", async (req, res) => {
 });
 
 // GET /api/suspects/:id - single suspect detail
-router.get("/:id", async (req, res) => {
+router.get("/:id", validateObjectId("id"), async (req, res) => {
   try {
     const suspect = await suspectService.getSuspectById(req.params.id);
     res.json({ status: "ok", data: suspect });
@@ -67,7 +68,7 @@ router.post("/", photoFields, async (req, res) => {
 });
 
 // PUT /api/suspects/:id - update suspect
-router.put("/:id", photoFields, async (req, res) => {
+router.put("/:id", validateObjectId("id"), photoFields, async (req, res) => {
   try {
     const suspect = await suspectService.updateSuspect(
       req.params.id,
@@ -85,7 +86,7 @@ router.put("/:id", photoFields, async (req, res) => {
 });
 
 // POST /api/suspects/:id/actions - add action to timeline
-router.post("/:id/actions", async (req, res) => {
+router.post("/:id/actions", validateObjectId("id"), async (req, res) => {
   try {
     const suspect = await suspectService.addAction(req.params.id, req.body);
     res.json({
@@ -99,7 +100,7 @@ router.post("/:id/actions", async (req, res) => {
 });
 
 // DELETE /api/suspects/:id - delete suspect
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", validateObjectId("id"), async (req, res) => {
   try {
     await suspectService.deleteSuspect(req.params.id);
     res.json({ status: "ok", message: "Suspect berhasil dihapus" });
@@ -109,7 +110,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 // DELETE /api/suspects/:id/photos - delete additional photo
-router.delete("/:id/photos", async (req, res) => {
+router.delete("/:id/photos", validateObjectId("id"), async (req, res) => {
   try {
     const suspect = await suspectService.deleteAdditionalPhoto(
       req.params.id,
