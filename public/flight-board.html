@@ -101,8 +101,10 @@
         font-family: "JetBrains Mono", monospace;
         font-size: 28px;
         font-weight: 700;
-        color: var(--accent-cyan);
-        text-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        color: #ffd700;
+        text-shadow:
+          0 0 20px rgba(255, 215, 0, 0.6),
+          0 0 40px rgba(255, 215, 0, 0.3);
         letter-spacing: 2px;
       }
       .fids-date {
@@ -283,15 +285,16 @@
       .airline-logo {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 12px;
       }
       .airline-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 4px;
+        width: 108px;
+        height: 108px;
+        border-radius: 0;
         object-fit: contain;
-        background: #fff;
-        padding: 2px;
+        background: transparent;
+        padding: 0;
         flex-shrink: 0;
       }
       .airline-badge {
@@ -597,8 +600,8 @@
         padding: 8px 20px;
       }
       .scroll-container:fullscreen .airline-icon {
-        width: 44px;
-        height: 44px;
+        width: 130px;
+        height: 130px;
       }
       .scroll-container:fullscreen .flight-status {
         font-size: 20px;
