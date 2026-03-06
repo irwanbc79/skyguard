@@ -57,6 +57,24 @@ router.post("/api-key", (req, res) => {
   }
 });
 
+// POST /api/flights/airlabs-key - Set AirLabs API key
+router.post("/airlabs-key", (req, res) => {
+  try {
+    const { key } = req.body;
+    if (!key)
+      return res
+        .status(400)
+        .json({ status: "error", message: "API key required" });
+    fs.setAirLabsApiKey(key);
+    res.json({
+      status: "ok",
+      message: "AirLabs API key updated, fetching live data...",
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 // GET /api/flights/usage - FR24 API credit usage
 router.get("/usage", async (req, res) => {
   try {

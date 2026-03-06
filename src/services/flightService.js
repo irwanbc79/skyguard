@@ -26,6 +26,11 @@ let FR24_API_KEY = process.env.FR24_API_KEY || "";
 const FR24_BASE_URL =
   process.env.FR24_BASE_URL || "https://fr24api.flightradar24.com/api";
 
+let AIRLABS_API_KEY = process.env.AIRLABS_API_KEY || "";
+const AIRLABS_BASE_URL = "https://airlabs.co/api/v9";
+let airLabsLastPoll = 0;
+const AIRLABS_CACHE_TTL = 900; // 15 minutes cache for AirLabs data
+
 let pollingActive = false;
 let pollTimer = null;
 let creditUsage = { today: 0, total: 0, lastReset: new Date().toDateString() };
@@ -63,6 +68,57 @@ const AIRLINE_NAMES = {
   JST: "Jetstar",
 };
 
+// ---------- Airline IATA to name mapping (for AirLabs) ----------
+const AIRLINE_IATA_NAMES = {
+  QZ: "Indonesia AirAsia",
+  AK: "AirAsia",
+  SQ: "Singapore Airlines",
+  MH: "Malaysia Airlines",
+  EY: "Etihad Airways",
+  JT: "Lion Air",
+  ID: "Batik Air",
+  QG: "Citilink",
+  GA: "Garuda Indonesia",
+  TR: "Scoot",
+  OD: "Batik Air Malaysia",
+  "3Y": "My Indo Airlines",
+  SV: "Saudia",
+  TG: "Thai Airways",
+  QR: "Qatar Airways",
+  EK: "Emirates",
+  CX: "Cathay Pacific",
+  IW: "Wings Air",
+  IN: "NAM Air",
+  SJ: "Sriwijaya Air",
+  CI: "China Airlines",
+  LH: "Lufthansa",
+  LX: "Swiss",
+  AI: "Air India",
+  KL: "KLM",
+  WY: "Oman Air",
+  BA: "British Airways",
+  AA: "American Airlines",
+};
+
+// Known operators at KNO (for codeshare deduplication)
+const KNO_OPERATORS = new Set([
+  "QZ",
+  "AK",
+  "SQ",
+  "MH",
+  "OD",
+  "JT",
+  "GA",
+  "TR",
+  "ID",
+  "EY",
+  "3Y",
+  "IW",
+  "QG",
+  "IN",
+  "SJ",
+]);
+
 // ---------- Indonesian airport IATA codes (for domestic detection) ----------
 const ID_AIRPORTS = new Set([
   "CGK",
@@ -97,6 +153,8 @@ const ID_AIRPORTS = new Set([
   "PGK",
   "MLG",
   "HLP",
+  "GNS",
+  "DTB",
 ]);
 
 // ---------- Helpers ----------
@@ -179,8 +237,177 @@ async function callFR24(endpoint, params) {
   }
 }
 
+// ---------- AirLabs API caller ----------
+async function callAirLabs(endpoint, params) {
+  if (!AIRLABS_API_KEY) return null;
+  const url = new URL(AIRLABS_BASE_URL + endpoint);
+  url.searchParams.set("api_key", AIRLABS_API_KEY);
+  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  try {
+    const r = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      console.error("[AirLabs] API error " + r.status + ": " + t);
+      return null;
+    }
+    const json = await r.json();
+    if (json.error) {
+      console.error("[AirLabs] Error:", json.error.message);
+      return null;
+    }
+    return json;
+  } catch (err) {
+    console.error("[AirLabs] Request failed:", err.message);
+    return null;
+  }
+}
+
+// ---------- Process AirLabs schedule data ----------
+function processAirLabsData(items) {
+  const now = new Date();
+  const iso = now.toISOString();
+
+  // Deduplicate codeshares: group by (dep_iata + arr_time)
+  const groups = {};
+  for (const f of items) {
+    if (f.arr_iata !== "KNO") continue;
+    if (f.cs_flight_iata) continue; // skip codeshared flights
+    const key = (f.dep_iata || "") + "_" + (f.arr_time || "");
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(f);
+  }
+
+  const deduplicated = [];
+  for (const key of Object.keys(groups)) {
+    const g = groups[key];
+    if (g.length === 1) {
+      deduplicated.push(g[0]);
+    } else {
+      const op = g.find((x) => KNO_OPERATORS.has(x.airline_iata));
+      deduplicated.push(op || g[0]);
+    }
+  }
+
+  function parseWIB(s) {
+    if (!s) return null;
+    const parts = s.split(" ");
+    if (parts.length < 2) return null;
+    return new Date(parts[0] + "T" + parts[1] + ":00+07:00");
+  }
+
+  const flights = [];
+  for (const f of deduplicated) {
+    const depIata = f.dep_iata || "";
+    const airlineIata = f.airline_iata || "";
+    const airlineName =
+      AIRLINE_IATA_NAMES[airlineIata] || f.airline_icao || airlineIata;
+    const isIntl = !ID_AIRPORTS.has(depIata);
+
+    const schedTime = parseWIB(f.arr_time);
+    const estTime = parseWIB(f.arr_estimated);
+    const actTime = parseWIB(f.arr_actual);
+
+    let status = "Scheduled";
+    switch ((f.status || "").toLowerCase()) {
+      case "landed":
+        status = "On Ground";
+        break;
+      case "active":
+        status = "En Route";
+        break;
+      case "scheduled":
+        status = "Scheduled";
+        break;
+      case "cancelled":
+        status = "Cancelled";
+        break;
+    }
+
+    flights.push({
+      flight_id: f.flight_iata || "",
+      callsign: f.flight_icao || "",
+      flight_number: f.flight_iata || "",
+      airline: airlineName,
+      origin: depIata,
+      origin_icao: f.dep_icao || "",
+      destination: "KNO",
+      destination_icao: "WIMM",
+      sched_time: schedTime ? schedTime.toISOString() : null,
+      est_time: estTime ? estTime.toISOString() : null,
+      actual_time: actTime ? actTime.toISOString() : null,
+      landing_time:
+        status === "On Ground" && actTime ? actTime.toISOString() : null,
+      status: status,
+      is_arrival: true,
+      aircraft: f.aircraft_icao || "",
+      registration: "",
+      source: "airlabs",
+      is_international: isIntl,
+      delayed: f.arr_delayed || null,
+    });
+  }
+
+  flights.sort((a, b) => {
+    const tA = a.sched_time || "";
+    const tB = b.sched_time || "";
+    return tA.localeCompare(tB);
+  });
+
+  cache.set(
+    "kno:board",
+    {
+      flights: flights,
+      updated_at: iso,
+      source: "airlabs",
+      total: flights.length,
+      international: flights.filter((f) => f.is_international).length,
+    },
+    AIRLABS_CACHE_TTL,
+  );
+
+  cache.set(
+    "kno:positions",
+    { positions: [], updated_at: iso, source: "airlabs" },
+    AIRLABS_CACHE_TTL,
+  );
+
+  console.log(
+    "[AirLabs] Processed: " +
+      flights.length +
+      " flights (" +
+      flights.filter((f) => f.is_international).length +
+      " intl) | Source: airlabs",
+  );
+}
+
 // ---------- Unified collection ----------
 async function collectUnified() {
+  // Strategy 0: AirLabs (free schedule API)
+  if (AIRLABS_API_KEY) {
+    const nowMs = Date.now();
+    const cachedBoard = cache.get("kno:board");
+    if (nowMs - airLabsLastPoll > 10 * 60 * 1000 || !cachedBoard) {
+      console.log("[AirLabs] Fetching KNO arrival schedules...");
+      const data = await callAirLabs("/schedules", { arr_iata: "KNO" });
+      if (
+        data &&
+        data.response &&
+        Array.isArray(data.response) &&
+        data.response.length > 0
+      ) {
+        airLabsLastPoll = nowMs;
+        processAirLabsData(data.response);
+        return;
+      }
+      console.log("[AirLabs] No data, trying next strategy...");
+    } else {
+      return; // cached AirLabs data still fresh
+    }
+  }
+
   console.log("[FR24] Unified poll - collecting all KNO flight data...");
 
   // Strategy 1: Airport filter (most efficient)
@@ -897,6 +1124,12 @@ function startPolling() {
         ? "configured (" + FR24_API_KEY.substring(0, 8) + "...)"
         : "NOT SET (mock mode)"),
   );
+  console.log(
+    "[AirLabs] API Key: " +
+      (AIRLABS_API_KEY
+        ? "configured (" + AIRLABS_API_KEY.substring(0, 8) + "...)"
+        : "NOT SET"),
+  );
 
   collectUnified().catch((e) => console.error("[FR24] Initial poll error:", e));
 
@@ -953,7 +1186,8 @@ function getStatus() {
   return {
     polling_active: pollingActive,
     api_key_configured: !!FR24_API_KEY,
-    mode: FR24_API_KEY ? "live" : "mock",
+    airlabs_configured: !!AIRLABS_API_KEY,
+    mode: AIRLABS_API_KEY ? "airlabs" : FR24_API_KEY ? "live" : "mock",
     cache_keys: cache.keys(),
     credits: {
       today: creditUsage.today,
@@ -977,6 +1211,16 @@ function setApiKey(key) {
   }
 }
 
+function setAirLabsApiKey(key) {
+  AIRLABS_API_KEY = key;
+  process.env.AIRLABS_API_KEY = key;
+  airLabsLastPoll = 0;
+  console.log("[AirLabs] API key updated");
+  if (pollingActive) {
+    collectUnified().catch(() => {});
+  }
+}
+
 // ---------- Exports ----------
 module.exports = {
   startPolling,
@@ -986,6 +1230,7 @@ module.exports = {
   getAlerts,
   getStatus,
   setApiKey,
+  setAirLabsApiKey,
   fetchUsage,
   KNO,
   GEOFENCE_ZONES,
