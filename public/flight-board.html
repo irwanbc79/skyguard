@@ -720,7 +720,7 @@
               <th class="col-airline">Penerbangan</th>
               <th class="col-flight">No. Penerbangan</th>
               <th class="col-origin">Kota Asal</th>
-              <th class="col-sched center">Waktu</th>
+              <th class="col-sched center">Waktu Setempat</th>
               <th class="col-est center">EST</th>
               <th class="col-remark center">Keterangan</th>
             </tr>
@@ -1109,13 +1109,10 @@
           return true;
         });
 
-        // Sort: landed recently first, then approach, en route, then by ETA
+        // Sort by scheduled time ascending (chronological order like FIDS)
         flights.sort((a, b) => {
-          const sA = getStatusPriority(a.status, a.is_arrival);
-          const sB = getStatusPriority(b.status, b.is_arrival);
-          if (sA !== sB) return sA - sB;
-          const tA = a.est_time || "";
-          const tB = b.est_time || "";
+          const tA = a.sched_time || a.est_time || "";
+          const tB = b.sched_time || b.est_time || "";
           return tA.localeCompare(tB);
         });
 
@@ -1141,9 +1138,12 @@
           const cityCode = f.is_arrival ? f.origin : f.destination;
           const city = getCityName(cityCode);
 
-          // scheduled time — derive from est_time or landing_time
+          // scheduled time — use sched_time (fixed daily schedule)
           const schedTime =
-            formatTime(f.est_time) || formatTime(f.landing_time) || "";
+            formatTime(f.sched_time) ||
+            formatTime(f.est_time) ||
+            formatTime(f.landing_time) ||
+            "";
           // est time — show actual landing time if landed
           const st = (f.status || "").toLowerCase();
           let estTime = "";

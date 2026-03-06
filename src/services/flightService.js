@@ -414,226 +414,301 @@ function generateAlerts(positions) {
 }
 
 // ---------- Mock data generator ----------
+// Uses FIXED daily schedule times (WIB / UTC+7) matching real
+// FlightRadar24 international arrivals at KNO (Kualanamu).
+// Position, altitude, speed and status are derived dynamically
+// based on how far the current time is from each scheduled arrival.
 function generateMockData() {
   const now = new Date();
   const iso = now.toISOString();
 
-  // Build realistic schedule: 7 international arrivals across the day
-  // Some already landed (recently), some en route, some scheduled later
-  const mockFlights = [
-    // --- ARRIVAL: Recently landed (25 min ago) ---
+  // Helper: create a Date for today at a specific WIB hour:minute
+  function todayWIB(h, m) {
+    const d = new Date(now);
+    d.setUTCHours(h - 7, m, 0, 0);
+    return d;
+  }
+
+  // Origin airport coordinates
+  const ORIGINS = {
+    KUL: { lat: 2.75, lon: 101.7 },
+    SIN: { lat: 1.35, lon: 103.99 },
+    AUH: { lat: 24.44, lon: 54.65 },
+    PEN: { lat: 5.3, lon: 100.27 },
+    DMK: { lat: 13.91, lon: 100.61 },
+  };
+
+  // ========== REAL KNO INTERNATIONAL ARRIVAL SCHEDULE ==========
+  // Flight numbers & times based on published airline schedules
+  // visible on FlightRadar24.com for Kualanamu (KNO)
+  const arrivalSchedule = [
     {
-      fn: "QZ131",
-      cs: "AWQ131",
+      fn: "QZ122",
+      cs: "AWQ122",
       al: "Indonesia AirAsia",
       o: "KUL",
-      d: "KNO",
       t: "A320",
       r: "PK-AXH",
-      a: 0,
-      s: 0,
-      la: KNO.lat,
-      lo: KNO.lon,
-      h: 0,
-      ar: true,
-      eta: new Date(now.getTime() - 25 * 60000).toISOString(),
+      sched: todayWIB(6, 5),
     },
-    // --- ARRIVAL: Approach (ETA 10 min) ---
+    {
+      fn: "SQ960",
+      cs: "SIA960",
+      al: "Singapore Airlines",
+      o: "SIN",
+      t: "A320",
+      r: "9V-SLG",
+      sched: todayWIB(9, 35),
+    },
+    {
+      fn: "MH860",
+      cs: "MAS860",
+      al: "Malaysia Airlines",
+      o: "KUL",
+      t: "B738",
+      r: "9M-MXA",
+      sched: todayWIB(10, 5),
+    },
+    {
+      fn: "OD570",
+      cs: "ODM570",
+      al: "Batik Air Malaysia",
+      o: "KUL",
+      t: "B738",
+      r: "9M-LRF",
+      sched: todayWIB(12, 30),
+    },
     {
       fn: "AK392",
       cs: "AXM392",
       al: "AirAsia",
       o: "KUL",
-      d: "KNO",
       t: "A320",
       r: "9M-AQD",
-      a: 4500,
-      s: 220,
-      la: 3.55,
-      lo: 98.75,
-      h: 280,
-      ar: true,
-      eta: new Date(now.getTime() + 10 * 60000).toISOString(),
+      sched: todayWIB(13, 40),
     },
-    // --- ARRIVAL: En Route (ETA 45 min) ---
     {
       fn: "TR2272",
       cs: "TGW2272",
       al: "Scoot",
       o: "SIN",
-      d: "KNO",
       t: "B738",
       r: "9V-TRA",
-      a: 28000,
-      s: 460,
-      la: 2.1,
-      lo: 101.5,
-      h: 320,
-      ar: true,
-      eta: new Date(now.getTime() + 45 * 60000).toISOString(),
+      sched: todayWIB(14, 55),
     },
-    // --- ARRIVAL: En Route (ETA 1h 30m) ---
+    {
+      fn: "EY480",
+      cs: "ETD480",
+      al: "Etihad Airways",
+      o: "AUH",
+      t: "B789",
+      r: "A6-BLE",
+      sched: todayWIB(15, 15),
+    },
     {
       fn: "MH862",
       cs: "MAS862",
       al: "Malaysia Airlines",
       o: "KUL",
-      d: "KNO",
       t: "B738",
-      r: "9M-MXA",
-      a: 32000,
-      s: 480,
-      la: 3.8,
-      lo: 101.2,
-      h: 290,
-      ar: true,
-      eta: new Date(now.getTime() + 90 * 60000).toISOString(),
+      r: "9M-MXB",
+      sched: todayWIB(17, 35),
     },
-    // --- ARRIVAL: En Route (ETA 2h 30m) ---
     {
-      fn: "SV3812",
-      cs: "SVA3812",
-      al: "Saudia",
-      o: "JED",
-      d: "KNO",
-      t: "B77W",
-      r: "HZ-AK42",
-      a: 38000,
-      s: 520,
-      la: 8.5,
-      lo: 78.0,
-      h: 90,
-      ar: true,
-      eta: new Date(now.getTime() + 150 * 60000).toISOString(),
+      fn: "QZ128",
+      cs: "AWQ128",
+      al: "Indonesia AirAsia",
+      o: "KUL",
+      t: "A320",
+      r: "PK-AXY",
+      sched: todayWIB(20, 10),
     },
-    // --- ARRIVAL: Scheduled (ETA 3h 30m) ---
     {
-      fn: "SQ994",
-      cs: "SIA994",
-      al: "Singapore Airlines",
+      fn: "ID6576",
+      cs: "BTK6576",
+      al: "Batik Air",
       o: "SIN",
-      d: "KNO",
       t: "A320",
-      r: "9V-SLG",
-      a: 36000,
-      s: 490,
-      la: 1.8,
-      lo: 103.0,
-      h: 310,
-      ar: true,
-      eta: new Date(now.getTime() + 210 * 60000).toISOString(),
-    },
-    // --- ARRIVAL: Scheduled (ETA 5h) ---
-    {
-      fn: "EY480",
-      cs: "ETD480",
-      al: "Etihad",
-      o: "AUH",
-      d: "KNO",
-      t: "B789",
-      r: "A6-BLE",
-      a: 40000,
-      s: 540,
-      la: 12.0,
-      lo: 68.0,
-      h: 95,
-      ar: true,
-      eta: new Date(now.getTime() + 300 * 60000).toISOString(),
-    },
-    // --- DEPARTURES ---
-    {
-      fn: "TR2273",
-      cs: "TGW2273",
-      al: "Scoot",
-      o: "KNO",
-      d: "SIN",
-      t: "B738",
-      r: "9V-TRB",
-      a: 12000,
-      s: 350,
-      la: 3.4,
-      lo: 99.3,
-      h: 150,
-      ar: false,
-      eta: null,
-    },
-    {
-      fn: "AK393",
-      cs: "AXM393",
-      al: "AirAsia",
-      o: "KNO",
-      d: "KUL",
-      t: "A320",
-      r: "9M-AQE",
-      a: 0,
-      s: 0,
-      la: KNO.lat,
-      lo: KNO.lon,
-      h: 0,
-      ar: false,
-      eta: null,
+      r: "PK-BAN",
+      sched: todayWIB(21, 35),
     },
   ];
 
   const flights = [];
   const positions = [];
 
-  for (const m of mockFlights) {
-    const dr = () => (Math.random() - 0.5) * 0.02;
-    const la = m.la + dr();
-    const lo = m.lo + dr();
-    const di = haversineKm(KNO.lat, KNO.lon, la, lo);
+  for (const s of arrivalSchedule) {
+    const diffMin = (s.sched.getTime() - now.getTime()) / 60000;
+    const orig = ORIGINS[s.o] || { lat: 3.0, lon: 100.0 };
+
+    // Dynamically compute altitude, speed, position based on time-to-arrival
+    let alt, spd, lat, lon, hdg;
+
+    if (diffMin > 120) {
+      // Far out — high cruise near origin
+      const frac = Math.max(0, Math.min(1, 1 - diffMin / 420));
+      alt = 35000 + Math.floor(Math.random() * 5000);
+      spd = 470 + Math.floor(Math.random() * 60);
+      lat = orig.lat + (KNO.lat - orig.lat) * frac;
+      lon = orig.lon + (KNO.lon - orig.lon) * frac;
+    } else if (diffMin > 30) {
+      // Cruise, approaching
+      const frac = 1 - (diffMin - 30) / 90;
+      alt = 20000 + Math.floor(Math.random() * 15000);
+      spd = 380 + Math.floor(Math.random() * 80);
+      lat = orig.lat + (KNO.lat - orig.lat) * (0.3 + frac * 0.5);
+      lon = orig.lon + (KNO.lon - orig.lon) * (0.3 + frac * 0.5);
+    } else if (diffMin > 10) {
+      // Descent / approach
+      const frac = 1 - (diffMin - 10) / 20;
+      alt = 3000 + Math.floor((1 - frac) * 12000);
+      spd = 200 + Math.floor(Math.random() * 100);
+      lat = KNO.lat + (orig.lat - KNO.lat) * (0.05 + (1 - frac) * 0.15);
+      lon = KNO.lon + (orig.lon - KNO.lon) * (0.05 + (1 - frac) * 0.15);
+    } else if (diffMin > 0) {
+      // Final approach
+      alt = 500 + Math.floor(Math.random() * 2500);
+      spd = 150 + Math.floor(Math.random() * 60);
+      lat = KNO.lat + (Math.random() - 0.5) * 0.08;
+      lon = KNO.lon + (Math.random() - 0.5) * 0.08;
+    } else {
+      // Landed (or past scheduled time)
+      alt = 0;
+      spd = 0;
+      lat = KNO.lat;
+      lon = KNO.lon;
+    }
+
+    hdg = Math.floor(
+      (Math.atan2(KNO.lon - lon, KNO.lat - lat) * 180) / Math.PI,
+    );
+    if (hdg < 0) hdg += 360;
+
+    // Small jitter
+    const dr = () => (Math.random() - 0.5) * 0.01;
+    lat += dr();
+    lon += dr();
+
+    const di = haversineKm(KNO.lat, KNO.lon, lat, lon);
     const status =
-      m.a > 15000
+      alt > 15000
         ? "En Route"
-        : m.a >= 3000 && m.a <= 15000
-          ? m.ar
-            ? "Approach"
-            : "Climbing"
-          : m.a > 0
+        : alt >= 3000
+          ? "Approach"
+          : alt > 0
             ? "Landing"
-            : m.ar && m.eta && new Date(m.eta).getTime() < now.getTime()
-              ? "On Ground"
-              : "On Ground";
+            : "On Ground";
 
     flights.push({
-      flight_id: m.fn,
-      callsign: m.cs,
-      flight_number: m.fn,
-      airline: m.al,
-      origin: m.o,
+      flight_id: s.fn,
+      callsign: s.cs,
+      flight_number: s.fn,
+      airline: s.al,
+      origin: s.o,
       origin_icao: "",
-      destination: m.d,
+      destination: "KNO",
+      destination_icao: "",
+      sched_time: s.sched.toISOString(),
+      est_time: s.sched.toISOString(),
+      actual_time: null,
+      landing_time: diffMin <= 0 ? s.sched.toISOString() : null,
+      status: status,
+      is_arrival: true,
+      aircraft: s.t,
+      registration: s.r,
+      source: "MOCK",
+      is_international: true,
+    });
+
+    if (alt > 0) {
+      positions.push({
+        flight_id: s.fn,
+        callsign: s.cs,
+        flight_number: s.fn,
+        lat: lat,
+        lon: lon,
+        alt_ft: alt,
+        speed_kt: spd,
+        vspeed: 0,
+        heading: hdg,
+        distance_km: Math.round(di),
+        timestamp: iso,
+        source: "MOCK",
+        aircraft: s.t,
+        registration: s.r,
+        origin: s.o,
+        destination: "KNO",
+        is_arrival: true,
+        squawk: "",
+      });
+    }
+  }
+
+  // --- Departures (for radar display, not shown on FIDS) ---
+  const departures = [
+    {
+      fn: "TR2273",
+      cs: "TGW2273",
+      al: "Scoot",
+      dst: "SIN",
+      t: "B738",
+      r: "9V-TRB",
+    },
+    {
+      fn: "AK393",
+      cs: "AXM393",
+      al: "AirAsia",
+      dst: "KUL",
+      t: "A320",
+      r: "9M-AQE",
+    },
+  ];
+  for (const dep of departures) {
+    const depAlt = 12000 + Math.floor(Math.random() * 20000);
+    const depSpd = 350 + Math.floor(Math.random() * 100);
+    const depHdg = dep.dst === "SIN" ? 150 : 90;
+    const depLat = KNO.lat + (Math.random() * 2 - 1);
+    const depLon = KNO.lon + Math.random() * 2;
+
+    flights.push({
+      flight_id: dep.fn,
+      callsign: dep.cs,
+      flight_number: dep.fn,
+      airline: dep.al,
+      origin: "KNO",
+      origin_icao: "",
+      destination: dep.dst,
       destination_icao: "",
       sched_time: null,
-      est_time: m.eta,
+      est_time: null,
       actual_time: null,
-      status: status,
-      is_arrival: m.ar,
-      aircraft: m.t,
-      registration: m.r,
+      landing_time: null,
+      status: "En Route",
+      is_arrival: false,
+      aircraft: dep.t,
+      registration: dep.r,
       source: "MOCK",
       is_international: true,
     });
 
     positions.push({
-      flight_id: m.fn,
-      callsign: m.cs,
-      flight_number: m.fn,
-      lat: la,
-      lon: lo,
-      alt_ft: m.a,
-      speed_kt: m.s,
+      flight_id: dep.fn,
+      callsign: dep.cs,
+      flight_number: dep.fn,
+      lat: depLat,
+      lon: depLon,
+      alt_ft: depAlt,
+      speed_kt: depSpd,
       vspeed: 0,
-      heading: m.h,
-      distance_km: Math.round(di),
+      heading: depHdg,
+      distance_km: Math.round(haversineKm(KNO.lat, KNO.lon, depLat, depLon)),
       timestamp: iso,
       source: "MOCK",
-      aircraft: m.t,
-      registration: m.r,
-      origin: m.o,
-      destination: m.d,
-      is_arrival: m.ar,
+      aircraft: dep.t,
+      registration: dep.r,
+      origin: "KNO",
+      destination: dep.dst,
+      is_arrival: false,
       squawk: "",
     });
   }
