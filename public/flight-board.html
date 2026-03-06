@@ -278,16 +278,16 @@
         width: 22%;
       }
       .col-aircraft {
-        width: 9%;
+        width: 13%;
       }
       .col-sched {
-        width: 12%;
+        width: 10%;
       }
       .col-est {
-        width: 12%;
+        width: 10%;
       }
       .col-remark {
-        width: 19%;
+        width: 15%;
       }
 
       /* Airline cell */
@@ -733,9 +733,9 @@
               <th class="col-airline">Maskapai</th>
               <th class="col-flight">Penerbangan</th>
               <th class="col-origin">Kota Asal</th>
-              <th class="col-aircraft">Status</th>
               <th class="col-sched">Jadwal</th>
               <th class="col-est">Waktu</th>
+              <th class="col-aircraft">Status</th>
               <th class="col-remark">Keterangan</th>
             </tr>
           </thead>
@@ -1192,18 +1192,19 @@
         const delayMin = Math.floor(delayMs / 60000);
         const isDelayed = delayMin >= 5; // 5+ minutes = delayed
 
-        // Format delay time HH:MM
-        function fmtDelayTime(ms) {
-          const d = new Date(ms);
-          const h = d.getHours().toString().padStart(2, "0");
-          const m = d.getMinutes().toString().padStart(2, "0");
-          return h + "." + m;
+        // Format delay as duration
+        function fmtDelayDuration(delayMinutes) {
+          if (delayMinutes < 60) return delayMinutes + " mnt";
+          const h = Math.floor(delayMinutes / 60);
+          const m = delayMinutes % 60;
+          return m > 0 ? h + "j " + m + "m" : h + " jam";
         }
 
         // Delay info (for STATUS column)
         flight._isDelayed = isDelayed;
-        flight._delayText =
-          isDelayed && compareMs ? "TERLAMBAT " + fmtDelayTime(compareMs) : "";
+        flight._delayText = isDelayed
+          ? "TERLAMBAT " + fmtDelayDuration(delayMin)
+          : "";
 
         if (isLanded) {
           return { text: "MENDARAT", cssClass: "status-mendarat" };
@@ -1345,9 +1346,9 @@
                 <span class="city-name">${city || cityCode}</span>
                 ${cityCode && city ? `<span class="city-code">(${cityCode})</span>` : ""}
               </td>
-              <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:16px;letter-spacing:0.3px;${f._isDelayed ? "color:var(--accent-red);font-weight:700" : "color:var(--text-secondary)"}">${f._isDelayed ? f._delayText : "—"}</td>
               <td class="time-display">${schedTime || '<span class="time-na">—</span>'}</td>
               <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:17px;color:#94a3b8;letter-spacing:0.3px">${waktuText || "—"}</td>
+              <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:16px;letter-spacing:0.3px;${f._isDelayed ? "color:var(--accent-red);font-weight:700" : "color:var(--text-secondary)"}">${f._isDelayed ? f._delayText : "—"}</td>
               <td style="text-align:center"><span class="flight-status ${keterangan.cssClass}">${keterangan.text}</span></td>
             </tr>`;
         });
