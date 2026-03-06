@@ -842,7 +842,6 @@
         SGN: "Ho Chi Minh",
         HAN: "Hanoi",
         MNL: "Manila",
-        KUL: "Kuala Lumpur",
         ADD: "Addis Ababa",
         NBO: "Nairobi",
         JNB: "Johannesburg",
@@ -853,7 +852,104 @@
         ZRH: "Zurich",
         SYD: "Sydney",
         MEL: "Melbourne",
+        MCT: "Muscat",
       };
+
+      // ====== COUNTRY FLAG MAP (airport code → country ISO) ======
+      const AIRPORT_COUNTRY = {
+        KUL: "MY",
+        SZB: "MY",
+        PEN: "MY",
+        LGK: "MY",
+        IPH: "MY",
+        JHB: "MY",
+        KBR: "MY",
+        KCH: "MY",
+        BKI: "MY",
+        SIN: "SG",
+        AUH: "AE",
+        DXB: "AE",
+        JED: "SA",
+        MED: "SA",
+        RUH: "SA",
+        DOH: "QA",
+        IST: "TR",
+        DMK: "TH",
+        BKK: "TH",
+        HKG: "HK",
+        ICN: "KR",
+        NRT: "JP",
+        KIX: "JP",
+        TPE: "TW",
+        CAN: "CN",
+        SZX: "CN",
+        PVG: "CN",
+        PEK: "CN",
+        DEL: "IN",
+        BOM: "IN",
+        CMB: "LK",
+        RGN: "MM",
+        SGN: "VN",
+        HAN: "VN",
+        MNL: "PH",
+        ADD: "ET",
+        NBO: "KE",
+        JNB: "ZA",
+        LHR: "GB",
+        CDG: "FR",
+        AMS: "NL",
+        FRA: "DE",
+        ZRH: "CH",
+        SYD: "AU",
+        MEL: "AU",
+        MCT: "OM",
+        // Indonesia
+        CGK: "ID",
+        HLP: "ID",
+        SUB: "ID",
+        DPS: "ID",
+        UPG: "ID",
+        BPN: "ID",
+        PKU: "ID",
+        PDG: "ID",
+        PLM: "ID",
+        BTH: "ID",
+        BDO: "ID",
+        SOC: "ID",
+        JOG: "ID",
+        SRG: "ID",
+        MDC: "ID",
+        AMQ: "ID",
+        DJJ: "ID",
+        BDJ: "ID",
+        PNK: "ID",
+        TKG: "ID",
+        PKY: "ID",
+        KNO: "ID",
+        MES: "ID",
+        BTJ: "ID",
+        TNJ: "ID",
+        TJQ: "ID",
+        LOP: "ID",
+        KOE: "ID",
+        KDI: "ID",
+        GTO: "ID",
+        PGK: "ID",
+        MLG: "ID",
+      };
+
+      // Convert ISO 2-letter country code to flag emoji
+      function countryFlag(isoCode) {
+        if (!isoCode || isoCode.length !== 2) return "";
+        const cp1 = 0x1f1e6 - 65 + isoCode.charCodeAt(0);
+        const cp2 = 0x1f1e6 - 65 + isoCode.charCodeAt(1);
+        return String.fromCodePoint(cp1, cp2);
+      }
+
+      function getFlag(airportCode) {
+        const cc = AIRPORT_COUNTRY[airportCode];
+        return cc ? countryFlag(cc) : "";
+      }
 
       // ====== AIRLINE CONFIG ======
       const AIRLINE_CONFIG = {
@@ -1190,6 +1286,7 @@
               </td>
               <td><span class="flight-num">${fn}</span></td>
               <td>
+                <span style="font-size:22px;margin-right:6px">${getFlag(cityCode)}</span>
                 <span class="city-name">${city || cityCode}</span>
                 ${cityCode && city ? `<span class="city-code">(${cityCode})</span>` : ""}
               </td>
