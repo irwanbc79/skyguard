@@ -418,7 +418,44 @@ function generateMockData() {
   const now = new Date();
   const iso = now.toISOString();
 
+  // Build realistic schedule: 7 international arrivals across the day
+  // Some already landed (recently), some en route, some scheduled later
   const mockFlights = [
+    // --- ARRIVAL: Recently landed (25 min ago) ---
+    {
+      fn: "QZ131",
+      cs: "AWQ131",
+      al: "Indonesia AirAsia",
+      o: "KUL",
+      d: "KNO",
+      t: "A320",
+      r: "PK-AXH",
+      a: 0,
+      s: 0,
+      la: KNO.lat,
+      lo: KNO.lon,
+      h: 0,
+      ar: true,
+      eta: new Date(now.getTime() - 25 * 60000).toISOString(),
+    },
+    // --- ARRIVAL: Approach (ETA 10 min) ---
+    {
+      fn: "AK392",
+      cs: "AXM392",
+      al: "AirAsia",
+      o: "KUL",
+      d: "KNO",
+      t: "A320",
+      r: "9M-AQD",
+      a: 4500,
+      s: 220,
+      la: 3.55,
+      lo: 98.75,
+      h: 280,
+      ar: true,
+      eta: new Date(now.getTime() + 10 * 60000).toISOString(),
+    },
+    // --- ARRIVAL: En Route (ETA 45 min) ---
     {
       fn: "TR2272",
       cs: "TGW2272",
@@ -435,22 +472,24 @@ function generateMockData() {
       ar: true,
       eta: new Date(now.getTime() + 45 * 60000).toISOString(),
     },
+    // --- ARRIVAL: En Route (ETA 1h 30m) ---
     {
-      fn: "AK392",
-      cs: "AXM392",
-      al: "AirAsia",
+      fn: "MH862",
+      cs: "MAS862",
+      al: "Malaysia Airlines",
       o: "KUL",
       d: "KNO",
-      t: "A320",
-      r: "9M-AQD",
-      a: 22000,
-      s: 420,
-      la: 3.0,
-      lo: 100.2,
-      h: 280,
+      t: "B738",
+      r: "9M-MXA",
+      a: 32000,
+      s: 480,
+      la: 3.8,
+      lo: 101.2,
+      h: 290,
       ar: true,
-      eta: new Date(now.getTime() + 30 * 60000).toISOString(),
+      eta: new Date(now.getTime() + 90 * 60000).toISOString(),
     },
+    // --- ARRIVAL: En Route (ETA 2h 30m) ---
     {
       fn: "SV3812",
       cs: "SVA3812",
@@ -465,24 +504,43 @@ function generateMockData() {
       lo: 78.0,
       h: 90,
       ar: true,
-      eta: new Date(now.getTime() + 180 * 60000).toISOString(),
+      eta: new Date(now.getTime() + 150 * 60000).toISOString(),
     },
+    // --- ARRIVAL: Scheduled (ETA 3h 30m) ---
     {
-      fn: "MH862",
-      cs: "MAS862",
-      al: "Malaysia Airlines",
-      o: "KUL",
+      fn: "SQ994",
+      cs: "SIA994",
+      al: "Singapore Airlines",
+      o: "SIN",
       d: "KNO",
-      t: "B738",
-      r: "9M-MXA",
-      a: 0,
-      s: 0,
-      la: 2.75,
-      lo: 101.7,
-      h: 0,
+      t: "A320",
+      r: "9V-SLG",
+      a: 36000,
+      s: 490,
+      la: 1.8,
+      lo: 103.0,
+      h: 310,
       ar: true,
-      eta: new Date(now.getTime() + 240 * 60000).toISOString(),
+      eta: new Date(now.getTime() + 210 * 60000).toISOString(),
     },
+    // --- ARRIVAL: Scheduled (ETA 5h) ---
+    {
+      fn: "EY480",
+      cs: "ETD480",
+      al: "Etihad",
+      o: "AUH",
+      d: "KNO",
+      t: "B789",
+      r: "A6-BLE",
+      a: 40000,
+      s: 540,
+      la: 12.0,
+      lo: 68.0,
+      h: 95,
+      ar: true,
+      eta: new Date(now.getTime() + 300 * 60000).toISOString(),
+    },
+    // --- DEPARTURES ---
     {
       fn: "TR2273",
       cs: "TGW2273",
@@ -515,38 +573,6 @@ function generateMockData() {
       ar: false,
       eta: null,
     },
-    {
-      fn: "SV3813",
-      cs: "SVA3813",
-      al: "Saudia",
-      o: "KNO",
-      d: "JED",
-      t: "B77W",
-      r: "HZ-AK43",
-      a: 0,
-      s: 0,
-      la: KNO.lat,
-      lo: KNO.lon,
-      h: 0,
-      ar: false,
-      eta: null,
-    },
-    {
-      fn: "QZ108",
-      cs: "AWQ108",
-      al: "AirAsia Indonesia",
-      o: "KNO",
-      d: "SIN",
-      t: "A320",
-      r: "PK-AXY",
-      a: 34000,
-      s: 480,
-      la: 2.5,
-      lo: 100.5,
-      h: 140,
-      ar: false,
-      eta: null,
-    },
   ];
 
   const flights = [];
@@ -558,7 +584,17 @@ function generateMockData() {
     const lo = m.lo + dr();
     const di = haversineKm(KNO.lat, KNO.lon, la, lo);
     const status =
-      m.a > 15000 ? "En Route" : m.a > 0 ? "Climbing" : "On Ground";
+      m.a > 15000
+        ? "En Route"
+        : m.a >= 3000 && m.a <= 15000
+          ? m.ar
+            ? "Approach"
+            : "Climbing"
+          : m.a > 0
+            ? "Landing"
+            : m.ar && m.eta && new Date(m.eta).getTime() < now.getTime()
+              ? "On Ground"
+              : "On Ground";
 
     flights.push({
       flight_id: m.fn,

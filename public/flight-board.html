@@ -73,7 +73,7 @@
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.15);
         object-fit: contain;
-        background: rgba(255,255,255,0.9);
+        background: rgba(255, 255, 255, 0.9);
         padding: 3px;
       }
       .fids-title-group h1 {
@@ -1001,42 +1001,46 @@
 
       // ====== AIRLINE LOGO URLs ======
       const AIRLINE_LOGOS = {
-        'AirAsia': 'https://images.kiwi.com/airlines/64/AK.png',
-        'Indonesia AirAsia': 'https://images.kiwi.com/airlines/64/QZ.png',
-        'Singapore Airlines': 'https://images.kiwi.com/airlines/64/SQ.png',
-        'Scoot': 'https://images.kiwi.com/airlines/64/TR.png',
-        'Lion Air': 'https://images.kiwi.com/airlines/64/JT.png',
-        'Batik Air': 'https://images.kiwi.com/airlines/64/ID.png',
-        'Garuda Indonesia': 'https://images.kiwi.com/airlines/64/GA.png',
-        'Citilink': 'https://images.kiwi.com/airlines/64/QG.png',
-        'Malaysia Airlines': 'https://images.kiwi.com/airlines/64/MH.png',
-        'Saudia': 'https://images.kiwi.com/airlines/64/SV.png',
-        'Qatar Airways': 'https://images.kiwi.com/airlines/64/QR.png',
-        'Etihad': 'https://images.kiwi.com/airlines/64/EY.png',
-        'Ethiopian Airlines': 'https://images.kiwi.com/airlines/64/ET.png',
-        'Emirates': 'https://images.kiwi.com/airlines/64/EK.png',
-        'Thai Airways': 'https://images.kiwi.com/airlines/64/TG.png',
-        'Cathay Pacific': 'https://images.kiwi.com/airlines/64/CX.png',
-        'Silk Air': 'https://images.kiwi.com/airlines/64/MI.png',
-        'JetStar Asia': 'https://images.kiwi.com/airlines/64/3K.png',
-        'FedEx': 'https://images.kiwi.com/airlines/64/FX.png',
-        'Thai Lion Air': 'https://images.kiwi.com/airlines/64/SL.png',
+        AirAsia: "https://images.kiwi.com/airlines/64/AK.png",
+        "Indonesia AirAsia": "https://images.kiwi.com/airlines/64/QZ.png",
+        "Singapore Airlines": "https://images.kiwi.com/airlines/64/SQ.png",
+        Scoot: "https://images.kiwi.com/airlines/64/TR.png",
+        "Lion Air": "https://images.kiwi.com/airlines/64/JT.png",
+        "Batik Air": "https://images.kiwi.com/airlines/64/ID.png",
+        "Garuda Indonesia": "https://images.kiwi.com/airlines/64/GA.png",
+        Citilink: "https://images.kiwi.com/airlines/64/QG.png",
+        "Malaysia Airlines": "https://images.kiwi.com/airlines/64/MH.png",
+        Saudia: "https://images.kiwi.com/airlines/64/SV.png",
+        "Qatar Airways": "https://images.kiwi.com/airlines/64/QR.png",
+        Etihad: "https://images.kiwi.com/airlines/64/EY.png",
+        "Ethiopian Airlines": "https://images.kiwi.com/airlines/64/ET.png",
+        Emirates: "https://images.kiwi.com/airlines/64/EK.png",
+        "Thai Airways": "https://images.kiwi.com/airlines/64/TG.png",
+        "Cathay Pacific": "https://images.kiwi.com/airlines/64/CX.png",
+        "Silk Air": "https://images.kiwi.com/airlines/64/MI.png",
+        "JetStar Asia": "https://images.kiwi.com/airlines/64/3K.png",
+        FedEx: "https://images.kiwi.com/airlines/64/FX.png",
+        "Thai Lion Air": "https://images.kiwi.com/airlines/64/SL.png",
       };
 
       // Derive logo URL from flight number IATA prefix
       function getLogoFromFlightNum(fn) {
         if (!fn) return null;
         const m = fn.match(/^([A-Z]{2})/i);
-        if (m) return 'https://images.kiwi.com/airlines/64/' + m[1].toUpperCase() + '.png';
+        if (m)
+          return (
+            "https://images.kiwi.com/airlines/64/" + m[1].toUpperCase() + ".png"
+          );
         return null;
       }
 
       // ====== AIRLINE BADGE ======
       function getAirlineBadge(airline, flightNumber) {
-        const logoUrl = AIRLINE_LOGOS[airline] || getLogoFromFlightNum(flightNumber);
+        const logoUrl =
+          AIRLINE_LOGOS[airline] || getLogoFromFlightNum(flightNumber);
         const logoImg = logoUrl
           ? `<img src="${logoUrl}" class="airline-icon" alt="" onerror="this.style.display='none'">`
-          : '';
+          : "";
         const cfg = AIRLINE_CONFIG[airline];
         if (cfg) {
           return `${logoImg}<span class="airline-badge ${cfg.cssClass}">${cfg.short}</span>`;
@@ -1081,10 +1085,42 @@
       // ====== RENDER BOARD ======
       function renderBoard() {
         const body = document.getElementById("fidsBody");
+        const nowMs = Date.now();
         // Only international arrivals
         let flights = allFlights.filter(
           (f) => f.is_arrival && f.is_international,
         );
+
+        // Hide flights that landed more than 1 hour ago
+        flights = flights.filter((f) => {
+          if (!f.landing_time) return true;
+          const landedAgoMs = nowMs - new Date(f.landing_time).getTime();
+          return landedAgoMs < 60 * 60 * 1000; // 1 hour
+        });
+
+        // Also hide flights where ETA is past AND status is on ground > 1 hour
+        flights = flights.filter((f) => {
+          const st = (f.status || "").toLowerCase();
+          const isGround = st.includes("on ground") || st.includes("taxiing");
+          if (isGround && f.est_time && !f.landing_time) {
+            const etaAgoMs = nowMs - new Date(f.est_time).getTime();
+            return etaAgoMs < 60 * 60 * 1000;
+          }
+          return true;
+        });
+
+        // Sort: landed recently first, then approach, en route, then by ETA
+        flights.sort((a, b) => {
+          const sA = getStatusPriority(a.status, a.is_arrival);
+          const sB = getStatusPriority(b.status, b.is_arrival);
+          if (sA !== sB) return sA - sB;
+          const tA = a.est_time || "";
+          const tB = b.est_time || "";
+          return tA.localeCompare(tB);
+        });
+
+        // Limit to 7 records for clean FIDS display
+        flights = flights.slice(0, 7);
 
         // Update count
         document.getElementById("flightCountBadge").textContent =
@@ -1097,17 +1133,6 @@
           </td></tr>`;
           return;
         }
-
-        // Sort: active flights first, then by time
-        flights.sort((a, b) => {
-          const sA = getStatusPriority(a.status, a.is_arrival);
-          const sB = getStatusPriority(b.status, b.is_arrival);
-          if (sA !== sB) return sA - sB;
-          // Then by scheduled/estimated time
-          const tA = a.est_time || a.sched_time || "";
-          const tB = b.est_time || b.sched_time || "";
-          return tA.localeCompare(tB);
-        });
 
         let html = "";
         flights.forEach((f, i) => {
