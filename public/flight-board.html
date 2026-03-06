@@ -722,7 +722,7 @@
               <th class="col-origin">Kota Asal</th>
               <th class="col-aircraft">Pesawat</th>
               <th class="col-sched">Jadwal</th>
-              <th class="col-est">Estimasi</th>
+              <th class="col-est">Waktu</th>
               <th class="col-remark">Keterangan</th>
             </tr>
           </thead>
@@ -1254,19 +1254,29 @@
             formatTime(f.est_time) ||
             formatTime(f.landing_time) ||
             "";
-          // est time — show landing time if landed, otherwise show ETA
+          // waktu — elapsed time since scheduled arrival
           const st = (f.status || "").toLowerCase();
-          let estTime = "";
-          if (
-            f.landing_time &&
-            (st.includes("on ground") ||
-              st.includes("landing") ||
-              st.includes("taxiing"))
-          ) {
-            estTime = formatTime(f.landing_time);
-          } else if (f.est_time) {
-            estTime = formatTime(f.est_time);
+          function timeAgo(schedDate) {
+            if (!schedDate) return "";
+            const now = new Date();
+            const sched = new Date(schedDate);
+            const diffMs = now - sched;
+            const absDiff = Math.abs(diffMs);
+            const isPast = diffMs > 0;
+            if (absDiff < 60000) {
+              const s = Math.floor(absDiff / 1000);
+              return isPast ? s + " dyl" : s + " dtk";
+            } else if (absDiff < 3600000) {
+              const m = Math.floor(absDiff / 60000);
+              return isPast ? m + " myl" : m + " mnt";
+            } else {
+              const h = Math.floor(absDiff / 3600000);
+              const m = Math.floor((absDiff % 3600000) / 60000);
+              if (isPast) return m > 0 ? h + "j " + m + "myl" : h + " jyl";
+              return m > 0 ? h + "j " + m + "m" : h + " jam";
+            }
           }
+          const waktuText = timeAgo(f.sched_time);
 
           const keterangan = getKeterangan(f.status, f.is_arrival);
           const isLanded =
@@ -1289,7 +1299,7 @@
               </td>
               <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--accent-yellow);letter-spacing:0.5px">${f.aircraft || "—"}</td>
               <td class="time-display">${schedTime || '<span class="time-na">—</span>'}</td>
-              <td class="time-display">${estTime || '<span class="time-na"></span>'}</td>
+              <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:17px;color:#94a3b8;letter-spacing:0.3px">${waktuText || '—'}</td>
               <td style="text-align:center"><span class="flight-status ${keterangan.cssClass}">${keterangan.text}</span></td>
             </tr>`;
         });
