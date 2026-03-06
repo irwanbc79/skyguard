@@ -2938,6 +2938,7 @@
             { id: "board", label: "Flight Board", icon: "fa-plane-arrival" },
             { id: "map", label: "Live Map", icon: "fa-map-marked-alt" },
             { id: "alerts", label: "Alerts", icon: "fa-bell" },
+            { id: "fids", label: "FIDS Monitor", icon: "fa-tv" },
           ],
           color: "#3b82f6",
         },
@@ -17115,6 +17116,8 @@
         } else if (subId === "alerts") {
           container.innerHTML = getFlightAlertsContent();
           loadFlightAlerts();
+        } else if (subId === "fids") {
+          window.open("/flight-board", "_blank");
         }
       }
 
