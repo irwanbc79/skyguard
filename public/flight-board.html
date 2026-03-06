@@ -720,7 +720,7 @@
               <th class="col-airline">Penerbangan</th>
               <th class="col-flight">No. Penerbangan</th>
               <th class="col-origin">Kota Asal</th>
-              <th class="col-sched center">Pemberitahuan</th>
+              <th class="col-sched center">Jadwal</th>
               <th class="col-est center">Estimasi</th>
               <th class="col-remark center">Keterangan</th>
             </tr>
@@ -1086,44 +1086,57 @@
       function renderBoard() {
         const body = document.getElementById("fidsBody");
         const nowMs = Date.now();
+        const ONE_HOUR = 60 * 60 * 1000;
+
         // Only international arrivals
         let flights = allFlights.filter(
           (f) => f.is_arrival && f.is_international,
         );
 
-        // Hide flights that landed more than 1 hour ago
-        flights = flights.filter((f) => {
-          if (!f.landing_time) return true;
-          const landedAgoMs = nowMs - new Date(f.landing_time).getTime();
-          return landedAgoMs < 60 * 60 * 1000; // 1 hour
-        });
-
-        // Also hide flights where ETA is past AND status is on ground > 1 hour
-        flights = flights.filter((f) => {
-          const st = (f.status || "").toLowerCase();
-          const isGround = st.includes("on ground") || st.includes("taxiing");
-          if (isGround && f.est_time && !f.landing_time) {
-            const etaAgoMs = nowMs - new Date(f.est_time).getTime();
-            return etaAgoMs < 60 * 60 * 1000;
-          }
-          return true;
-        });
-
-        // Sort by scheduled time ascending (chronological order like FIDS)
+        // Sort by scheduled time ascending (chronological FIDS order)
         flights.sort((a, b) => {
           const tA = a.sched_time || a.est_time || "";
           const tB = b.sched_time || b.est_time || "";
           return tA.localeCompare(tB);
         });
 
-        // Limit to 7 records for clean FIDS display
-        flights = flights.slice(0, 7);
+        // Split into upcoming/recent vs old landed
+        const upcoming = []; // still airborne or landed < 2 hours ago
+        const older = []; // landed > 2 hours ago
+        flights.forEach((f) => {
+          const landTime = f.landing_time
+            ? new Date(f.landing_time).getTime()
+            : f.est_time && (f.status || "").toLowerCase().includes("on ground")
+              ? new Date(f.est_time).getTime()
+              : null;
+          if (landTime && nowMs - landTime > 2 * ONE_HOUR) {
+            older.push(f);
+          } else {
+            upcoming.push(f);
+          }
+        });
+
+        // Use upcoming flights first; if fewer than 7,
+        // backfill with most recent landed flights (for customs reference)
+        let display = upcoming.slice(0, 7);
+        if (display.length < 7) {
+          const backfill = older.slice(-(7 - display.length));
+          display = [...backfill, ...display];
+        }
+        // Final sort by schedule time
+        display.sort((a, b) => {
+          const tA = a.sched_time || a.est_time || "";
+          const tB = b.sched_time || b.est_time || "";
+          return tA.localeCompare(tB);
+        });
+        // Cap at 7
+        display = display.slice(0, 7);
 
         // Update count
         document.getElementById("flightCountBadge").textContent =
-          flights.length + " penerbangan";
+          display.length + " penerbangan";
 
-        if (!flights.length) {
+        if (!display.length) {
           body.innerHTML = `<tr><td colspan="6" class="empty-state">
             <i class="fas fa-plane-slash"></i>
             <p>Tidak ada data penerbangan internasional</p>
@@ -1132,7 +1145,7 @@
         }
 
         let html = "";
-        flights.forEach((f, i) => {
+        display.forEach((f, i) => {
           const airline = f.airline || "";
           const fn = formatFlightNum(f.flight_number);
           const cityCode = f.is_arrival ? f.origin : f.destination;
@@ -1144,7 +1157,7 @@
             formatTime(f.est_time) ||
             formatTime(f.landing_time) ||
             "";
-          // est time — show actual landing time if landed
+          // est time — show landing time if landed, otherwise show ETA
           const st = (f.status || "").toLowerCase();
           let estTime = "";
           if (
@@ -1155,11 +1168,7 @@
           ) {
             estTime = formatTime(f.landing_time);
           } else if (f.est_time) {
-            const etaDate = new Date(f.est_time);
-            const diff = Math.round((etaDate - new Date()) / 60000);
-            if (diff > 0 && diff < 30) {
-              estTime = formatTime(f.est_time);
-            }
+            estTime = formatTime(f.est_time);
           }
 
           const keterangan = getKeterangan(f.status, f.is_arrival);
