@@ -532,6 +532,34 @@ function generateMockData() {
       r: "PK-BAN",
       sched: todayWIB(21, 35),
     },
+    // --- Added: missing international routes ---
+    {
+      fn: "QZ168",
+      cs: "AWQ168",
+      al: "Indonesia AirAsia",
+      o: "DMK",
+      t: "A320",
+      r: "PK-AXF",
+      sched: todayWIB(11, 15),
+    },
+    {
+      fn: "QZ136",
+      cs: "AWQ136",
+      al: "Indonesia AirAsia",
+      o: "PEN",
+      t: "A320",
+      r: "PK-AXJ",
+      sched: todayWIB(16, 20),
+    },
+    {
+      fn: "JT282",
+      cs: "LNI282",
+      al: "Lion Air",
+      o: "PEN",
+      t: "B738",
+      r: "PK-LPT",
+      sched: todayWIB(18, 45),
+    },
   ];
 
   const flights = [];
