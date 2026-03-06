@@ -1172,23 +1172,61 @@
       }
 
       // ====== KETERANGAN MAPPING ======
-      function getKeterangan(status, isArrival) {
-        const s = (status || "").toLowerCase();
-        if (
+      function getKeterangan(flight) {
+        const s = (flight.status || "").toLowerCase();
+        const isLanded =
           s.includes("on ground") ||
           s.includes("taxiing") ||
-          s.includes("landing")
-        )
+          s.includes("landing");
+
+        // Check for delay: est_time or actual_time > sched_time
+        const schedMs = flight.sched_time
+          ? new Date(flight.sched_time).getTime()
+          : 0;
+        const estMs = flight.est_time ? new Date(flight.est_time).getTime() : 0;
+        const actMs = flight.actual_time
+          ? new Date(flight.actual_time).getTime()
+          : 0;
+        const compareMs = actMs || estMs;
+        const delayMs = schedMs && compareMs ? compareMs - schedMs : 0;
+        const delayMin = Math.floor(delayMs / 60000);
+        const isDelayed = delayMin >= 5; // 5+ minutes = delayed
+
+        // Format delay time HH:MM
+        function fmtDelayTime(ms) {
+          const d = new Date(ms);
+          const h = d.getHours().toString().padStart(2, "0");
+          const m = d.getMinutes().toString().padStart(2, "0");
+          return h + "." + m;
+        }
+
+        if (isLanded && isDelayed) {
+          return {
+            text: "TERLAMBAT " + fmtDelayTime(compareMs),
+            cssClass: "status-delayed",
+          };
+        }
+        if (isLanded) {
           return { text: "MENDARAT", cssClass: "status-mendarat" };
-        if (s.includes("delayed"))
-          return { text: "DITUNDA", cssClass: "status-delayed" };
+        }
+        if (s.includes("delayed") || (isDelayed && !isLanded)) {
+          return { text: "TERLAMBAT", cssClass: "status-delayed" };
+        }
         if (
           s.includes("cancelled") ||
           s.includes("canceled") ||
           s.includes("dibatalkan")
         )
           return { text: "DIBATALKAN", cssClass: "status-delayed" };
-        // All airborne states: en route, approach, climbing, scheduled, etc.
+        if (
+          s.includes("en route") ||
+          s.includes("approach") ||
+          s.includes("active")
+        )
+          return { text: "DI UDARA", cssClass: "status-enroute" };
+        if (s.includes("scheduled"))
+          return { text: "DIJADWALKAN", cssClass: "status-scheduled" };
+        // Default
         return { text: "DI UDARA", cssClass: "status-enroute" };
       }
 
@@ -1291,7 +1329,7 @@
           }
           const waktuText = timeAgo(f.sched_time);
 
-          const keterangan = getKeterangan(f.status, f.is_arrival);
+          const keterangan = getKeterangan(f);
           const isLanded =
             st.includes("on ground") ||
             st.includes("taxiing") ||
@@ -1344,7 +1382,7 @@
 
           // Update source badge
           const badge = document.getElementById("sourceBadge");
-          if (data.source === "fr24_live") {
+          if (data.source === "fr24_live" || data.source === "airlabs") {
             badge.className = "status-badge badge-live";
             badge.textContent = "● LIVE";
           } else if (data.source === "fr24_regional") {
