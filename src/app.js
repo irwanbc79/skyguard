@@ -125,6 +125,11 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
+// Flight Board FIDS display (standalone monitoring page)
+app.get("/flight-board", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/flight-board.html"));
+});
+
 if (!process.env.MONGODB_URI) {
   console.error("[STARTUP] MONGODB_URI is not set");
   process.exit(1);
