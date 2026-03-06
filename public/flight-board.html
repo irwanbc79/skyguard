@@ -68,10 +68,13 @@
         gap: 16px;
       }
       .fids-logo {
-        width: 44px;
-        height: 44px;
+        width: 48px;
+        height: 48px;
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.15);
+        object-fit: contain;
+        background: rgba(255,255,255,0.9);
+        padding: 3px;
       }
       .fids-title-group h1 {
         font-size: 16px;
@@ -223,8 +226,8 @@
         border-bottom: 2px solid var(--accent-blue);
       }
       .fids-table th {
-        padding: 14px 16px;
-        font-size: 11px;
+        padding: 16px 20px;
+        font-size: 15px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1.5px;
@@ -250,8 +253,8 @@
         opacity: 0.6;
       }
       .fids-table td {
-        padding: 12px 16px;
-        font-size: 14px;
+        padding: 18px 20px;
+        font-size: 21px;
         vertical-align: middle;
         white-space: nowrap;
       }
@@ -280,16 +283,25 @@
       .airline-logo {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+      }
+      .airline-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 4px;
+        object-fit: contain;
+        background: #fff;
+        padding: 2px;
+        flex-shrink: 0;
       }
       .airline-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 90px;
-        padding: 4px 12px;
-        border-radius: 4px;
-        font-size: 11px;
+        min-width: 110px;
+        padding: 6px 16px;
+        border-radius: 5px;
+        font-size: 15px;
         font-weight: 800;
         letter-spacing: 0.8px;
         text-transform: uppercase;
@@ -351,48 +363,48 @@
       /* Flight number */
       .flight-num {
         font-family: "JetBrains Mono", monospace;
-        font-size: 15px;
+        font-size: 22px;
         font-weight: 700;
         color: #fff;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
       }
 
       /* Origin/Destination city */
       .city-name {
-        font-size: 15px;
+        font-size: 22px;
         font-weight: 600;
         color: #e2e8f0;
       }
       .city-code {
-        font-size: 10px;
+        font-size: 14px;
         color: var(--text-muted);
-        margin-left: 4px;
+        margin-left: 6px;
       }
 
       /* Time display */
       .time-display {
         font-family: "JetBrains Mono", monospace;
-        font-size: 18px;
+        font-size: 26px;
         font-weight: 600;
         color: #fff;
         text-align: center;
       }
       .time-na {
         color: var(--text-muted);
-        font-size: 14px;
+        font-size: 18px;
       }
 
       /* Status badges */
       .flight-status {
-        font-size: 12px;
+        font-size: 17px;
         font-weight: 700;
-        padding: 5px 14px;
-        border-radius: 4px;
+        padding: 8px 20px;
+        border-radius: 5px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
         display: inline-block;
         text-align: center;
-        min-width: 100px;
+        min-width: 130px;
       }
       .status-mendarat {
         background: rgba(34, 197, 94, 0.2);
@@ -561,23 +573,44 @@
 
       /* Fullscreen adjustments */
       .scroll-container:fullscreen .fids-table td {
-        font-size: 16px;
-        padding: 14px 18px;
+        font-size: 24px;
+        padding: 22px 24px;
       }
       .scroll-container:fullscreen .time-display {
-        font-size: 22px;
+        font-size: 32px;
       }
       .scroll-container:fullscreen .flight-num {
-        font-size: 18px;
+        font-size: 28px;
       }
       .scroll-container:fullscreen .city-name {
-        font-size: 17px;
+        font-size: 26px;
       }
       .scroll-container:fullscreen .fids-clock {
-        font-size: 34px;
+        font-size: 40px;
       }
       .scroll-container:fullscreen .controls-bar {
         display: none;
+      }
+      .scroll-container:fullscreen .airline-badge {
+        font-size: 18px;
+        min-width: 140px;
+        padding: 8px 20px;
+      }
+      .scroll-container:fullscreen .airline-icon {
+        width: 44px;
+        height: 44px;
+      }
+      .scroll-container:fullscreen .flight-status {
+        font-size: 20px;
+        padding: 10px 24px;
+        min-width: 160px;
+      }
+      .scroll-container:fullscreen .city-code {
+        font-size: 16px;
+      }
+      .scroll-container:fullscreen .fids-table th {
+        font-size: 18px;
+        padding: 18px 24px;
       }
 
       /* Empty state */
@@ -966,19 +999,54 @@
         }
       }
 
+      // ====== AIRLINE LOGO URLs ======
+      const AIRLINE_LOGOS = {
+        'AirAsia': 'https://images.kiwi.com/airlines/64/AK.png',
+        'Indonesia AirAsia': 'https://images.kiwi.com/airlines/64/QZ.png',
+        'Singapore Airlines': 'https://images.kiwi.com/airlines/64/SQ.png',
+        'Scoot': 'https://images.kiwi.com/airlines/64/TR.png',
+        'Lion Air': 'https://images.kiwi.com/airlines/64/JT.png',
+        'Batik Air': 'https://images.kiwi.com/airlines/64/ID.png',
+        'Garuda Indonesia': 'https://images.kiwi.com/airlines/64/GA.png',
+        'Citilink': 'https://images.kiwi.com/airlines/64/QG.png',
+        'Malaysia Airlines': 'https://images.kiwi.com/airlines/64/MH.png',
+        'Saudia': 'https://images.kiwi.com/airlines/64/SV.png',
+        'Qatar Airways': 'https://images.kiwi.com/airlines/64/QR.png',
+        'Etihad': 'https://images.kiwi.com/airlines/64/EY.png',
+        'Ethiopian Airlines': 'https://images.kiwi.com/airlines/64/ET.png',
+        'Emirates': 'https://images.kiwi.com/airlines/64/EK.png',
+        'Thai Airways': 'https://images.kiwi.com/airlines/64/TG.png',
+        'Cathay Pacific': 'https://images.kiwi.com/airlines/64/CX.png',
+        'Silk Air': 'https://images.kiwi.com/airlines/64/MI.png',
+        'JetStar Asia': 'https://images.kiwi.com/airlines/64/3K.png',
+        'FedEx': 'https://images.kiwi.com/airlines/64/FX.png',
+        'Thai Lion Air': 'https://images.kiwi.com/airlines/64/SL.png',
+      };
+
+      // Derive logo URL from flight number IATA prefix
+      function getLogoFromFlightNum(fn) {
+        if (!fn) return null;
+        const m = fn.match(/^([A-Z]{2})/i);
+        if (m) return 'https://images.kiwi.com/airlines/64/' + m[1].toUpperCase() + '.png';
+        return null;
+      }
+
       // ====== AIRLINE BADGE ======
-      function getAirlineBadge(airline) {
+      function getAirlineBadge(airline, flightNumber) {
+        const logoUrl = AIRLINE_LOGOS[airline] || getLogoFromFlightNum(flightNumber);
+        const logoImg = logoUrl
+          ? `<img src="${logoUrl}" class="airline-icon" alt="" onerror="this.style.display='none'">`
+          : '';
         const cfg = AIRLINE_CONFIG[airline];
         if (cfg) {
-          return `<span class="airline-badge ${cfg.cssClass}">${cfg.short}</span>`;
+          return `${logoImg}<span class="airline-badge ${cfg.cssClass}">${cfg.short}</span>`;
         }
-        // Fallback
         const short = airline
           ? airline.length > 12
             ? airline.substring(0, 10) + ".."
             : airline
           : "—";
-        return `<span class="airline-badge airline-default">${short}</span>`;
+        return `${logoImg}<span class="airline-badge airline-default">${short}</span>`;
       }
 
       // ====== FORMAT FLIGHT NUMBER for display (add space like "OD 0324") ======
@@ -1079,7 +1147,7 @@
             <tr class="${isLanded ? "row-landed" : ""} row-animate" style="animation-delay:${i * 30}ms">
               <td>
                 <div class="airline-logo">
-                  ${getAirlineBadge(airline)}
+                  ${getAirlineBadge(airline, f.flight_number)}
                 </div>
               </td>
               <td><span class="flight-num">${fn}</span></td>
