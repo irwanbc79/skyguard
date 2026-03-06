@@ -1239,44 +1239,38 @@
           (f) => f.is_arrival && f.is_international,
         );
 
-        // Sort by scheduled time descending (most recent first)
-        flights.sort((a, b) => {
-          const tA = a.sched_time || a.est_time || "";
-          const tB = b.sched_time || b.est_time || "";
-          return tB.localeCompare(tA);
-        });
-
-        // Split into upcoming/recent vs old landed
-        const upcoming = []; // still airborne or landed < 2 hours ago
-        const older = []; // landed > 2 hours ago
+        // Split into landed vs upcoming (airborne/scheduled)
+        const landed = [];
+        const upcoming = [];
         flights.forEach((f) => {
-          const landTime = f.landing_time
-            ? new Date(f.landing_time).getTime()
-            : f.est_time && (f.status || "").toLowerCase().includes("on ground")
-              ? new Date(f.est_time).getTime()
-              : null;
-          if (landTime && nowMs - landTime > 2 * ONE_HOUR) {
-            older.push(f);
+          const st = (f.status || "").toLowerCase();
+          const isLanded =
+            st.includes("on ground") ||
+            st.includes("taxiing") ||
+            st.includes("landing");
+          if (isLanded) {
+            landed.push(f);
           } else {
             upcoming.push(f);
           }
         });
 
-        // Use upcoming flights first; if fewer than 7,
-        // backfill with most recent landed flights (for customs reference)
-        let display = upcoming.slice(0, 7);
-        if (display.length < 7) {
-          const backfill = older.slice(-(7 - display.length));
-          display = [...backfill, ...display];
-        }
-        // Final sort by schedule time descending (most recent first)
-        display.sort((a, b) => {
-          const tA = a.sched_time || a.est_time || "";
-          const tB = b.sched_time || b.est_time || "";
+        // Landed: most recent landing at top (descending by actual/est/sched time)
+        landed.sort((a, b) => {
+          const tA = a.actual_time || a.est_time || a.sched_time || "";
+          const tB = b.actual_time || b.est_time || b.sched_time || "";
           return tB.localeCompare(tA);
         });
-        // Cap at 7
-        display = display.slice(0, 7);
+
+        // Upcoming: next to arrive first (ascending by est/sched time)
+        upcoming.sort((a, b) => {
+          const tA = a.est_time || a.sched_time || "";
+          const tB = b.est_time || b.sched_time || "";
+          return tA.localeCompare(tB);
+        });
+
+        // Landed first, then upcoming — cap at 7
+        let display = [...landed, ...upcoming].slice(0, 7);
 
         // Update count
         document.getElementById("flightCountBadge").textContent =
