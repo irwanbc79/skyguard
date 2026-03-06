@@ -61,15 +61,24 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        position: relative;
       }
       .fids-header-left {
         display: flex;
         align-items: center;
         gap: 16px;
+        z-index: 1;
+      }
+      .fids-header-center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 0;
       }
       .fids-logo {
-        width: 144px;
-        height: 144px;
+        width: 64px;
+        height: 64px;
         border-radius: 0;
         border: none;
         object-fit: contain;
@@ -658,17 +667,19 @@
       <!-- HEADER -->
       <div class="fids-header">
         <div class="fids-header-left">
-          <img
-            src="/assets/logo-bc-kualanamu.png"
-            alt="BC Kualanamu"
-            class="fids-logo"
-          />
           <div class="fids-title-group">
             <h1><i class="fas fa-plane"></i> SkyGuard FIDS</h1>
             <p id="fidsSubtitle">
               Kedatangan Internasional — Bandara Internasional Kualanamu
             </p>
           </div>
+        </div>
+        <div class="fids-header-center">
+          <img
+            src="/assets/logo-bc-kualanamu.png"
+            alt="BC Kualanamu"
+            class="fids-logo"
+          />
         </div>
         <div class="fids-header-right">
           <div>
