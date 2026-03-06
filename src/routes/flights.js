@@ -319,6 +319,7 @@ router.get("/customs-intel", async (req, res) => {
         is_arrival: f.is_arrival,
         is_international: f.is_international,
         status: f.status,
+        sched_time: f.sched_time || null,
         est_time: f.est_time,
         landing_time: f.landing_time || null,
         aircraft: f.aircraft,
