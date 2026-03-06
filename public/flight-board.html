@@ -1190,11 +1190,11 @@
           (f) => f.is_arrival && f.is_international,
         );
 
-        // Sort by scheduled time ascending (chronological FIDS order)
+        // Sort by scheduled time descending (most recent first)
         flights.sort((a, b) => {
           const tA = a.sched_time || a.est_time || "";
           const tB = b.sched_time || b.est_time || "";
-          return tA.localeCompare(tB);
+          return tB.localeCompare(tA);
         });
 
         // Split into upcoming/recent vs old landed
@@ -1220,11 +1220,11 @@
           const backfill = older.slice(-(7 - display.length));
           display = [...backfill, ...display];
         }
-        // Final sort by schedule time
+        // Final sort by schedule time descending (most recent first)
         display.sort((a, b) => {
           const tA = a.sched_time || a.est_time || "";
           const tB = b.sched_time || b.est_time || "";
-          return tA.localeCompare(tB);
+          return tB.localeCompare(tA);
         });
         // Cap at 7
         display = display.slice(0, 7);
