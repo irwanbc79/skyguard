@@ -733,7 +733,7 @@
               <th class="col-airline">Maskapai</th>
               <th class="col-flight">Penerbangan</th>
               <th class="col-origin">Kota Asal</th>
-              <th class="col-aircraft">Pesawat</th>
+              <th class="col-aircraft">Status</th>
               <th class="col-sched">Jadwal</th>
               <th class="col-est">Waktu</th>
               <th class="col-remark">Keterangan</th>
@@ -1200,17 +1200,13 @@
           return h + "." + m;
         }
 
-        if (isLanded && isDelayed) {
-          return {
-            text: "TERLAMBAT " + fmtDelayTime(compareMs),
-            cssClass: "status-delayed",
-          };
-        }
+        // Delay info (for STATUS column)
+        flight._isDelayed = isDelayed;
+        flight._delayText =
+          isDelayed && compareMs ? "TERLAMBAT " + fmtDelayTime(compareMs) : "";
+
         if (isLanded) {
           return { text: "MENDARAT", cssClass: "status-mendarat" };
-        }
-        if (s.includes("delayed") || (isDelayed && !isLanded)) {
-          return { text: "TERLAMBAT", cssClass: "status-delayed" };
         }
         if (
           s.includes("cancelled") ||
@@ -1221,7 +1217,8 @@
         if (
           s.includes("en route") ||
           s.includes("approach") ||
-          s.includes("active")
+          s.includes("active") ||
+          s.includes("delayed")
         )
           return { text: "DI UDARA", cssClass: "status-enroute" };
         if (s.includes("scheduled"))
@@ -1348,7 +1345,7 @@
                 <span class="city-name">${city || cityCode}</span>
                 ${cityCode && city ? `<span class="city-code">(${cityCode})</span>` : ""}
               </td>
-              <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--accent-yellow);letter-spacing:0.5px">${f.aircraft || "—"}</td>
+              <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:16px;letter-spacing:0.3px;${f._isDelayed ? "color:var(--accent-red);font-weight:700" : "color:var(--text-secondary)"}">${f._isDelayed ? f._delayText : "—"}</td>
               <td class="time-display">${schedTime || '<span class="time-na">—</span>'}</td>
               <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:17px;color:#94a3b8;letter-spacing:0.3px">${waktuText || "—"}</td>
               <td style="text-align:center"><span class="flight-status ${keterangan.cssClass}">${keterangan.text}</span></td>
