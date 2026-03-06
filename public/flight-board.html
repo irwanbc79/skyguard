@@ -259,24 +259,27 @@
         white-space: nowrap;
       }
 
-      /* Column widths — balanced for 6-column FIDS */
+      /* Column widths — balanced for 7-column FIDS */
       .col-airline {
-        width: 18%;
+        width: 16%;
       }
       .col-flight {
-        width: 15%;
-      }
-      .col-origin {
-        width: 24%;
-      }
-      .col-sched {
-        width: 14%;
-      }
-      .col-est {
         width: 13%;
       }
+      .col-origin {
+        width: 20%;
+      }
+      .col-aircraft {
+        width: 10%;
+      }
+      .col-sched {
+        width: 12%;
+      }
+      .col-est {
+        width: 12%;
+      }
       .col-remark {
-        width: 16%;
+        width: 17%;
       }
 
       /* Airline cell */
@@ -720,6 +723,7 @@
               <th class="col-airline">Penerbangan</th>
               <th class="col-flight">No. Penerbangan</th>
               <th class="col-origin">Kota Asal</th>
+              <th class="col-aircraft center">Pesawat</th>
               <th class="col-sched center">Jadwal</th>
               <th class="col-est center">Estimasi</th>
               <th class="col-remark center">Keterangan</th>
@@ -727,7 +731,7 @@
           </thead>
           <tbody id="fidsBody">
             <tr>
-              <td colspan="6" class="empty-state">
+              <td colspan="7" class="empty-state">
                 <i class="fas fa-spinner fa-spin"></i>
                 <p>Memuat data penerbangan...</p>
               </td>
@@ -1137,7 +1141,7 @@
           display.length + " penerbangan";
 
         if (!display.length) {
-          body.innerHTML = `<tr><td colspan="6" class="empty-state">
+          body.innerHTML = `<tr><td colspan="7" class="empty-state">
             <i class="fas fa-plane-slash"></i>
             <p>Tidak ada data penerbangan internasional</p>
           </td></tr>`;
@@ -1189,6 +1193,7 @@
                 <span class="city-name">${city || cityCode}</span>
                 ${cityCode && city ? `<span class="city-code">(${cityCode})</span>` : ""}
               </td>
+              <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--accent-yellow);letter-spacing:0.5px">${f.aircraft || "—"}</td>
               <td class="time-display">${schedTime || '<span class="time-na">—</span>'}</td>
               <td class="time-display">${estTime || '<span class="time-na"></span>'}</td>
               <td style="text-align:center"><span class="flight-status ${keterangan.cssClass}">${keterangan.text}</span></td>
@@ -1245,7 +1250,7 @@
         } catch (err) {
           console.error("[FIDS] Refresh error:", err);
           const body = document.getElementById("fidsBody");
-          body.innerHTML = `<tr><td colspan="6" class="empty-state">
+          body.innerHTML = `<tr><td colspan="7" class="empty-state">
             <i class="fas fa-exclamation-triangle" style="color:var(--accent-red)"></i>
             <p style="color:var(--accent-red)">Gagal memuat data: ${err.message}</p>
             <p style="margin-top:8px;font-size:12px;">Akan mencoba lagi secara otomatis...</p>
