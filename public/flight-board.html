@@ -232,11 +232,8 @@
         text-transform: uppercase;
         letter-spacing: 1.5px;
         color: var(--accent-cyan);
-        text-align: left;
-        white-space: nowrap;
-      }
-      .fids-table th.center {
         text-align: center;
+        white-space: nowrap;
       }
 
       .fids-table tbody tr {
@@ -723,10 +720,10 @@
               <th class="col-airline">Maskapai</th>
               <th class="col-flight">Penerbangan</th>
               <th class="col-origin">Kota Asal</th>
-              <th class="col-aircraft center">Pesawat</th>
-              <th class="col-sched center">Jadwal</th>
-              <th class="col-est center">Estimasi</th>
-              <th class="col-remark center">Keterangan</th>
+              <th class="col-aircraft">Pesawat</th>
+              <th class="col-sched">Jadwal</th>
+              <th class="col-est">Estimasi</th>
+              <th class="col-remark">Keterangan</th>
             </tr>
           </thead>
           <tbody id="fidsBody">
@@ -1284,7 +1281,7 @@
                   ${getAirlineBadge(airline, f.flight_number)}
                 </div>
               </td>
-              <td><span class="flight-num">${fn}</span></td>
+              <td style="text-align:center"><span class="flight-num">${fn}</span></td>
               <td>
                 <span style="font-size:22px;margin-right:6px">${getFlag(cityCode)}</span>
                 <span class="city-name">${city || cityCode}</span>
