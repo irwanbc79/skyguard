@@ -77,8 +77,8 @@
         z-index: 0;
       }
       .fids-logo {
-        width: 64px;
-        height: 64px;
+        width: 80px;
+        height: 80px;
         border-radius: 0;
         border: none;
         object-fit: contain;
@@ -1269,8 +1269,8 @@
           return tA.localeCompare(tB);
         });
 
-        // Landed first, then upcoming — cap at 7
-        let display = [...landed, ...upcoming].slice(0, 7);
+        // Landed first, then upcoming — cap at 10
+        let display = [...landed, ...upcoming].slice(0, 10);
 
         // Update count
         document.getElementById("flightCountBadge").textContent =
