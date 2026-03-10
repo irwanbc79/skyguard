@@ -25,6 +25,7 @@
     "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
     "pdf-parse": "1.1.1",
+    "pdfkit": "^0.17.2",
     "xlsx": "^0.18.5"
   }
 }

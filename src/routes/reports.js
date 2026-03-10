@@ -1,11 +1,12 @@
 /**
  * Export Laporan Periodik — ringkasan eksekutif (bukan export data mentah).
  * Berbeda dari: /api/passenger/export (data penumpang), cargo/export, manifest export.
- * GET /api/reports/summary?period=week|month&format=excel
+ * GET /api/reports/summary?period=week|month&format=excel|pdf
  */
 const express = require("express");
 const router = express.Router();
 const XLSX = require("xlsx");
+const PDFDocument = require("pdfkit");
 const Manifest = require("../models/Manifest");
 const Passenger = require("../models/Passenger");
 const Cnpibk = require("../models/cnpibk");
@@ -110,13 +111,52 @@ router.get("/summary", async (req, res) => {
         .status(400)
         .json({ status: "error", message: "period harus week atau month" });
     }
-    if (format !== "excel") {
+    if (!["excel", "pdf"].includes(format)) {
       return res
         .status(400)
-        .json({ status: "error", message: "format saat ini hanya excel" });
+        .json({ status: "error", message: "format harus excel atau pdf" });
     }
 
     const data = await getSummaryData(period);
+
+    if (format === "pdf") {
+      const filename = `laporan_periodik_${period}_${data.start}_${data.end}.pdf`;
+      res.setHeader("Content-Disposition", 'attachment; filename="' + filename + '"');
+      res.setHeader("Content-Type", "application/pdf");
+      const doc = new PDFDocument({ margin: 50 });
+      doc.pipe(res);
+      doc.fontSize(18).text("Laporan Periodik SkyGuard Intelligence", { align: "center" });
+      doc.moveDown();
+      doc.fontSize(10).text("KPPBC TMP B Kualanamu — Decision Support System", { align: "center" });
+      doc.moveDown(2);
+      doc.fontSize(11).text("Periode: " + data.periodLabel, { continued: false });
+      doc.text("Tanggal: " + data.start + " s.d. " + data.end, { continued: false });
+      doc.text("Dibuat: " + data.generatedAt, { continued: false });
+      doc.moveDown(2);
+      doc.fontSize(12).text("Ringkasan", { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(10);
+      doc.text("Total Manifest (periode): " + data.metrics.totalManifests, { continued: false });
+      doc.text("Total Penumpang CEISA (periode): " + data.metrics.totalPassengers, { continued: false });
+      doc.text("Total Cargo/PIBK (periode): " + data.metrics.totalCargo, { continued: false });
+      doc.text("Total Device Referensi: " + data.metrics.totalDevices, { continued: false });
+      doc.text("IMEI Detail (periode): " + data.metrics.totalImeiDetails, { continued: false });
+      doc.text("IMEI Registrasi (periode): " + data.metrics.totalImeiReg, { continued: false });
+      doc.moveDown(1.5);
+      doc.fontSize(11).text("Status Manifest", { underline: true });
+      doc.fontSize(10);
+      (data.manifestStatus || []).forEach((s) => {
+        doc.text((s._id || "-") + ": " + s.count, { continued: false });
+      });
+      doc.moveDown(1);
+      doc.fontSize(11).text("Status Penelitian Penumpang", { underline: true });
+      doc.fontSize(10);
+      (data.paxStatus || []).forEach((s) => {
+        doc.text((s._id || "-") + ": " + s.count, { continued: false });
+      });
+      doc.end();
+      return;
+    }
 
     const rows = [
       ["Laporan Periodik SkyGuard Intelligence", ""],
