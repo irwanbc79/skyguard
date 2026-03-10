@@ -107,10 +107,13 @@ app.use("/api/intel", require("./routes/intel"));
 
 app.get("/api/health", (req, res) => {
   const isDbUp = mongoose.connection.readyState === 1;
+  const pkg = require("../package.json");
   res.status(isDbUp ? 200 : 503).json({
     status: isDbUp ? "ok" : "degraded",
     db: isDbUp ? "connected" : "disconnected",
     uptime_sec: Math.floor(process.uptime()),
+    version: pkg.version || "1.0.0",
+    app: pkg.name,
     timestamp: new Date(),
   });
 });

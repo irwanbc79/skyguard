@@ -314,7 +314,11 @@ pm2 logs skyguard-api
 
 ---
 
-## 12. Kontak & Repositori
+## 12. Dokumentasi Lain
+
+- **Rekomendasi fitur:** `docs/REKOMENDASI-FITUR.md` — ide fitur lanjutan (export laporan, notifikasi browser, timeline paspor, audit log, dll) untuk pengembangan berikutnya.
+
+## 13. Kontak & Repositori
 
 - **Repositori:** (sesuaikan dengan URL Git tim, mis. GitHub/GitLab).  
 - **Dokumentasi teknis ini:** `docs/DOKUMENTASI-TEKNIS.md` — dapat dibaca di repo atau setelah clone di server.
