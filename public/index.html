@@ -512,6 +512,14 @@
                 </div>
               </div>
             </div>
+            <button
+              type="button"
+              onclick="openGlobalSearchModal()"
+              class="w-9 h-9 rounded-full bg-cyan-500/30 flex items-center justify-center hover:bg-cyan-500/50 transition-all flex-shrink-0"
+              title="Pencarian Cepat (Ctrl+K)"
+            >
+              <i class="fas fa-search text-sm text-cyan-300"></i>
+            </button>
             <div
               class="w-9 h-9 rounded-full bg-blue-500/30 flex items-center justify-center"
             >
@@ -521,6 +529,26 @@
         </div>
       </div>
     </header>
+
+    <!-- Modal Pencarian Cepat (Ctrl+K) - satu pintu ke Pencarian Sentral -->
+    <div id="globalSearchOverlay" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm" onclick="if (event.target === this) closeGlobalSearchModal()"></div>
+    <div id="globalSearchModal" class="fixed left-1/2 top-[20%] -translate-x-1/2 z-[101] w-full max-w-xl hidden">
+      <div class="glass-card-solid rounded-2xl shadow-2xl border border-cyan-500/30 overflow-hidden">
+        <div class="p-4 border-b border-white/10 flex items-center gap-2">
+          <i class="fas fa-search text-cyan-400"></i>
+          <input type="text" id="globalSearchInput" placeholder="Cari paspor, nama, IMEI, no. penerbangan..." class="flex-1 bg-transparent text-white placeholder-gray-500 outline-none" onkeydown="if (event.key === 'Escape') closeGlobalSearchModal();" />
+          <span class="text-[10px] text-gray-500 hidden sm:inline">Ctrl+K</span>
+        </div>
+        <div id="globalSearchResults" class="p-4 max-h-[60vh] overflow-y-auto">
+          <p class="text-gray-500 text-sm text-center py-6">Ketik minimal 2 karakter — hasil dari Pencarian Sentral</p>
+        </div>
+        <div id="globalSearchFooter" class="p-3 border-t border-white/10 hidden">
+          <button type="button" id="globalSearchOpenFullBtn" onclick="globalSearchOpenFull()" class="w-full py-2 rounded-lg bg-cyan-500/20 text-cyan-400 text-sm font-medium hover:bg-cyan-500/30 transition">
+            <i class="fas fa-external-link-alt mr-2"></i>Buka lengkap di Pencarian Terpadu
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Main Menu -->
     <nav class="glass-card border-t-0">
@@ -2320,6 +2348,28 @@
               <div id="dashRecentScraper" class="space-y-2">
                 <p class="text-gray-500 text-sm">Memuat data...</p>
               </div>
+            </div>
+          </div>
+
+          <!-- Laporan Periodik (ringkasan eksekutif, bukan export data mentah) -->
+          <div class="glass-card-solid rounded-2xl p-5 border border-teal-500/20">
+            <h3 class="font-semibold mb-3 flex items-center gap-2">
+              <i class="fas fa-file-export text-teal-400"></i> Laporan Periodik
+            </h3>
+            <p class="text-gray-400 text-sm mb-4">
+              Unduh <strong>ringkasan eksekutif</strong> (total manifest, penumpang, cargo, IMEI) untuk periode tertentu. Bukan export data mentah — untuk laporan pimpinan.
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <select id="reportPeriod" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                <option value="week">7 Hari Terakhir</option>
+                <option value="month">Bulan Berjalan</option>
+              </select>
+              <select id="reportFormat" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                <option value="excel">Excel (.xlsx)</option>
+              </select>
+              <button type="button" onclick="downloadPeriodicReport()" class="px-4 py-2 rounded-lg bg-teal-500/20 border border-teal-500/30 text-teal-400 text-sm font-medium hover:bg-teal-500/30 transition">
+                <i class="fas fa-download mr-2"></i>Unduh Laporan
+              </button>
             </div>
           </div>
         </div>
@@ -10782,6 +10832,17 @@
         } catch (e) {
           showToast("Error: " + e.message, "error");
         }
+      }
+
+      function downloadPeriodicReport() {
+        const period = document.getElementById("reportPeriod")?.value || "month";
+        const format = document.getElementById("reportFormat")?.value || "excel";
+        const url = "/api/reports/summary?period=" + encodeURIComponent(period) + "&format=" + encodeURIComponent(format);
+        showToast("Menyiapkan laporan periodik...", "info");
+        window.location.href = url;
+        setTimeout(function () {
+          showToast("Jika download tidak mulai, periksa pop-up blocker.", "info");
+        }, 1500);
       }
 
       async function loadUploadLogs() {
@@ -21619,6 +21680,109 @@
         }, 350);
         return true;
       }
+
+      // ========== Pencarian Cepat (Ctrl+K) — modal, API sama Pencarian Sentral ==========
+      let globalSearchDebounce = null;
+      let globalSearchLastQuery = "";
+
+      function openGlobalSearchModal() {
+        document.getElementById("globalSearchOverlay").classList.remove("hidden");
+        document.getElementById("globalSearchModal").classList.remove("hidden");
+        document.getElementById("globalSearchInput").value = "";
+        document.getElementById("globalSearchResults").innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Ketik minimal 2 karakter — hasil dari Pencarian Sentral</p>';
+        document.getElementById("globalSearchFooter").classList.add("hidden");
+        setTimeout(function () {
+          document.getElementById("globalSearchInput").focus();
+        }, 100);
+        document.getElementById("globalSearchInput").addEventListener("input", onGlobalSearchInput);
+      }
+
+      function closeGlobalSearchModal() {
+        document.getElementById("globalSearchOverlay").classList.add("hidden");
+        document.getElementById("globalSearchModal").classList.add("hidden");
+        document.getElementById("globalSearchInput").removeEventListener("input", onGlobalSearchInput);
+      }
+
+      function onGlobalSearchInput() {
+        const q = document.getElementById("globalSearchInput").value.trim();
+        if (globalSearchDebounce) clearTimeout(globalSearchDebounce);
+        if (q.length < 2) {
+          document.getElementById("globalSearchResults").innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Ketik minimal 2 karakter — hasil dari Pencarian Sentral</p>';
+          document.getElementById("globalSearchFooter").classList.add("hidden");
+          return;
+        }
+        globalSearchDebounce = setTimeout(function () {
+          fetchGlobalSearch(q);
+        }, 280);
+      }
+
+      async function fetchGlobalSearch(q) {
+        globalSearchLastQuery = q;
+        const resultsEl = document.getElementById("globalSearchResults");
+        const footerEl = document.getElementById("globalSearchFooter");
+        resultsEl.innerHTML = '<p class="text-gray-500 text-sm text-center py-6"><i class="fas fa-spinner fa-spin mr-2"></i>Mencari...</p>';
+        footerEl.classList.add("hidden");
+        try {
+          const res = await fetch("/api/unified/multi-search?q=" + encodeURIComponent(q) + "&type=auto");
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message || "Gagal");
+          renderGlobalSearchResults(json.results, resultsEl);
+          footerEl.classList.remove("hidden");
+        } catch (err) {
+          resultsEl.innerHTML = '<p class="text-red-400 text-sm text-center py-6"><i class="fas fa-exclamation-circle mr-2"></i>' + (err.message || "Gagal memuat") + "</p>";
+        }
+      }
+
+      function renderGlobalSearchResults(results, container) {
+        if (!results) {
+          container.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">Tidak ada hasil</p>';
+          return;
+        }
+        const q = results.query || "";
+        const type = results.type || "auto";
+        const typeLabel = { paspor: "Paspor", nama: "Nama", imei: "IMEI", flight: "Penerbangan", dokumen: "Dokumen" }[type] || type;
+        let html = '<div class="text-xs text-gray-500 mb-3">Tipe terdeteksi: <strong class="text-cyan-400">' + typeLabel + "</strong> · " + (results.totalRecords || 0) + " rekaman</div>";
+        if (results.identity) {
+          html += '<div class="bg-white/5 rounded-lg p-3 mb-3"><div class="font-semibold text-white">' + (results.identity.name || results.identity.passport || q) + "</div>";
+          if (results.identity.passport) html += '<div class="text-xs text-gray-400 mt-1"><i class="fas fa-passport mr-1"></i>' + results.identity.passport + "</div>";
+          if (results.is_suspect) html += '<span class="inline-block mt-2 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs">Daftar Atensi</span>';
+          html += "</div>";
+        }
+        if (results.sources && results.sources.length) {
+          results.sources.forEach(function (s) {
+            html += '<div class="mb-2"><span class="text-xs text-gray-500">' + s.label + " (" + s.count + ")</span></div>";
+            if (s.items && s.items.length) {
+              s.items.slice(0, 5).forEach(function (it) {
+                const name = it.name || it.nama || it.passport || it.passport_number || "-";
+                const sub = [it.flight, it.dok || it.no_dokumen, it.merk].filter(Boolean).join(" · ");
+                html += '<div class="text-sm py-1.5 pl-3 border-l-2 border-cyan-500/50">' + (name.length > 40 ? name.slice(0, 40) + "…" : name) + (sub ? "<br><span class=\"text-gray-500 text-xs\">" + sub + "</span>" : "") + "</div>";
+              });
+            }
+          });
+        }
+        if (results.grouped && results.grouped.length) {
+          html += '<div class="text-xs text-gray-500 mt-2 mb-1">Per paspor:</div>';
+          results.grouped.slice(0, 5).forEach(function (g) {
+            html += '<div class="text-sm py-1">' + (g.passport || "-") + " — " + (g.name || "-") + " <span class=\"text-gray-500\">(" + (g.recordCount || 0) + ")</span></div>";
+          });
+        }
+        container.innerHTML = html;
+      }
+
+      function globalSearchOpenFull() {
+        const q = globalSearchLastQuery || document.getElementById("globalSearchInput").value.trim();
+        closeGlobalSearchModal();
+        if (q && q.length >= 2) runCentralSearch(q);
+      }
+
+      document.addEventListener("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+          e.preventDefault();
+          if (document.getElementById("globalSearchModal").classList.contains("hidden")) openGlobalSearchModal();
+          else closeGlobalSearchModal();
+        }
+        if (e.key === "Escape" && !document.getElementById("globalSearchModal").classList.contains("hidden")) closeGlobalSearchModal();
+      });
 
       function doDashboardSearch() {
         const input =

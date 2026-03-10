@@ -67,6 +67,7 @@ app.use("/api/kurs", kursRoutes);
 app.use("/api/passenger", passengerRoutes);
 app.use("/api/manifests", manifestRoutes);
 app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/reports", require("./routes/reports"));
 
 // HS Codes route
 app.use("/api/hs-codes", require("./routes/hscodes"));

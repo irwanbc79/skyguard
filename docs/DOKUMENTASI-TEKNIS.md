@@ -316,6 +316,7 @@ pm2 logs skyguard-api
 
 ## 12. Dokumentasi Lain
 
+- **Pemetaan fitur (anti-double):** `docs/FITUR-PEMETAAN.md` — batas jelas antara fitur yang sudah ada dan fitur baru (pencarian vs Ctrl+K, export data vs laporan periodik) agar tidak tumpang tindih.
 - **Rekomendasi fitur:** `docs/REKOMENDASI-FITUR.md` — ide fitur lanjutan (export laporan, notifikasi browser, timeline paspor, audit log, dll) untuk pengembangan berikutnya.
 
 ## 13. Kontak & Repositori

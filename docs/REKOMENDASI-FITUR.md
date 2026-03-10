@@ -2,6 +2,8 @@
 
 Dokumen ini berisi ide fitur yang dapat meningkatkan nilai portal SkyGuard untuk tim KPPBC TMP B Kualanamu. Prioritas bisa disesuaikan dengan kebutuhan operasional.
 
+**Pemetaan fitur (anti-double):** Setiap fitur baru didesain agar tidak menduplikasi atau bentrok dengan fitur yang sudah ada. Lihat [FITUR-PEMETAAN.md](./FITUR-PEMETAAN.md) untuk batas jelas antara Pencarian vs Pencarian Cepat (Ctrl+K), serta Export Data vs Export Laporan Periodik.
+
 ---
 
 ## 1. Fitur Berdampak Tinggi (Quick Wins)
