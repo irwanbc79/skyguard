@@ -631,13 +631,6 @@
           >
             <i class="fas fa-book-open"></i> REGULASI
           </button>
-          <button
-            onclick="setMainMenu('qsvm')"
-            class="main-menu-item menu-qsvm flex items-center gap-2 whitespace-nowrap"
-            data-menu="qsvm"
-          >
-            <i class="fas fa-atom"></i> QSVM
-          </button>
         </div>
       </div>
     </nav>
@@ -1681,6 +1674,59 @@
             </div>
           </div>
         </div>
+
+        <!-- QSVM Sub Content -->
+        <div id="cargo-qsvm" class="cargo-subcontent" style="display: none">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+              <i class="fas fa-atom text-violet-400"></i> Quantum SVM — Deteksi Under-Invoicing
+            </h2>
+            <p class="text-gray-400 text-sm mt-1">Scan data CN-PIBK dengan model Quantum SVM (atau fallback RBF) untuk flag potensi under-invoicing.</p>
+          </div>
+          <div class="grid lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-4">
+              <div class="glass-card-solid rounded-2xl p-5 border border-violet-500/20">
+                <h3 class="font-semibold mb-4 flex items-center gap-2"><i class="fas fa-play text-violet-400"></i> Jalankan Scan</h3>
+                <div class="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label class="text-xs text-gray-500 block mb-1">Limit data</label>
+                    <input type="number" id="qsvmLimit" value="100" min="10" max="500" class="w-24 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-500 block mb-1">Dari tanggal</label>
+                    <input type="date" id="qsvmDateFrom" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-500 block mb-1">Sampai tanggal</label>
+                    <input type="date" id="qsvmDateTo" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
+                  </div>
+                  <button type="button" onclick="runQsvmScan()" id="qsvmScanBtn" class="px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-400 font-medium hover:bg-violet-500/30 transition">
+                    <i class="fas fa-search mr-2"></i>Jalankan Scan
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-3">Data diambil dari CN-PIBK; fitur CIF, gap ratio, HS risk, country risk, frekuensi importir.</p>
+              </div>
+              <div id="qsvmResultCard" class="glass-card-solid rounded-2xl p-5 border border-violet-500/20 hidden">
+                <h3 class="font-semibold mb-3 flex items-center gap-2"><i class="fas fa-chart-pie text-violet-400"></i> Hasil Scan Terakhir</h3>
+                <div id="qsvmResultBody"></div>
+                <div id="qsvmPredictionsTable" class="mt-4 overflow-x-auto max-h-64 overflow-y-auto"></div>
+              </div>
+            </div>
+            <div class="space-y-4">
+              <div class="glass-card-solid rounded-2xl p-5 border border-violet-500/20">
+                <h3 class="font-semibold mb-3 flex items-center gap-2"><i class="fas fa-info-circle text-violet-400"></i> Status Mesin</h3>
+                <div id="qsvmStatsBody" class="text-sm text-gray-400">Memuat...</div>
+                <button type="button" onclick="qsvmTest()" class="mt-3 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-violet-400 text-sm hover:bg-white/10 transition">
+                  <i class="fas fa-vial mr-2"></i>Cek Koneksi Python
+                </button>
+              </div>
+              <div class="glass-card-solid rounded-2xl p-5 border border-violet-500/20">
+                <h3 class="font-semibold mb-2 text-sm">Hasil Sebelumnya</h3>
+                <div id="qsvmRecentList" class="space-y-2 text-sm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Cargo Detail Modal -->
@@ -2391,59 +2437,6 @@
       <!-- Flight Radar Content -->
       <div id="content-flights" class="content-section fade-in"></div>
 
-      <!-- QSVM Content -->
-      <div id="content-qsvm" class="content-section fade-in" style="display: none;">
-        <div class="mb-6">
-          <h2 class="text-2xl font-bold text-white flex items-center gap-3">
-            <i class="fas fa-atom text-violet-400"></i> Quantum SVM — Deteksi Under-Invoicing
-          </h2>
-          <p class="text-gray-400 text-sm mt-1">Scan data CN-PIBK dengan model Quantum SVM (atau fallback RBF) untuk flag potensi under-invoicing.</p>
-        </div>
-        <div class="grid lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 space-y-4">
-            <div class="glass-card-solid rounded-2xl p-5 border border-violet-500/20">
-              <h3 class="font-semibold mb-4 flex items-center gap-2"><i class="fas fa-play text-violet-400"></i> Jalankan Scan</h3>
-              <div class="flex flex-wrap gap-3 items-end">
-                <div>
-                  <label class="text-xs text-gray-500 block mb-1">Limit data</label>
-                  <input type="number" id="qsvmLimit" value="100" min="10" max="500" class="w-24 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
-                </div>
-                <div>
-                  <label class="text-xs text-gray-500 block mb-1">Dari tanggal</label>
-                  <input type="date" id="qsvmDateFrom" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
-                </div>
-                <div>
-                  <label class="text-xs text-gray-500 block mb-1">Sampai tanggal</label>
-                  <input type="date" id="qsvmDateTo" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
-                </div>
-                <button type="button" onclick="runQsvmScan()" id="qsvmScanBtn" class="px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-400 font-medium hover:bg-violet-500/30 transition">
-                  <i class="fas fa-search mr-2"></i>Jalankan Scan
-                </button>
-              </div>
-              <p class="text-xs text-gray-500 mt-3">Data diambil dari CN-PIBK; fitur CIF, gap ratio, HS risk, country risk, frekuensi importir.</p>
-            </div>
-            <div id="qsvmResultCard" class="glass-card-solid rounded-2xl p-5 border border-violet-500/20 hidden">
-              <h3 class="font-semibold mb-3 flex items-center gap-2"><i class="fas fa-chart-pie text-violet-400"></i> Hasil Scan Terakhir</h3>
-              <div id="qsvmResultBody"></div>
-              <div id="qsvmPredictionsTable" class="mt-4 overflow-x-auto max-h-64 overflow-y-auto"></div>
-            </div>
-          </div>
-          <div class="space-y-4">
-            <div class="glass-card-solid rounded-2xl p-5 border border-violet-500/20">
-              <h3 class="font-semibold mb-3 flex items-center gap-2"><i class="fas fa-info-circle text-violet-400"></i> Status Mesin</h3>
-              <div id="qsvmStatsBody" class="text-sm text-gray-400">Memuat...</div>
-              <button type="button" onclick="qsvmTest()" class="mt-3 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-violet-400 text-sm hover:bg-white/10 transition">
-                <i class="fas fa-vial mr-2"></i>Cek Koneksi Python
-              </button>
-            </div>
-            <div class="glass-card-solid rounded-2xl p-5 border border-violet-500/20">
-              <h3 class="font-semibold mb-2 text-sm">Hasil Sebelumnya</h3>
-              <div id="qsvmRecentList" class="space-y-2 text-sm"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- REGULASI Content -->
       <div id="content-regulasi" class="content-section fade-in">
         <div class="text-center mb-6">
@@ -3008,6 +3001,7 @@
             { id: "stats", label: "Statistik", icon: "fa-chart-pie" },
             { id: "search", label: "Cari CN-PIBK", icon: "fa-search" },
             { id: "upload", label: "Upload Data", icon: "fa-upload" },
+            { id: "qsvm", label: "QSVM Risk", icon: "fa-atom" },
           ],
           color: "#14b8a6",
         },
@@ -3044,7 +3038,6 @@
         },
         dashboard: { subMenus: [], color: "#14b8a6" },
         regulasi: { subMenus: [], color: "#818cf8" },
-        qsvm: { subMenus: [], color: "#8b5cf6" },
         flights: {
           subMenus: [
             { id: "board", label: "Flight Board", icon: "fa-plane-arrival" },
@@ -3152,9 +3145,6 @@
         }
         if (menu === "dashboard") {
           loadDashboard();
-        }
-        if (menu === "qsvm") {
-          loadQsvmPage();
         }
         if (menu === "pencarian") {
           const pc = document.getElementById("content-pencarian");
@@ -12195,7 +12185,7 @@
       let cargoSearchOrder = "desc";
 
       function loadCargoSubContent(subId) {
-        ["stats", "search", "upload"].forEach((c) => {
+        ["stats", "search", "upload", "qsvm"].forEach((c) => {
           const el = document.getElementById("cargo-" + c);
           if (el) el.style.display = c === subId ? "block" : "none";
         });
@@ -12206,6 +12196,7 @@
         });
         if (subId === "stats") loadCargoStats();
         if (subId === "upload") loadCargoUploadLogs();
+        if (subId === "qsvm") loadQsvmPage();
       }
 
       function cargoNum(v, dec = 0) {
