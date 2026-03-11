@@ -266,7 +266,9 @@ async function callAirLabs(endpoint, params) {
 }
 
 // ---------- Process AirLabs schedule data ----------
-function processAirLabsData(items) {
+// regMap: optional { flight_iata: reg_number } from AirLabs real-time /flights API
+function processAirLabsData(items, regMap) {
+  regMap = regMap || {};
   const now = new Date();
   const iso = now.toISOString();
 
@@ -343,7 +345,7 @@ function processAirLabsData(items) {
       status: status,
       is_arrival: true,
       aircraft: f.aircraft_icao || "",
-      registration: "",
+      registration: regMap[(f.flight_iata || "").replace(/\s/g, "").toUpperCase()] || f.reg_number || f.registration || "",
       source: "airlabs",
       is_international: isIntl,
       delayed: f.arr_delayed || null,
@@ -399,7 +401,39 @@ async function collectUnified() {
         data.response.length > 0
       ) {
         airLabsLastPoll = nowMs;
-        processAirLabsData(data.response);
+        // Real-time flights have reg_number; merge into schedule list for REG column
+        const regMap = {};
+        try {
+          let live = await callAirLabs("/flights", { arr_iata: "KNO" });
+          const list = live && live.response && Array.isArray(live.response) ? live.response : [];
+          if (list.length === 0) {
+            // Fallback: bbox around KNO (lat 3.64, lng 98.88) - flights in region
+            live = await callAirLabs("/flights", {
+              bbox: "2.5,97.8,4.8,100.0",
+            });
+            if (live && live.response && Array.isArray(live.response)) {
+              for (const x of live.response) {
+                if ((x.arr_iata === "KNO" || x.dep_iata === "KNO") && x.flight_iata && x.reg_number) {
+                  const key = (x.flight_iata || "").replace(/\s/g, "").toUpperCase();
+                  regMap[key] = x.reg_number;
+                }
+              }
+            }
+          } else {
+            for (const x of list) {
+              if (x.flight_iata && x.reg_number) {
+                const key = (x.flight_iata || "").replace(/\s/g, "").toUpperCase();
+                regMap[key] = x.reg_number;
+              }
+            }
+          }
+          const regCount = Object.keys(regMap).length;
+          if (regCount > 0) console.log("[AirLabs] REG mapped for", regCount, "flights:", Object.keys(regMap).join(", "));
+          else console.log("[AirLabs] Real-time /flights returned no reg_number (plan may exclude this endpoint)");
+        } catch (e) {
+          console.warn("[AirLabs] Real-time flights fetch failed:", e.message);
+        }
+        processAirLabsData(data.response, regMap);
         return;
       }
       console.log("[AirLabs] No data, trying next strategy...");
