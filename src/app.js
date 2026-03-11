@@ -106,6 +106,9 @@ app.use("/api/unified", require("./routes/unified"));
 // Intelligence Center (Pusat Intelijen)
 app.use("/api/intel", require("./routes/intel"));
 
+// Quantum SVM Under-Invoicing Detection
+app.use("/api/qsvm", require("./routes/qsvm"));
+
 app.get("/api/health", (req, res) => {
   const isDbUp = mongoose.connection.readyState === 1;
   const pkg = require("../package.json");
