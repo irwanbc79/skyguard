@@ -6,6 +6,7 @@
  */
 const { spawn } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 const Cnpibk = require("../models/cnpibk");
 const QsvmResult = require("../models/QsvmResult");
 
@@ -13,6 +14,17 @@ const PYTHON_SCRIPT = path.join(
   __dirname,
   "../../scripts/skyguard_qsvm_service.py",
 );
+
+// Python binary: env SKYGUARD_PYTHON_PATH, or project venv, or system python3
+const PROJECT_ROOT = path.join(__dirname, "../..");
+const VENV_PYTHON = path.join(PROJECT_ROOT, "venv", "bin", "python3");
+function getPythonPath() {
+  if (process.env.SKYGUARD_PYTHON_PATH) return process.env.SKYGUARD_PYTHON_PATH;
+  try {
+    if (fs.existsSync(VENV_PYTHON)) return VENV_PYTHON;
+  } catch (_) {}
+  return "python3";
+}
 
 /**
  * Calculate features from CN-PIBK data for QSVM input.
@@ -103,6 +115,7 @@ async function runScan(options = {}) {
     const features = calculateFeatures(doc, freq);
     return {
       nomor_aju: doc.nomor_aju,
+      nomor_pibk: doc.nomor_pibk,
       nama_penerima: doc.nama_penerima,
       nama_pengirim: doc.nama_pengirim,
       cif_awal: doc.cif_awal,
@@ -147,7 +160,8 @@ async function runScan(options = {}) {
  */
 function callPythonQSVM(transactions) {
   return new Promise((resolve, reject) => {
-    const python = spawn("python3", [PYTHON_SCRIPT]);
+    const pythonBin = getPythonPath();
+    const python = spawn(pythonBin, [PYTHON_SCRIPT]);
     let stdout = "";
     let stderr = "";
 

@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const predictionSchema = new mongoose.Schema({
   nomor_aju: String,
+  nomor_pibk: String,
+  nama_penerima: String,
   prediction: { type: String, enum: ['NORMAL', 'UNDER-INVOICING'] },
   label: Number,
   confidence: Number,

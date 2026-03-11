@@ -128,6 +128,7 @@ skyguard/
 | `/api/scraper`          | scraper.js           | Bridge scraper CEISA, script browser, session, ingest |
 | `/api/unified`          | unified.js           | Pencarian terpadu (multi-sumber) |
 | `/api/intel`            | intel.js             | Pusat intelijen (dossier, dll) |
+| `/api/qsvm`             | qsvm.js              | QSVM — deteksi under-invoicing (bridge ke Python) |
 
 - **Health:** `GET /api/health` — status DB dan uptime.  
 - **Static:** `/` menyajikan `public/index.html`.
@@ -155,6 +156,63 @@ skyguard/
 | suspectService          | CRUD suspect, foto, timeline aksi |
 | scraperService          | Session scraper CEISA, simpan ImeiDetail / ImeiRegistration |
 | cargoService            | Agregasi cargo, statistik |
+| qsvmService             | Bridge CN-PIBK → fitur → Python QSVM; simpan hasil ke QsvmResult |
+
+### 5.5 QSVM (Quantum SVM — Deteksi Under-Invoicing)
+
+- **Lokasi:** Menu **CARGO** → submenu **QSVM Risk**.
+- **Alur:** Frontend memanggil `/api/qsvm/*` → Node (qsvmService) baca data CN-PIBK dari MongoDB, hitung fitur (CIF, gap ratio, HS risk, country risk, frekuensi importir) → kirim JSON ke script Python via stdin → Python menjalankan model SVM (Quantum kernel jika pyqpanda tersedia, else RBF) → stdout JSON → Node simpan ke koleksi `qsvm_results`, response ke frontend.
+
+**Endpoint API QSVM:**
+
+| Method + Path | Keterangan |
+|---------------|------------|
+| `GET /api/qsvm/stats` | Statistik (total scan, flagged) + status mesin (test koneksi Python). |
+| `GET /api/qsvm/results?page=1&limit=10` | Daftar hasil scan (dari MongoDB). |
+| `GET /api/qsvm/detail/:scanId` | Detail satu hasil scan. |
+| `GET /api/qsvm/scan?limit=100&dateFrom=&dateTo=` | Jalankan scan (ambil CN-PIBK, panggil Python, simpan hasil). |
+| `GET /api/qsvm/test` | Self-test: cek apakah proses Python + engine QSVM bisa dijalankan. |
+
+**Kebutuhan di server:**
+
+- **Node:** Cukup jalankan `npm start` / PM2 seperti biasa; route QSVM sudah terdaftar di `app.js`.
+- **Python 3:** Wajib. Script: `scripts/skyguard_qsvm_service.py`. Dependency minimal: `numpy`, `scikit-learn`. Opsional: `pyqpanda` / `pyqpanda_alg` untuk kernel quantum (jika tidak ada, dipakai fallback RBF).
+- **MongoDB:** Koleksi `cnpibks` (sumber data) dan `qsvm_results` (hasil scan). Model Mongoose: `Cnpibk`, `QsvmResult`.
+
+**Cek koneksi Python dari UI:** Di halaman QSVM Risk, tombol **"Cek Koneksi Python"** memanggil `GET /api/qsvm/test`. Jika muncul "Gagal memuat" atau "Unexpected token", kemungkinan response dari server bukan JSON (mis. 502/404 HTML) — pastikan API SkyGuard berjalan dan tidak ada proxy yang mengembalikan halaman error.
+
+**Verifikasi QSVM di server (langkah singkat):**
+
+Jalankan dari direktori proyek SkyGuard di server (mis. `76.13.23.149`):
+
+```bash
+# 1. Update kode
+git pull origin work
+
+# 2. Restart API
+pm2 restart skyguard-api
+
+# 3. Cek Python (wajib 3.x)
+python3 --version
+
+# 4. Dependency Python untuk QSVM
+pip3 install numpy scikit-learn
+
+# 5. Cek API mengembalikan JSON (ganti PORT jika beda)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health
+# Harus: 200
+
+curl -s http://localhost:3000/api/qsvm/stats
+# Harus: JSON dengan "success": true (bukan HTML)
+
+curl -s http://localhost:3000/api/qsvm/test
+# Harus: JSON dengan "success": true dan "engine": "rbf" atau "quantum"
+```
+
+- Jika `curl /api/qsvm/stats` mengembalikan HTML atau 502: pastikan `pm2 list` menampilkan `skyguard-api` status **online**, dan tidak ada error di `pm2 logs skyguard-api`.
+- Jika JSON `engine` = `"unavailable"` atau ada pesan "Python not available": pastikan `python3` ada di PATH proses Node (PM2), dan `scripts/skyguard_qsvm_service.py` bisa dijalankan: `echo '{"transactions":[]}' | python3 scripts/skyguard_qsvm_service.py` (harus keluaran JSON).
+
+**Skrip verifikasi satu kali:** Dari root proyek di server, jalankan `bash scripts/verify-qsvm-server.sh`. Script akan cek Python, numpy/sklearn, script QSVM, lalu `GET /api/health`, `/api/qsvm/stats`, dan `/api/qsvm/test`. Jika ada yang gagal, pesan error akan ditampilkan. Variabel `PORT` bisa diset jika API tidak di port 3000: `PORT=3001 bash scripts/verify-qsvm-server.sh`.
 
 ---
 
@@ -181,6 +239,7 @@ skyguard/
 | Notification        | notifications    | Notifikasi (type, priority, read status) |
 | UploadLog           | uploadlogs       | Log upload (passenger/manifest) |
 | Transaction         | transactions     | (Jika dipakai) transaksi terkait penumpang |
+| QsvmResult          | qsvm_results     | Hasil scan QSVM (scan_id, engine, total_scanned, total_flagged, predictions) |
 
 - **Naming:** Nama model PascalCase; nama koleksi biasanya plural lowercase dari model (Mongoose default).
 

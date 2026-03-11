@@ -105,6 +105,8 @@ def predict_transactions(model, scaler, qkernel, X_train_q, transactions):
         for i, (pred, t) in enumerate(zip(predictions, transactions)):
             results.append({
                 'nomor_aju': t.get('nomor_aju', f'TX-{i+1}'),
+                'nomor_pibk': t.get('nomor_pibk', ''),
+                'nama_penerima': t.get('nama_penerima', ''),
                 'prediction': 'NORMAL' if pred == 1 else 'UNDER-INVOICING',
                 'label': int(pred),
                 'confidence': 0.85 if pred == 1 else 0.90,  # Estimated
@@ -129,6 +131,8 @@ def predict_transactions(model, scaler, qkernel, X_train_q, transactions):
 
             results.append({
                 'nomor_aju': t.get('nomor_aju', f'TX-{i+1}'),
+                'nomor_pibk': t.get('nomor_pibk', ''),
+                'nama_penerima': t.get('nama_penerima', ''),
                 'prediction': 'NORMAL' if pred == 1 else 'UNDER-INVOICING',
                 'label': int(pred),
                 'confidence': round(conf, 3),

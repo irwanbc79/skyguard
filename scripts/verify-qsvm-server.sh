@@ -6,16 +6,29 @@ set -e
 PORT="${PORT:-3000}"
 BASE="http://localhost:${PORT}"
 
+# Gunakan venv jika ada (sama dengan yang dipakai Node)
+if [ -x "venv/bin/python3" ]; then
+  PYTHON="venv/bin/python3"
+  echo "Menggunakan Python dari venv: $PYTHON"
+else
+  PYTHON="python3"
+fi
+
 echo "=== 1. Python ==="
-python3 --version || { echo "Python3 tidak ditemukan."; exit 1; }
+$PYTHON --version || { echo "Python3 tidak ditemukan."; exit 1; }
 
 echo ""
 echo "=== 2. Dependency Python (numpy, scikit-learn) ==="
-python3 -c "import numpy; import sklearn; print('OK')" || { echo "Jalankan: pip3 install numpy scikit-learn"; exit 1; }
+$PYTHON -c "import numpy; import sklearn; print('OK')" || {
+  echo "Dependency belum terpasang. Pilih salah satu:"
+  echo "  apt:  sudo apt install -y python3-numpy python3-sklearn"
+  echo "  venv: python3 -m venv venv && ./venv/bin/pip install numpy scikit-learn"
+  exit 1
+}
 
 echo ""
 echo "=== 3. Script QSVM (stdin → stdout JSON) ==="
-echo '{"transactions":[]}' | python3 scripts/skyguard_qsvm_service.py | python3 -c "import sys,json; json.load(sys.stdin); print('OK')" || { echo "Script QSVM tidak mengembalikan JSON valid."; exit 1; }
+echo '{"transactions":[]}' | $PYTHON scripts/skyguard_qsvm_service.py | $PYTHON -c "import sys,json; json.load(sys.stdin); print('OK')" || { echo "Script QSVM tidak mengembalikan JSON valid."; exit 1; }
 
 echo ""
 echo "=== 4. API Health ==="

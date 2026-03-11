@@ -13411,6 +13411,13 @@
       loadHomeCharts();
 
       // ==================== QSVM ====================
+      function parseQsvmJson(res) {
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        if (!res.ok || !ct.includes("application/json")) {
+          throw new Error("API tidak terjangkau. Pastikan layanan SkyGuard API berjalan (pm2 restart).");
+        }
+        return res.json();
+      }
       async function loadQsvmPage() {
         loadQsvmStats();
         loadQsvmRecent();
@@ -13420,7 +13427,7 @@
         if (!el) return;
         try {
           const res = await fetch("/api/qsvm/stats");
-          const json = await res.json();
+          const json = await parseQsvmJson(res);
           if (json.success && json.total_scans !== undefined) {
             const last = json.last_scan;
             el.innerHTML = "<div class=\"text-gray-300\">Total scan: <strong class=\"text-white\">" + (json.total_scans || 0) + "</strong></div>" +
@@ -13430,7 +13437,7 @@
             el.innerHTML = "<span class=\"text-gray-500\">Belum ada data</span>";
           }
         } catch (e) {
-          el.innerHTML = "<span class=\"text-red-400\">Gagal memuat: " + (e.message || "Error") + "</span>";
+          el.innerHTML = "<span class=\"text-red-400\">" + (e.message || "Gagal memuat") + "</span>";
         }
       }
       async function loadQsvmRecent() {
@@ -13438,7 +13445,7 @@
         if (!el) return;
         try {
           const res = await fetch("/api/qsvm/results?limit=5");
-          const json = await res.json();
+          const json = await parseQsvmJson(res);
           if (json.success && json.results && json.results.length) {
             el.innerHTML = json.results.map(function (r) {
               return "<a href=\"#\" onclick=\"loadQsvmDetail('" + r.scan_id + "'); return false;\" class=\"block py-1.5 px-2 rounded hover:bg-white/5 text-violet-300\">" +
@@ -13448,7 +13455,7 @@
             el.innerHTML = "<p class=\"text-gray-500 text-xs\">Belum ada hasil scan</p>";
           }
         } catch (e) {
-          el.innerHTML = "<p class=\"text-red-400 text-xs\">Gagal memuat</p>";
+          el.innerHTML = "<p class=\"text-red-400 text-xs\">" + (e.message || "Gagal memuat") + "</p>";
         }
       }
       async function runQsvmScan() {
@@ -13465,7 +13472,7 @@
           if (dateFrom) params.append("dateFrom", dateFrom);
           if (dateTo) params.append("dateTo", dateTo);
           const res = await fetch("/api/qsvm/scan?" + params.toString());
-          const json = await res.json();
+          const json = await parseQsvmJson(res);
           if (json.success) {
             document.getElementById("qsvmResultCard").classList.remove("hidden");
             const body = document.getElementById("qsvmResultBody");
@@ -13474,10 +13481,10 @@
               (json.avg_confidence ? "<p class=\"text-gray-500 text-xs mt-1\">Rata-rata confidence: " + (Math.round(json.avg_confidence * 100) / 100) + "</p>" : "");
             const predEl = document.getElementById("qsvmPredictionsTable");
             if (json.predictions && json.predictions.length) {
-              predEl.innerHTML = "<table class=\"w-full text-sm\"><thead><tr class=\"text-left text-gray-500 border-b border-white/10\"><th class=\"py-2\">No. Aju</th><th>Prediksi</th><th>Confidence</th></tr></thead><tbody>" +
+              predEl.innerHTML = "<table class=\"w-full text-sm\"><thead><tr class=\"text-left text-gray-500 border-b border-white/10\"><th class=\"py-2\">No. Aju</th><th>No. Dok</th><th>Nama Penerima</th><th>Prediksi</th><th>Confidence</th></tr></thead><tbody>" +
                 json.predictions.slice(0, 50).map(function (p) {
                   const flagged = p.prediction === 1 || p.label === 1 || (p.prediction && String(p.prediction).toUpperCase().indexOf("UNDER") >= 0);
-                  return "<tr class=\"border-b border-white/5\"><td class=\"py-1\">" + (p.nomor_aju || "-") + "</td><td>" + (flagged ? "<span class=\"text-amber-400\">Flagged</span>" : "Normal") + "</td><td>" + (p.confidence != null ? (p.confidence * 100).toFixed(1) + "%" : "-") + "</td></tr>";
+                  return "<tr class=\"border-b border-white/5\"><td class=\"py-1 font-mono text-xs\">" + (p.nomor_aju || "-") + "</td><td class=\"py-1 font-mono text-xs\">" + (p.nomor_pibk || "-") + "</td><td class=\"py-1 truncate max-w-[180px]\" title=\"" + (p.nama_penerima || "").replace(/\"/g, "&quot;") + "\">" + (p.nama_penerima || "-") + "</td><td>" + (flagged ? "<span class=\"text-amber-400\">Flagged</span>" : "Normal") + "</td><td>" + (p.confidence != null ? (p.confidence * 100).toFixed(1) + "%" : "-") + "</td></tr>";
                 }).join("") + "</tbody></table>";
             } else {
               predEl.innerHTML = "<p class=\"text-gray-500 text-sm\">Tidak ada prediksi atau tidak ada data.</p>";
@@ -13501,7 +13508,7 @@
       async function qsvmTest() {
         try {
           const res = await fetch("/api/qsvm/test");
-          const json = await res.json();
+          const json = await parseQsvmJson(res);
           if (json.success) {
             showToast("Mesin QSVM: " + (json.engine || json.message || "OK"), "success");
           } else {
@@ -13513,7 +13520,7 @@
       }
       function loadQsvmDetail(scanId) {
         fetch("/api/qsvm/detail/" + encodeURIComponent(scanId))
-          .then((r) => r.json())
+          .then((r) => parseQsvmJson(r))
           .then(function (json) {
             if (json.success && json.data) {
               const d = json.data;
@@ -13522,18 +13529,18 @@
                 "<p class=\"text-gray-400 text-sm mt-1\">Engine: " + (d.engine || "-") + " | Scanned: " + (d.total_scanned || 0) + " | Flagged: " + (d.total_flagged || 0) + "</p>";
               const predEl = document.getElementById("qsvmPredictionsTable");
               if (d.predictions && d.predictions.length) {
-                predEl.innerHTML = "<table class=\"w-full text-sm\"><thead><tr class=\"text-left text-gray-500 border-b border-white/10\"><th class=\"py-2\">No. Aju</th><th>Prediksi</th><th>Confidence</th></tr></thead><tbody>" +
+                predEl.innerHTML = "<table class=\"w-full text-sm\"><thead><tr class=\"text-left text-gray-500 border-b border-white/10\"><th class=\"py-2\">No. Aju</th><th>No. Dok</th><th>Nama Penerima</th><th>Prediksi</th><th>Confidence</th></tr></thead><tbody>" +
                   d.predictions.slice(0, 50).map(function (p) {
                     const flagged = p.prediction === 1 || p.label === 1 || (p.prediction && String(p.prediction).toUpperCase().indexOf("UNDER") >= 0);
-                    return "<tr class=\"border-b border-white/5\"><td class=\"py-1\">" + (p.nomor_aju || "-") + "</td><td>" + (flagged ? "<span class=\"text-amber-400\">Flagged</span>" : "Normal") + "</td><td>" + (p.confidence != null ? (p.confidence * 100).toFixed(1) + "%" : "-") + "</td></tr>";
+                    return "<tr class=\"border-b border-white/5\"><td class=\"py-1 font-mono text-xs\">" + (p.nomor_aju || "-") + "</td><td class=\"py-1 font-mono text-xs\">" + (p.nomor_pibk || "-") + "</td><td class=\"py-1 truncate max-w-[180px]\" title=\"" + (p.nama_penerima || "").replace(/\"/g, "&quot;") + "\">" + (p.nama_penerima || "-") + "</td><td>" + (flagged ? "<span class=\"text-amber-400\">Flagged</span>" : "Normal") + "</td><td>" + (p.confidence != null ? (p.confidence * 100).toFixed(1) + "%" : "-") + "</td></tr>";
                   }).join("") + "</tbody></table>";
               } else {
                 predEl.innerHTML = "";
               }
             }
           })
-          .catch(function () {
-            showToast("Gagal memuat detail scan", "error");
+          .catch(function (e) {
+            showToast(e && e.message ? e.message : "Gagal memuat detail scan", "error");
           });
       }
 
