@@ -66,6 +66,44 @@ app.use(auditLogger);
 app.use(express.static(path.join(__dirname, "../public")));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// ─── Auth Routes (public — no JWT required) ───────────────────────────────────
+app.use("/api/auth", require("./routes/auth"));
+
+// Serve login page
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/login.html"));
+});
+
+// ─── JWT Auth Middleware — protects all /api/* except auth & health ───────────
+const { verifyJwt } = require("./services/authService");
+const User = require("./models/User");
+
+app.use("/api", async (req, res, next) => {
+  // Skip auth for public paths
+  if (
+    req.path.startsWith("/auth/") ||
+    req.path === "/health" ||
+    req.path === "/kantor-list"
+  ) {
+    return next();
+  }
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ status: "error", message: "Token tidak ditemukan. Silakan login." });
+  }
+  try {
+    const payload = verifyJwt(header.slice(7));
+    const user = await User.findById(payload.id).select("_id email role is_active").lean();
+    if (!user || !user.is_active) {
+      return res.status(401).json({ status: "error", message: "Akun tidak valid atau telah dinonaktifkan." });
+    }
+    req.user = user;
+    next();
+  } catch {
+    return res.status(401).json({ status: "error", message: "Token tidak valid atau sudah kadaluarsa. Silakan login ulang." });
+  }
+});
+
 // Routes
 const deviceRoutes = require("./routes/devices");
 const kursRoutes = require("./routes/kurs");

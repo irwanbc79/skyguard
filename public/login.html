@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyGuard Intelligence — Login</title>
+<link rel="icon" type="image/png" href="/assets/logo-bc-kualanamu.png?v=12">
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #3b82f6;
+    --primary-dark: #1d4ed8;
+    --accent: #06b6d4;
+    --gold: #f59e0b;
+    --bg: #020818;
+    --glass: rgba(255,255,255,.04);
+    --glass-border: rgba(255,255,255,.1);
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --error: #ef4444;
+    --success: #22c55e;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── BACKGROUND LAYERS ── */
+  .bg-layer {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+
+  /* Grid */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(59,130,246,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,.07) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridScroll 20s linear infinite;
+  }
+  @keyframes gridScroll {
+    0% { background-position: 0 0; }
+    100% { background-position: 60px 60px; }
+  }
+
+  /* Radar sweep */
+  .bg-radar {
+    position: fixed;
+    width: 800px; height: 800px;
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(59,130,246,.08);
+    pointer-events: none;
+  }
+  .bg-radar::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(6,182,212,.12) 60deg,
+      transparent 61deg
+    );
+    animation: radarSpin 4s linear infinite;
+    transform-origin: center;
+  }
+  .bg-radar::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 12px var(--accent);
+  }
+  @keyframes radarSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Concentric rings */
+  .ring {
+    position: fixed;
+    border-radius: 50%;
+    border: 1px solid rgba(59,130,246,.06);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: ringPulse 4s ease-in-out infinite;
+  }
+  .ring:nth-child(1) { width: 300px; height: 300px; animation-delay: 0s; }
+  .ring:nth-child(2) { width: 500px; height: 500px; animation-delay: .7s; }
+  .ring:nth-child(3) { width: 700px; height: 700px; animation-delay: 1.4s; }
+  .ring:nth-child(4) { width: 1000px; height: 1000px; animation-delay: 2.1s; border-color: rgba(59,130,246,.03); }
+  @keyframes ringPulse {
+    0%, 100% { opacity: .5; }
+    50% { opacity: 1; }
+  }
+
+  /* Floating particles */
+  .particles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .particle {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: var(--primary);
+    border-radius: 50%;
+    animation: floatUp linear infinite;
+    opacity: 0;
+  }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(0) scale(1); }
+    10% { opacity: .8; }
+    90% { opacity: .3; }
+    100% { opacity: 0; transform: translateY(-100vh) scale(0); }
+  }
+
+  /* Glow blobs */
+  .glow-blob {
+    position: fixed; border-radius: 50%; filter: blur(80px);
+    pointer-events: none; z-index: 0;
+  }
+  .glow-blob-1 { width: 400px; height: 400px; background: rgba(59,130,246,.06); top: -100px; right: -100px; }
+  .glow-blob-2 { width: 500px; height: 500px; background: rgba(6,182,212,.05); bottom: -150px; left: -150px; }
+
+  /* ── MAIN CARD ── */
+  .card-wrap {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 440px;
+    padding: 16px;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .card {
+    background: linear-gradient(135deg, rgba(15,23,42,.95), rgba(10,17,35,.98));
+    border: 1px solid rgba(59,130,246,.2);
+    border-radius: 24px;
+    padding: 36px 32px;
+    box-shadow:
+      0 0 60px rgba(59,130,246,.08),
+      0 25px 60px rgba(0,0,0,.5),
+      inset 0 1px 0 rgba(255,255,255,.05);
+    backdrop-filter: blur(20px);
+  }
+
+  /* TOP BEACON */
+  .beacon {
+    display: flex; justify-content: center; margin-bottom: 24px;
+  }
+  .beacon-inner {
+    position: relative;
+    width: 72px; height: 72px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .beacon-ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(59,130,246,.4);
+    animation: beaconPulse 2s ease-in-out infinite;
+  }
+  .beacon-ring-2 {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 1px solid rgba(59,130,246,.15);
+    animation: beaconPulse 2s ease-in-out infinite .5s;
+  }
+  @keyframes beaconPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: .5; }
+  }
+  .beacon-logo {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    object-fit: contain;
+    position: relative; z-index: 2;
+    filter: drop-shadow(0 0 12px rgba(59,130,246,.5));
+  }
+
+  /* HEADER TEXT */
+  .brand-title {
+    text-align: center; margin-bottom: 4px;
+    font-size: 20px; font-weight: 800;
+    background: linear-gradient(135deg, #60a5fa, #06b6d4);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .brand-sub {
+    text-align: center; margin-bottom: 6px;
+    font-size: 10px; color: var(--text-muted);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .brand-desc {
+    text-align: center; margin-bottom: 28px;
+    font-size: 12px; color: rgba(148,163,184,.7);
+    line-height: 1.6; padding: 0 8px;
+  }
+
+  /* BADGE */
+  .domain-badge {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.2);
+    border-radius: 20px; padding: 5px 14px; margin: 0 auto 20px;
+    width: fit-content; font-size: 11px; color: #4ade80;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex; background: rgba(255,255,255,.04);
+    border: 1px solid var(--glass-border); border-radius: 12px;
+    padding: 4px; margin-bottom: 24px; gap: 2px;
+  }
+  .tab-btn {
+    flex: 1; padding: 8px 4px;
+    background: transparent; border: none; cursor: pointer;
+    border-radius: 9px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); transition: all .2s; white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(29,78,216,.4);
+  }
+  .tab-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,.06); }
+
+  /* FORM */
+  .view { display: none; }
+  .view.active { display: block; animation: fadeSlide .25s ease; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--text-muted); margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: .8px;
+  }
+  .field-wrap { position: relative; }
+  .field-wrap i {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted); font-size: 13px; pointer-events: none;
+  }
+  .field input {
+    width: 100%; padding: 11px 14px 11px 40px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; color: var(--text);
+    font-size: 14px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .field input:focus {
+    border-color: rgba(59,130,246,.5);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+    background: rgba(59,130,246,.05);
+  }
+  .field input::placeholder { color: rgba(148,163,184,.4); }
+  .field input.error { border-color: rgba(239,68,68,.5); }
+
+  /* Eye toggle */
+  .eye-toggle {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); padding: 4px;
+    transition: color .2s;
+  }
+  .eye-toggle:hover { color: var(--primary); }
+
+  /* SUBMIT BTN */
+  .btn-submit {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: none; border-radius: 12px;
+    color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; letter-spacing: .5px;
+    box-shadow: 0 4px 20px rgba(37,99,235,.3);
+    transition: all .25s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 4px;
+  }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(37,99,235,.4); }
+  .btn-submit:active { transform: translateY(0); }
+  .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+  .btn-submit .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+  .btn-submit.loading .spinner { display: block; }
+  .btn-submit.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ALERT */
+  .alert-box {
+    padding: 12px 14px; border-radius: 10px;
+    font-size: 13px; margin-bottom: 16px;
+    display: none; align-items: flex-start; gap: 10px; line-height: 1.5;
+  }
+  .alert-box.show { display: flex; animation: fadeSlide .2s ease; }
+  .alert-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); color: #fca5a5; }
+  .alert-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); color: #86efac; }
+  .alert-info { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.25); color: #93c5fd; }
+
+  /* LINKS */
+  .link-btn { background: none; border: none; cursor: pointer; color: var(--primary); font-size: 13px; padding: 0; text-decoration: underline; }
+  .link-btn:hover { color: var(--accent); }
+  .center-link { text-align: center; margin-top: 14px; color: var(--text-muted); font-size: 13px; }
+
+  /* FOOTER */
+  .card-footer {
+    text-align: center; margin-top: 20px;
+    font-size: 10px; color: rgba(100,116,139,.6);
+    line-height: 1.6; letter-spacing: .5px;
+  }
+  .status-dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--success); border-radius: 50%;
+    animation: blink 2s ease-in-out infinite;
+    margin-right: 4px;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Scrollbar */
+  .card-wrap::-webkit-scrollbar { width: 0; }
+
+  /* Mobile */
+  @media (max-height: 700px) {
+    .card { padding: 24px 24px; }
+    .bg-radar { width: 500px; height: 500px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND -->
+<div class="bg-layer bg-grid"></div>
+<div class="ring"></div>
+<div class="ring"></div>
+<div class="ring"></div>
+<div class="ring"></div>
+<div class="bg-radar"></div>
+<div class="glow-blob glow-blob-1"></div>
+<div class="glow-blob glow-blob-2"></div>
+<div class="particles" id="particles"></div>
+
+<!-- MAIN CARD -->
+<div class="card-wrap">
+  <div class="card">
+
+    <!-- BEACON + BRAND -->
+    <div class="beacon">
+      <div class="beacon-inner">
+        <div class="beacon-ring"></div>
+        <div class="beacon-ring-2"></div>
+        <img src="/assets/logo-bc-kualanamu.png?v=12" class="beacon-logo" alt="BC Kualanamu" onerror="this.style.display='none'">
+      </div>
+    </div>
+    <div class="brand-title">SkyGuard Intelligence</div>
+    <div class="brand-sub">Bea Cukai Kualanamu · Kementerian Keuangan RI</div>
+    <div class="brand-desc">
+      Sistem intelijen kepabeanan generasi baru — pemantauan penumpang,
+      analisis risiko, dan deteksi penyelundupan secara real-time.
+    </div>
+    <div class="domain-badge">
+      <i class="fas fa-shield-alt"></i>
+      Akses terbatas: <strong style="margin-left:4px">@kemenkeu.go.id</strong>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchView('login')">
+        <i class="fas fa-sign-in-alt mr-1"></i> Masuk
+      </button>
+      <button class="tab-btn" onclick="switchView('register')">
+        <i class="fas fa-user-plus mr-1"></i> Daftar
+      </button>
+      <button class="tab-btn" onclick="switchView('forgot')">
+        <i class="fas fa-key mr-1"></i> Reset
+      </button>
+    </div>
+
+    <!-- ── VIEW: LOGIN ── -->
+    <div class="view active" id="view-login">
+      <div class="alert-box alert-error" id="login-error"><i class="fas fa-exclamation-circle"></i><span id="login-error-msg"></span></div>
+      <div class="alert-box alert-success" id="login-success"><i class="fas fa-check-circle"></i><span id="login-success-msg"></span></div>
+      <div class="alert-box alert-info" id="login-info"><i class="fas fa-info-circle"></i><span id="login-info-msg"></span></div>
+
+      <div class="field">
+        <label>Email Kemenkeu</label>
+        <div class="field-wrap">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="login-email" placeholder="nama@kemenkeu.go.id" autocomplete="email">
+        </div>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="field-wrap">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="login-password" placeholder="Password Anda" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+          <button type="button" class="eye-toggle" onclick="toggleEye('login-password',this)"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="login-btn" onclick="doLogin()">
+        <div class="spinner"></div>
+        <span class="btn-text"><i class="fas fa-sign-in-alt"></i> &nbsp;Masuk ke Portal</span>
+      </button>
+    </div>
+
+    <!-- ── VIEW: REGISTER ── -->
+    <div class="view" id="view-register">
+      <div class="alert-box alert-error" id="reg-error"><i class="fas fa-exclamation-circle"></i><span id="reg-error-msg"></span></div>
+      <div class="alert-box alert-success" id="reg-success"><i class="fas fa-check-circle"></i><span id="reg-success-msg"></span></div>
+
+      <div class="field">
+        <label>Nama Lengkap <span style="color:#ef4444">*</span></label>
+        <div class="field-wrap">
+          <i class="fas fa-user"></i>
+          <input type="text" id="reg-name" placeholder="Nama sesuai ID Kepegawaian">
+        </div>
+      </div>
+      <div class="field">
+        <label>Email Kemenkeu <span style="color:#ef4444">*</span></label>
+        <div class="field-wrap">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="reg-email" placeholder="nama@kemenkeu.go.id" oninput="validateDomain(this,'reg-domain-hint')">
+        </div>
+        <div id="reg-domain-hint" style="font-size:11px;margin-top:5px;display:none"></div>
+      </div>
+      <div class="field">
+        <label>NIP <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
+        <div class="field-wrap">
+          <i class="fas fa-id-badge"></i>
+          <input type="text" id="reg-nip" placeholder="Nomor Induk Pegawai">
+        </div>
+      </div>
+      <div class="field">
+        <label>Unit Kerja <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
+        <div class="field-wrap">
+          <i class="fas fa-building"></i>
+          <input type="text" id="reg-unit" placeholder="cth: Seksi P2, Seksi PKC">
+        </div>
+      </div>
+      <div class="field">
+        <label>Password <span style="color:#ef4444">*</span></label>
+        <div class="field-wrap">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="reg-password" placeholder="Min. 8 karakter" oninput="checkStrength(this)">
+          <button type="button" class="eye-toggle" onclick="toggleEye('reg-password',this)"><i class="fas fa-eye"></i></button>
+        </div>
+        <div id="pw-strength" style="height:3px;border-radius:2px;margin-top:5px;transition:all .3s;background:#1e293b"></div>
+        <div id="pw-strength-label" style="font-size:10px;margin-top:3px;color:var(--text-muted)"></div>
+      </div>
+
+      <button class="btn-submit" id="reg-btn" onclick="doRegister()">
+        <div class="spinner"></div>
+        <span class="btn-text"><i class="fas fa-user-plus"></i> &nbsp;Daftarkan Akun</span>
+      </button>
+    </div>
+
+    <!-- ── VIEW: FORGOT / RESET ── -->
+    <div class="view" id="view-forgot">
+      <div class="alert-box alert-error" id="forgot-error"><i class="fas fa-exclamation-circle"></i><span id="forgot-error-msg"></span></div>
+      <div class="alert-box alert-success" id="forgot-success"><i class="fas fa-check-circle"></i><span id="forgot-success-msg"></span></div>
+
+      <!-- Forgot Password Form -->
+      <div id="forgot-form">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Masukkan email Kemenkeu Anda. Kami akan mengirimkan link untuk membuat password baru.
+        </p>
+        <div class="field">
+          <label>Email Kemenkeu</label>
+          <div class="field-wrap">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="forgot-email" placeholder="nama@kemenkeu.go.id" onkeydown="if(event.key==='Enter')doForgot()">
+          </div>
+        </div>
+        <button class="btn-submit" id="forgot-btn" onclick="doForgot()">
+          <div class="spinner"></div>
+          <span class="btn-text"><i class="fas fa-paper-plane"></i> &nbsp;Kirim Link Reset</span>
+        </button>
+      </div>
+
+      <!-- Reset Password Form (shown when ?reset=token in URL) -->
+      <div id="reset-form" style="display:none">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Masukkan password baru Anda. Gunakan kombinasi huruf, angka, dan simbol.
+        </p>
+        <div class="field">
+          <label>Password Baru <span style="color:#ef4444">*</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="reset-password" placeholder="Min. 8 karakter" oninput="checkStrength(this,'reset-pw-strength')">
+            <button type="button" class="eye-toggle" onclick="toggleEye('reset-password',this)"><i class="fas fa-eye"></i></button>
+          </div>
+          <div id="reset-pw-strength" style="height:3px;border-radius:2px;margin-top:5px;transition:all .3s;background:#1e293b"></div>
+        </div>
+        <div class="field">
+          <label>Konfirmasi Password <span style="color:#ef4444">*</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="reset-confirm" placeholder="Ulangi password baru" onkeydown="if(event.key==='Enter')doReset()">
+          </div>
+        </div>
+        <button class="btn-submit" id="reset-btn" onclick="doReset()">
+          <div class="spinner"></div>
+          <span class="btn-text"><i class="fas fa-save"></i> &nbsp;Simpan Password Baru</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="card-footer">
+      <span class="status-dot"></span> Sistem aktif &amp; aman
+      &nbsp;·&nbsp; <i class="fas fa-shield-alt"></i> SSL Encrypted
+      &nbsp;·&nbsp; Kemenkeu RI © 2026
+    </div>
+
+  </div><!-- /card -->
+</div><!-- /card-wrap -->
+
+<script>
+  // ── PARTICLES ──────────────────────────────────────────────────────────────
+  const pc = document.getElementById('particles');
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `
+      left:${Math.random()*100}%;
+      bottom:${-10}px;
+      width:${Math.random()*3+1}px;
+      height:${Math.random()*3+1}px;
+      animation-duration:${Math.random()*12+8}s;
+      animation-delay:${Math.random()*10}s;
+      opacity:0;
+      background:${Math.random()>.5?'#3b82f6':'#06b6d4'};
+    `;
+    pc.appendChild(p);
+  }
+
+  // ── URL STATUS MESSAGES ────────────────────────────────────────────────────
+  const urlParams = new URLSearchParams(window.location.search);
+  const status = urlParams.get('status');
+  const resetToken = urlParams.get('reset');
+
+  if (status === 'verified') {
+    showAlert('login-success','login-success-msg','✓ Email berhasil diverifikasi! Silakan masuk dengan akun Anda.');
+  } else if (status === 'verify-expired') {
+    showAlert('login-error','login-error-msg','Link verifikasi kadaluarsa. Silakan daftar ulang untuk mendapatkan link baru.');
+  } else if (status === 'unauthorized') {
+    showAlert('login-info','login-info-msg','Sesi Anda berakhir atau Anda belum login. Silakan masuk kembali.');
+  }
+
+  if (resetToken) {
+    switchView('forgot');
+    document.getElementById('forgot-form').style.display = 'none';
+    document.getElementById('reset-form').style.display = 'block';
+  }
+
+  // ── VIEW SWITCHING ─────────────────────────────────────────────────────────
+  function switchView(v) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-' + v).classList.add('active');
+    const idx = {login:0, register:1, forgot:2}[v];
+    document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
+    clearAlerts();
+  }
+  function clearAlerts() {
+    document.querySelectorAll('.alert-box').forEach(el => el.classList.remove('show'));
+  }
+  function showAlert(boxId, msgId, msg) {
+    const box = document.getElementById(boxId);
+    const msgEl = document.getElementById(msgId);
+    if (box && msgEl) { msgEl.textContent = msg; box.classList.add('show'); }
+  }
+  function hideAlert(boxId) {
+    document.getElementById(boxId)?.classList.remove('show');
+  }
+
+  // ── EYE TOGGLE ─────────────────────────────────────────────────────────────
+  function toggleEye(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+    } else {
+      inp.type = 'password';
+      icon.className = 'fas fa-eye';
+    }
+  }
+
+  // ── DOMAIN VALIDATION ──────────────────────────────────────────────────────
+  function validateDomain(input, hintId) {
+    const hint = document.getElementById(hintId);
+    if (!hint) return;
+    const v = input.value.toLowerCase();
+    hint.style.display = v.includes('@') ? 'block' : 'none';
+    if (v.endsWith('@kemenkeu.go.id') || (v.includes('@') && 'kemenkeu.go.id'.startsWith(v.split('@')[1]))) {
+      hint.style.color = '#4ade80';
+      hint.innerHTML = '<i class="fas fa-check-circle"></i> Domain valid @kemenkeu.go.id';
+    } else if (v.includes('@')) {
+      hint.style.color = '#f87171';
+      hint.innerHTML = '<i class="fas fa-times-circle"></i> Hanya email @kemenkeu.go.id yang diterima';
+    }
+  }
+
+  // ── PASSWORD STRENGTH ──────────────────────────────────────────────────────
+  function checkStrength(input, barId = 'pw-strength') {
+    const v = input.value;
+    const bar = document.getElementById(barId);
+    const lbl = document.getElementById('pw-strength-label');
+    let score = 0;
+    if (v.length >= 8) score++;
+    if (v.length >= 12) score++;
+    if (/[A-Z]/.test(v)) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    const colors = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4'];
+    const labels = ['Sangat Lemah','Lemah','Cukup','Kuat','Sangat Kuat'];
+    if (bar) { bar.style.width = (score*20)+'%'; bar.style.background = colors[score-1] || '#1e293b'; }
+    if (lbl) { lbl.textContent = v.length ? labels[score-1] || '' : ''; lbl.style.color = colors[score-1] || ''; }
+  }
+
+  // ── LOADING HELPER ─────────────────────────────────────────────────────────
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.classList.toggle('loading', loading);
+  }
+
+  // ── DO LOGIN ───────────────────────────────────────────────────────────────
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    hideAlert('login-error'); hideAlert('login-success'); hideAlert('login-info');
+
+    if (!email || !password) {
+      showAlert('login-error','login-error-msg','Email dan password wajib diisi.'); return;
+    }
+    if (!email.endsWith('@kemenkeu.go.id')) {
+      showAlert('login-error','login-error-msg','Hanya email @kemenkeu.go.id yang diizinkan.'); return;
+    }
+
+    setLoading('login-btn', true);
+    try {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const d = await r.json();
+      if (d.status === 'ok') {
+        localStorage.setItem('sg_token', d.token);
+        localStorage.setItem('sg_user', JSON.stringify(d.user));
+        showAlert('login-success','login-success-msg',`Selamat datang, ${d.user.full_name}! Mengalihkan...`);
+        setTimeout(() => window.location.href = '/', 1000);
+      } else {
+        showAlert('login-error','login-error-msg', d.message || 'Login gagal.');
+      }
+    } catch {
+      showAlert('login-error','login-error-msg','Gagal terhubung ke server. Coba lagi.');
+    } finally {
+      setLoading('login-btn', false);
+    }
+  }
+
+  // ── DO REGISTER ────────────────────────────────────────────────────────────
+  async function doRegister() {
+    const full_name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const nip = document.getElementById('reg-nip').value.trim();
+    const unit_kerja = document.getElementById('reg-unit').value.trim();
+    const password = document.getElementById('reg-password').value;
+    hideAlert('reg-error'); hideAlert('reg-success');
+
+    if (!full_name || !email || !password) {
+      showAlert('reg-error','reg-error-msg','Nama, email, dan password wajib diisi.'); return;
+    }
+    if (!email.endsWith('@kemenkeu.go.id')) {
+      showAlert('reg-error','reg-error-msg','Hanya email @kemenkeu.go.id yang diizinkan.'); return;
+    }
+    if (password.length < 8) {
+      showAlert('reg-error','reg-error-msg','Password minimal 8 karakter.'); return;
+    }
+
+    setLoading('reg-btn', true);
+    try {
+      const r = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name, email, password, nip, unit_kerja }),
+      });
+      const d = await r.json();
+      if (d.status === 'ok') {
+        showAlert('reg-success','reg-success-msg', d.message);
+        document.getElementById('reg-name').value = '';
+        document.getElementById('reg-email').value = '';
+        document.getElementById('reg-password').value = '';
+        document.getElementById('reg-nip').value = '';
+        document.getElementById('reg-unit').value = '';
+      } else {
+        showAlert('reg-error','reg-error-msg', d.message || 'Registrasi gagal.');
+      }
+    } catch {
+      showAlert('reg-error','reg-error-msg','Gagal terhubung ke server.');
+    } finally {
+      setLoading('reg-btn', false);
+    }
+  }
+
+  // ── DO FORGOT ──────────────────────────────────────────────────────────────
+  async function doForgot() {
+    const email = document.getElementById('forgot-email').value.trim();
+    hideAlert('forgot-error'); hideAlert('forgot-success');
+    if (!email || !email.endsWith('@kemenkeu.go.id')) {
+      showAlert('forgot-error','forgot-error-msg','Masukkan email @kemenkeu.go.id yang valid.'); return;
+    }
+    setLoading('forgot-btn', true);
+    try {
+      const r = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const d = await r.json();
+      showAlert('forgot-success','forgot-success-msg', d.message);
+    } catch {
+      showAlert('forgot-error','forgot-error-msg','Gagal terhubung ke server.');
+    } finally {
+      setLoading('forgot-btn', false);
+    }
+  }
+
+  // ── DO RESET ───────────────────────────────────────────────────────────────
+  async function doReset() {
+    const password = document.getElementById('reset-password').value;
+    const confirm = document.getElementById('reset-confirm').value;
+    hideAlert('forgot-error'); hideAlert('forgot-success');
+    if (password.length < 8) { showAlert('forgot-error','forgot-error-msg','Password minimal 8 karakter.'); return; }
+    if (password !== confirm) { showAlert('forgot-error','forgot-error-msg','Konfirmasi password tidak cocok.'); return; }
+    setLoading('reset-btn', true);
+    try {
+      const r = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password }),
+      });
+      const d = await r.json();
+      if (d.status === 'ok') {
+        showAlert('forgot-success','forgot-success-msg', d.message + ' Mengalihkan ke halaman login...');
+        setTimeout(() => { window.location.href = '/login'; }, 2500);
+      } else {
+        showAlert('forgot-error','forgot-error-msg', d.message);
+      }
+    } catch {
+      showAlert('forgot-error','forgot-error-msg','Gagal terhubung ke server.');
+    } finally {
+      setLoading('reset-btn', false);
+    }
+  }
+
+  // ── AUTH GUARD: jika sudah login, langsung ke portal ──────────────────────
+  const existingToken = localStorage.getItem('sg_token');
+  if (existingToken && !resetToken) {
+    fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + existingToken } })
+      .then(r => r.json())
+      .then(d => { if (d.status === 'ok') window.location.href = '/'; })
+      .catch(() => {});
+  }
+</script>
+</body>
+</html>

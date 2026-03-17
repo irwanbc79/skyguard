@@ -520,10 +520,25 @@
             >
               <i class="fas fa-search text-sm text-cyan-300"></i>
             </button>
-            <div
-              class="w-9 h-9 rounded-full bg-blue-500/30 flex items-center justify-center"
-            >
-              <i class="fas fa-user text-sm"></i>
+            <div class="flex items-center gap-2">
+              <div class="text-right hidden sm:block">
+                <div id="headerUserName" class="text-xs font-semibold text-white truncate max-w-[120px]"></div>
+                <div id="headerUserRole" class="text-[10px] text-blue-300/70 uppercase tracking-wider"></div>
+              </div>
+              <div
+                class="w-9 h-9 rounded-full bg-blue-500/30 flex items-center justify-center"
+                title="Profil"
+              >
+                <i class="fas fa-user text-sm"></i>
+              </div>
+              <button
+                type="button"
+                onclick="doLogout()"
+                class="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center hover:bg-red-500/40 transition-all"
+                title="Keluar"
+              >
+                <i class="fas fa-sign-out-alt text-sm text-red-300"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -2918,6 +2933,38 @@
     </div>
 
     <script>
+      // ==================== AUTH GUARD ====================
+      (function () {
+        const token = localStorage.getItem("sg_token");
+        if (!token) {
+          window.location.replace("/login");
+          return;
+        }
+        // Intercept all fetch calls to inject Bearer token + handle 401
+        const _nativeFetch = window.fetch.bind(window);
+        window.fetch = function (url, opts) {
+          opts = opts || {};
+          if (typeof url === "string" && url.startsWith("/api/")) {
+            opts.headers = Object.assign({}, opts.headers, {
+              Authorization: "Bearer " + (localStorage.getItem("sg_token") || ""),
+            });
+          }
+          return _nativeFetch(url, opts).then(function (res) {
+            if (res.status === 401) {
+              localStorage.removeItem("sg_token");
+              localStorage.removeItem("sg_user");
+              window.location.replace("/login");
+            }
+            return res;
+          });
+        };
+        try {
+          window._sgUser = JSON.parse(localStorage.getItem("sg_user") || "{}");
+        } catch (e) {
+          window._sgUser = {};
+        }
+      })();
+
       // ==================== GLOBAL STATE ====================
       let currentKurs = 16924;
       let allKursData = null;
@@ -22720,6 +22767,27 @@
         div.textContent = String(text);
         return div.innerHTML;
       }
+
+      // ==================== AUTH: LOGOUT + USER DISPLAY ====================
+      function doLogout() {
+        if (!confirm("Yakin ingin keluar dari SkyGuard Intelligence?")) return;
+        localStorage.removeItem("sg_token");
+        localStorage.removeItem("sg_user");
+        window.location.replace("/login");
+      }
+
+      // Populate user info in header
+      (function () {
+        const u = window._sgUser || {};
+        const nameEl = document.getElementById("headerUserName");
+        const roleEl = document.getElementById("headerUserRole");
+        if (nameEl && u.full_name) {
+          nameEl.textContent = u.full_name.split(" ").slice(0, 2).join(" ");
+        }
+        if (roleEl && u.role) {
+          roleEl.textContent = u.role;
+        }
+      })();
     </script>
     <script src="/edit-price.js"></script>
     <script src="/hs-explorer.js"></script>
