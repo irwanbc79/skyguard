@@ -32,6 +32,9 @@ const passengerSchema = new mongoose.Schema({
   // Status Penelitian
   status_penelitian: { type: String, index: true }, // PEMBEBASAN, BILLING
 
+  // Nilai pungutan (jika tersedia di data CEISA)
+  jumlah_pungutan: { type: Number, default: 0 },
+
   // Metadata
   created_at: { type: Date, default: Date.now },
   upload_batch: { type: String, index: true }, // Track upload batch

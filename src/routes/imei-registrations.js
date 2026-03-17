@@ -473,8 +473,8 @@ router.get("/search", async (req, res) => {
     const regex = new RegExp(escaped, "i");
     const ImeiDetail = require("../models/ImeiDetail");
 
-    // Search both collections in parallel
-    const [regData, detData] = await Promise.all([
+    // Search all three collections in parallel
+    const [regData, detData, ceisaRaw] = await Promise.all([
       ImeiRegistration.find({
         $or: [
           { nama: regex },
@@ -504,17 +504,69 @@ router.get("/search", async (req, res) => {
         .sort({ waktu_kedatangan: -1 })
         .limit(parseInt(limit))
         .lean(),
+      // Search CEISA local (Passenger) collection
+      Passenger.find({
+        $or: [
+          { nama_lengkap: regex },
+          { paspor: regex },
+        ],
+      })
+        .sort({ tanggal_dokumen: -1 })
+        .limit(parseInt(limit) * 2)
+        .lean(),
     ]);
 
     // Merge results, preferring detail data for overlapping no_dok
     const detNoDoks = new Set(detData.map((d) => d.no_dokumen));
     const regFiltered = regData.filter((r) => !detNoDoks.has(r.no_dok));
 
+    // Group CEISA records by passport → one entry per person
+    const ceisaByPaspor = {};
+    ceisaRaw.forEach((r) => {
+      const key = r.paspor;
+      if (!ceisaByPaspor[key]) {
+        ceisaByPaspor[key] = {
+          no_identitas: r.paspor,
+          nama: r.nama_lengkap || "",
+          kebangsaan: "",
+          vessel: null,
+          tgl_kedatangan: r.tanggal_dokumen,
+          status_pembayaran: r.status_penelitian || "",
+          total_pungutan: 0,
+          kode_kantor: r.kode_kantor,
+          kantor_nama: getKantorName(r.kode_kantor),
+          _source: "ceisa_local",
+          _ceisa_count: 0,
+          _billing: 0,
+          _pembebasan: 0,
+          devices: [],
+        };
+      }
+      const entry = ceisaByPaspor[key];
+      entry._ceisa_count++;
+      if (r.status_penelitian === "BILLING") entry._billing++;
+      if (r.status_penelitian === "PEMBEBASAN") entry._pembebasan++;
+      if (r.hkt1 && !entry.devices.includes(r.hkt1)) entry.devices.push(r.hkt1);
+      if (r.hkt2 && !entry.devices.includes(r.hkt2)) entry.devices.push(r.hkt2);
+      // Keep the nama from latest record if not set
+      if (!entry.nama && r.nama_lengkap) entry.nama = r.nama_lengkap;
+      // Composite status: if any billing exists, show BILLING
+      if (r.status_penelitian === "BILLING") entry.status_pembayaran = "BILLING";
+    });
+
+    // Exclude CEISA results whose passport already appears in IMEI/Detail results
+    const imeiPassports = new Set([
+      ...regFiltered.map((r) => r.no_identitas),
+      ...detData.map((r) => r.no_identitas),
+    ].filter(Boolean));
+    const ceisaResults = Object.values(ceisaByPaspor)
+      .filter((r) => !imeiPassports.has(r.no_identitas))
+      .slice(0, parseInt(limit));
+
     const merged = [
       ...detData.map((d) => ({
         ...d,
         _source: "detail",
-        // Normalize field names to match ImeiRegistration schema
         vessel: d.flight_voyage || d.vessel || null,
         tgl_kedatangan: d.waktu_kedatangan || d.tgl_kedatangan || null,
         status_pembayaran: d.cara_pembayaran || d.status_pembayaran || null,
@@ -526,6 +578,7 @@ router.get("/search", async (req, res) => {
         _source: "registration",
         kantor_nama: getKantorName(d.kode_kantor),
       })),
+      ...ceisaResults,
     ].slice(0, parseInt(limit));
 
     res.json({
@@ -535,6 +588,7 @@ router.get("/search", async (req, res) => {
       sources: {
         fromRegistration: regFiltered.length,
         fromDetail: detData.length,
+        fromCeisaLocal: ceisaResults.length,
         deduplicatedOverlap: regData.length - regFiltered.length,
       },
     });
@@ -609,6 +663,7 @@ router.get("/passport/:no", async (req, res) => {
     };
 
     // CEISA summary
+    const ceisaTotalPungutan = ceisaRecords.reduce((s, r) => s + (r.jumlah_pungutan || 0), 0);
     const ceisaSummary = {
       total_records: ceisaRecords.length,
       devices: [
@@ -625,6 +680,8 @@ router.get("/passport/:no", async (req, res) => {
       pembebasan_count: ceisaRecords.filter(
         (r) => r.status_penelitian === "PEMBEBASAN",
       ).length,
+      total_pungutan: ceisaTotalPungutan,
+      pungutan_available: ceisaTotalPungutan > 0,
     };
 
     // Anomaly detection

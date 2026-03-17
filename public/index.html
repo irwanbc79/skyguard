@@ -5637,16 +5637,22 @@
               '<div class="text-center py-6 text-gray-500"><i class="fas fa-inbox text-2xl mb-2"></i><p>Tidak ditemukan</p></div>';
             return;
           }
-          let html = `<p class="text-sm text-gray-400 mb-3">${json.total} hasil ditemukan</p>`;
+          const srcCount = json.sources || {};
+          let srcInfo = `<p class="text-sm text-gray-400 mb-3">${json.total} hasil ditemukan`;
+          if (srcCount.fromCeisaLocal > 0) srcInfo += ` · <span class="text-purple-400">${srcCount.fromCeisaLocal} dari CEISA Lokal</span>`;
+          if (srcCount.fromDetail > 0) srcInfo += ` · <span class="text-blue-400">${srcCount.fromDetail} dari IMEI Detail</span>`;
+          if (srcCount.fromRegistration > 0) srcInfo += ` · <span class="text-green-400">${srcCount.fromRegistration} dari IMEI Registrasi</span>`;
+          srcInfo += "</p>";
+          let html = srcInfo;
           html +=
             '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-400 text-xs border-b border-slate-700">';
           html +=
-            '<th class="text-left pb-2">Nama</th><th class="text-left pb-2">Paspor</th><th class="text-left pb-2">WN</th><th class="text-left pb-2">Flight</th><th class="text-left pb-2">Tgl Datang</th><th class="text-left pb-2">Status</th><th class="text-right pb-2">Pungutan</th><th class="text-left pb-2">Kantor</th></tr></thead><tbody>';
+            '<th class="text-left pb-2">Nama</th><th class="text-left pb-2">Paspor</th><th class="text-left pb-2">WN</th><th class="text-left pb-2">Flight/Info</th><th class="text-left pb-2">Tgl</th><th class="text-left pb-2">Status</th><th class="text-right pb-2">Pungutan</th><th class="text-left pb-2">Sumber</th></tr></thead><tbody>';
           json.data.forEach((r) => {
             const stColor =
-              r.status_pembayaran === "PEMBEBASAN"
+              (r.status_pembayaran === "PEMBEBASAN")
                 ? "text-green-400"
-                : r.status_pembayaran === "BILLING"
+                : (r.status_pembayaran === "BILLING")
                   ? "text-yellow-400"
                   : "text-gray-400";
             const tgl = r.tgl_kedatangan
@@ -5656,15 +5662,26 @@
                   year: "numeric",
                 })
               : "-";
+            // Source label and extra info for CEISA local records
+            let srcLabel = r.kantor_nama || r.kode_kantor || "-";
+            let flightInfo = r.vessel || "-";
+            let pungutanCell = fmtRp(r.total_pungutan);
+            if (r._source === "ceisa_local") {
+              srcLabel = '<span style="color:#c084fc;font-size:0.7rem;font-weight:600;">CEISA Lokal</span>';
+              flightInfo = r.devices && r.devices.length ? r.devices.slice(0,2).join(", ") : "-";
+              pungutanCell = r._billing > 0
+                ? '<span style="color:#fbbf24;font-size:0.7rem;">Billing (' + r._billing + 'x)</span>'
+                : '<span style="color:#94a3b8;font-size:0.7rem;">—</span>';
+            }
             html += `<tr class="border-t border-slate-700/30 hover:bg-slate-800/30 cursor-pointer" onclick="imeiRegLookupPassport('${r.no_identitas}')">
               <td class="py-2 text-xs">${(r.nama || "").substring(0, 25)}</td>
               <td class="py-2 font-mono text-xs text-blue-400">${r.no_identitas || "-"}</td>
               <td class="py-2 text-xs">${r.kebangsaan || "-"}</td>
-              <td class="py-2 text-xs font-mono">${r.vessel || "-"}</td>
+              <td class="py-2 text-xs">${flightInfo}</td>
               <td class="py-2 text-xs">${tgl}</td>
               <td class="py-2 text-xs font-bold ${stColor}">${r.status_pembayaran || "-"}</td>
-              <td class="py-2 text-xs text-right">${fmtRp(r.total_pungutan)}</td>
-              <td class="py-2 text-xs text-gray-400" title="${r.kode_kantor || ""}">${r.kantor_nama || r.kode_kantor || "-"}</td>
+              <td class="py-2 text-xs text-right">${pungutanCell}</td>
+              <td class="py-2 text-xs text-gray-400">${srcLabel}</td>
             </tr>`;
           });
           html += "</tbody></table></div>";
@@ -5767,8 +5784,9 @@
             html += "</div>";
           }
 
-          // Summary Cards
-          html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+          // Summary Cards — split IMEI nasional vs CEISA lokal
+          html += '<div class="mb-1"><span class="text-xs text-gray-500 uppercase tracking-widest">IMEI Registrasi Nasional</span></div>';
+          html += '<div class="grid grid-cols-2 gap-3 mb-3">';
           html += kpiCard(
             "fa-mobile-alt",
             "IMEI Registrasi",
@@ -5778,20 +5796,23 @@
           html += kpiCard(
             "fa-money-bill-wave",
             "Total Pungutan",
-            fmtRpShort(imei.total_pungutan),
-            "green",
+            imei.total_pungutan > 0 ? fmtRpShort(imei.total_pungutan) : "Rp —",
+            imei.total_pungutan > 0 ? "green" : "blue",
           );
+          html += "</div>";
+          html += '<div class="mb-1"><span class="text-xs text-gray-500 uppercase tracking-widest">CEISA Kualanamu (Lokal)</span></div>';
+          html += '<div class="grid grid-cols-2 gap-3 mb-4">';
           html += kpiCard(
             "fa-check-circle",
-            "Pembebasan",
-            imei.pembebasan_count || 0,
+            "CEISA Pembebasan",
+            ceisa.pembebasan_count || 0,
             "green",
           );
           html += kpiCard(
             "fa-file-invoice-dollar",
-            "Billing",
-            imei.billing_count || 0,
-            imei.billing_count >= 2 ? "yellow" : "blue",
+            "CEISA Billing",
+            ceisa.billing_count || 0,
+            ceisa.billing_count >= 1 ? "yellow" : "blue",
           );
           html += "</div>";
 
@@ -5848,15 +5869,25 @@
           // CEISA Cross-Reference
           if (ceisa && ceisa.total_records > 0) {
             html +=
-              '<div class="glass-card-solid rounded-xl p-4 mb-4"><h4 class="text-sm font-bold text-gray-300 mb-3"><i class="fas fa-database text-purple-400 mr-1"></i> Data CEISA (' +
+              '<div class="glass-card-solid rounded-xl p-4 mb-4"><h4 class="text-sm font-bold text-gray-300 mb-3"><i class="fas fa-database text-purple-400 mr-1"></i> Data CEISA Kualanamu (' +
               ceisa.total_records +
               " record)</h4>";
-            html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">';
+            html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">';
             html += `<div class="bg-slate-800/50 rounded-lg p-2 text-center"><p class="text-lg font-bold text-white">${ceisa.devices?.length || 0}</p><p class="text-xs text-gray-400">Devices</p></div>`;
             html += `<div class="bg-slate-800/50 rounded-lg p-2 text-center"><p class="text-lg font-bold text-green-400">${ceisa.pembebasan_count || 0}</p><p class="text-xs text-gray-400">Pembebasan</p></div>`;
             html += `<div class="bg-slate-800/50 rounded-lg p-2 text-center"><p class="text-lg font-bold text-yellow-400">${ceisa.billing_count || 0}</p><p class="text-xs text-gray-400">Billing</p></div>`;
-            html += `<div class="bg-slate-800/50 rounded-lg p-2 text-center"><p class="text-lg font-bold text-white">${ceisa.total_records || 0}</p><p class="text-xs text-gray-400">Total CEISA</p></div>`;
+            const pungutanDisplay = ceisa.pungutan_available
+              ? `<p class="text-lg font-bold text-orange-400">${fmtRpShort(ceisa.total_pungutan)}</p>`
+              : `<p class="text-sm font-bold text-gray-500">Tidak tersedia</p><p style="font-size:0.6rem;color:#64748b;margin-top:2px;">Kolom pungutan<br>tidak di-import</p>`;
+            html += `<div class="bg-slate-800/50 rounded-lg p-2 text-center">${pungutanDisplay}<p class="text-xs text-gray-400">Total Pungutan</p></div>`;
             html += "</div>";
+            if (!ceisa.pungutan_available && ceisa.billing_count > 0) {
+              html += `<div style="font-size:0.75rem;color:#94a3b8;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:0.5rem;padding:0.5rem 0.75rem;margin-bottom:0.5rem;">
+                <i class="fas fa-info-circle text-yellow-400 mr-1"></i>
+                <strong style="color:#fbbf24;">${ceisa.billing_count} Billing</strong> tercatat, namun nominal pungutan belum tersedia di data CEISA yang diimport.
+                Untuk menampilkan nominal, tambahkan kolom <code style="color:#c084fc;">jumlah_pungutan</code> pada file CSV/Excel upload.
+              </div>`;
+            }
             if (ceisa.devices && ceisa.devices.length > 0) {
               html += '<div class="mt-2 flex flex-wrap gap-1">';
               ceisa.devices.slice(0, 10).forEach((dev) => {

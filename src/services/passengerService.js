@@ -465,6 +465,9 @@ async function importExcel(buffer, uploadedBy, filename) {
         status_penelitian: String(
           row.statusPenelitian || row.status_penelitian || "",
         ).trim(),
+        jumlah_pungutan: parseFloat(
+          row.jumlahPungutan || row.jumlah_pungutan || row.totalPungutan || row.total_pungutan || 0
+        ) || 0,
         upload_batch: uploadBatch,
       };
 
@@ -552,6 +555,7 @@ async function importCSV(lines, uploadedBy, filename) {
         hkt1: f[10] || "",
         hkt2: f[11] || "",
         status_penelitian: f[12] || "",
+        jumlah_pungutan: parseFloat(f[13] || 0) || 0,
         upload_batch: uploadBatch,
       };
 
