@@ -60,7 +60,6 @@ userSchema.methods.toSafeObject = function () {
   return obj;
 };
 
-userSchema.index({ email: 1 });
 userSchema.index({ verification_token: 1 });
 userSchema.index({ reset_token: 1 });
 
