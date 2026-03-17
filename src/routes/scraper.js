@@ -116,6 +116,7 @@ function sanitizeForScript(s) {
 // ── GET /api/scraper/script - Generate browser scraper script ──
 router.get("/script", async (req, res) => {
   const baseUrl = sanitizeForScript(req.query.api_url || `${req.protocol}://${req.get("host")}`).slice(0, 500);
+  const ceisaUrl = sanitizeForScript(req.query.ceisa_url || "http://ceisa.customs.go.id/cdIMEI.html").slice(0, 500);
   const totalPages = Math.min(100000, Math.max(1, parseInt(req.query.pages, 10) || 5330));
   const dateStart = sanitizeForScript(req.query.date_start || "27-12-2025").slice(0, 20);
   const dateEnd = sanitizeForScript(req.query.date_end || "25-02-2026").slice(0, 20);
@@ -124,6 +125,7 @@ router.get("/script", async (req, res) => {
 
   const script = generateBrowserScript({
     baseUrl,
+    ceisaUrl,
     totalPages,
     dateStart,
     dateEnd,
@@ -148,6 +150,24 @@ function generateBrowserScript(cfg) {
   var BATCH_SIZE = ${cfg.batchSize};
   var DATE_START = '${cfg.dateStart}';
   var DATE_END = '${cfg.dateEnd}';
+
+  // ── CEISA URL (configurable — fallback ke auto-detect) ──
+  var CEISA_URL = '${cfg.ceisaUrl}';
+  // Auto-detect jika URL tidak valid atau relative
+  (function(){
+    try {
+      // Cari dari Network requests yang sudah ada di halaman
+      var entries = performance.getEntriesByType('resource');
+      for(var i=0;i<entries.length;i++){
+        if(entries[i].name && entries[i].name.indexOf('cdIMEI')>-1 && entries[i].initiatorType==='xmlhttprequest'){
+          var detected = entries[i].name.split('?')[0];
+          if(detected !== CEISA_URL){ console.log('[SkyGuard] Auto-detect CEISA URL dari network history: '+detected); CEISA_URL=detected; }
+          break;
+        }
+      }
+    } catch(e){}
+    console.log('[SkyGuard] CEISA URL: '+CEISA_URL);
+  })();
 
   // ── Native DOM parser (no jQuery needed) ──
   var _dp = new DOMParser();
@@ -290,19 +310,25 @@ function generateBrowserScript(cfg) {
       txtNipPetugas:'',txtNoCd:'',txtQrCode:'',
       txtTglCdAwal:'',txtTglCdAkhir:'',txtStatusPembayaran:'',txtKdKantorPetugas:''
     });
-    return fetch('cdIMEI.html',{
+    return fetch(CEISA_URL,{
       method:'POST',
       headers:{'Content-Type':'application/x-www-form-urlencoded'},
       credentials:'same-origin',
       body:params.toString()
-    }).then(function(r){return r.text();});
+    }).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status+' pada '+CEISA_URL);
+      return r.text();
+    });
   }
 
   function fetchDetail(id){
     var params=new URLSearchParams({content:'detailNew',txtIdPelaporImei:String(id)});
-    return fetch('cdIMEI.html?'+params.toString(),{
+    return fetch(CEISA_URL+'?'+params.toString(),{
       credentials:'same-origin'
-    }).then(function(r){return r.text();});
+    }).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.text();
+    });
   }
 
   // ── SkyGuard API Calls ──
