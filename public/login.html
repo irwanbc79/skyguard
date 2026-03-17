@@ -155,57 +155,65 @@
     backdrop-filter: blur(20px);
   }
 
-  /* TOP BEACON */
-  .beacon {
-    display: flex; justify-content: center; margin-bottom: 24px;
+  /* ── BRAND HEADER ── */
+  .brand-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(30,58,95,.4), rgba(15,39,68,.5));
+    border: 1px solid rgba(59,130,246,.18);
+    border-radius: 16px;
   }
-  .beacon-inner {
+  .logo-wrap {
     position: relative;
-    width: 72px; height: 72px;
+    flex-shrink: 0;
+    width: 80px; height: 80px;
     display: flex; align-items: center; justify-content: center;
   }
-  .beacon-ring {
-    position: absolute; inset: 0;
+  .logo-glow {
+    position: absolute; inset: -8px;
     border-radius: 50%;
-    border: 2px solid rgba(59,130,246,.4);
-    animation: beaconPulse 2s ease-in-out infinite;
+    background: radial-gradient(circle, rgba(59,130,246,.2) 0%, transparent 70%);
+    animation: glowPulse 3s ease-in-out infinite;
   }
-  .beacon-ring-2 {
-    position: absolute;
-    inset: -12px;
+  .logo-ring-outer {
+    position: absolute; inset: -4px;
     border-radius: 50%;
-    border: 1px solid rgba(59,130,246,.15);
-    animation: beaconPulse 2s ease-in-out infinite .5s;
+    border: 1px solid rgba(59,130,246,.25);
+    animation: glowPulse 3s ease-in-out infinite .5s;
+  }
+  @keyframes glowPulse {
+    0%, 100% { opacity: .6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.06); }
   }
   @keyframes beaconPulse {
     0%, 100% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.1); opacity: .5; }
   }
-  .beacon-logo {
-    width: 48px; height: 48px;
-    border-radius: 50%;
+  .brand-logo {
+    width: 80px; height: 80px;
     object-fit: contain;
-    position: relative; z-index: 2;
-    filter: drop-shadow(0 0 12px rgba(59,130,246,.5));
+    position: relative; z-index: 1;
+    filter: drop-shadow(0 2px 16px rgba(59,130,246,.6));
   }
-
-  /* HEADER TEXT */
+  .brand-texts { flex: 1; min-width: 0; }
   .brand-title {
-    text-align: center; margin-bottom: 4px;
-    font-size: 20px; font-weight: 800;
+    font-size: 16px; font-weight: 800;
     background: linear-gradient(135deg, #60a5fa, #06b6d4);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: 1.5px; text-transform: uppercase;
+    letter-spacing: 1px; text-transform: uppercase;
+    line-height: 1.2; margin-bottom: 5px;
   }
   .brand-sub {
-    text-align: center; margin-bottom: 6px;
-    font-size: 10px; color: var(--text-muted);
-    letter-spacing: 2px; text-transform: uppercase;
+    font-size: 9px; color: var(--text-muted);
+    letter-spacing: 1.5px; text-transform: uppercase;
+    margin-bottom: 6px; line-height: 1.4;
   }
   .brand-desc {
-    text-align: center; margin-bottom: 28px;
-    font-size: 12px; color: rgba(148,163,184,.7);
-    line-height: 1.6; padding: 0 8px;
+    font-size: 11px; color: rgba(148,163,184,.65);
+    line-height: 1.55;
   }
 
   /* BADGE */
@@ -358,19 +366,18 @@
 <div class="card-wrap">
   <div class="card">
 
-    <!-- BEACON + BRAND -->
-    <div class="beacon">
-      <div class="beacon-inner">
-        <div class="beacon-ring"></div>
-        <div class="beacon-ring-2"></div>
-        <img src="/assets/logo-bc-kualanamu.png?v=12" class="beacon-logo" alt="BC Kualanamu" onerror="this.style.display='none'">
+    <!-- BRAND HEADER -->
+    <div class="brand-header">
+      <div class="logo-wrap">
+        <div class="logo-glow"></div>
+        <div class="logo-ring-outer"></div>
+        <img src="/assets/logo-bc-kualanamu.png?v=12" class="brand-logo" alt="BC Kualanamu">
       </div>
-    </div>
-    <div class="brand-title">SkyGuard Intelligence</div>
-    <div class="brand-sub">Bea Cukai Kualanamu · Kementerian Keuangan RI</div>
-    <div class="brand-desc">
-      Sistem intelijen kepabeanan generasi baru — pemantauan penumpang,
-      analisis risiko, dan deteksi penyelundupan secara real-time.
+      <div class="brand-texts">
+        <div class="brand-title">SkyGuard Intelligence</div>
+        <div class="brand-sub">Bea Cukai Kualanamu · Kemenkeu RI</div>
+        <div class="brand-desc">Intelijen kepabeanan real-time — pemantauan penumpang, analisis risiko &amp; deteksi penyelundupan.</div>
+      </div>
     </div>
     <div class="domain-badge">
       <i class="fas fa-shield-alt"></i>
@@ -420,53 +427,81 @@
 
     <!-- ── VIEW: REGISTER ── -->
     <div class="view" id="view-register">
-      <div class="alert-box alert-error" id="reg-error"><i class="fas fa-exclamation-circle"></i><span id="reg-error-msg"></span></div>
-      <div class="alert-box alert-success" id="reg-success"><i class="fas fa-check-circle"></i><span id="reg-success-msg"></span></div>
 
-      <div class="field">
-        <label>Nama Lengkap <span style="color:#ef4444">*</span></label>
-        <div class="field-wrap">
-          <i class="fas fa-user"></i>
-          <input type="text" id="reg-name" placeholder="Nama sesuai ID Kepegawaian">
+      <!-- FORM FIELDS (hidden after success) -->
+      <div id="reg-form-fields">
+        <div class="alert-box alert-error" id="reg-error"><i class="fas fa-exclamation-circle"></i><span id="reg-error-msg"></span></div>
+
+        <div class="field">
+          <label>Nama Lengkap <span style="color:#ef4444">*</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-user"></i>
+            <input type="text" id="reg-name" placeholder="Nama sesuai ID Kepegawaian">
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label>Email Kemenkeu <span style="color:#ef4444">*</span></label>
-        <div class="field-wrap">
-          <i class="fas fa-envelope"></i>
-          <input type="email" id="reg-email" placeholder="nama@kemenkeu.go.id" oninput="validateDomain(this,'reg-domain-hint')">
+        <div class="field">
+          <label>Email Kemenkeu <span style="color:#ef4444">*</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="reg-email" placeholder="nama@kemenkeu.go.id" oninput="validateDomain(this,'reg-domain-hint')">
+          </div>
+          <div id="reg-domain-hint" style="font-size:11px;margin-top:5px;display:none"></div>
         </div>
-        <div id="reg-domain-hint" style="font-size:11px;margin-top:5px;display:none"></div>
-      </div>
-      <div class="field">
-        <label>NIP <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
-        <div class="field-wrap">
-          <i class="fas fa-id-badge"></i>
-          <input type="text" id="reg-nip" placeholder="Nomor Induk Pegawai">
+        <div class="field">
+          <label>NIP <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-id-badge"></i>
+            <input type="text" id="reg-nip" placeholder="Nomor Induk Pegawai">
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label>Unit Kerja <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
-        <div class="field-wrap">
-          <i class="fas fa-building"></i>
-          <input type="text" id="reg-unit" placeholder="cth: Seksi P2, Seksi PKC">
+        <div class="field">
+          <label>Unit Kerja <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-building"></i>
+            <input type="text" id="reg-unit" placeholder="cth: Seksi P2, Seksi PKC">
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label>Password <span style="color:#ef4444">*</span></label>
-        <div class="field-wrap">
-          <i class="fas fa-lock"></i>
-          <input type="password" id="reg-password" placeholder="Min. 8 karakter" oninput="checkStrength(this)">
-          <button type="button" class="eye-toggle" onclick="toggleEye('reg-password',this)"><i class="fas fa-eye"></i></button>
+        <div class="field">
+          <label>Password <span style="color:#ef4444">*</span></label>
+          <div class="field-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="reg-password" placeholder="Min. 8 karakter" oninput="checkStrength(this)">
+            <button type="button" class="eye-toggle" onclick="toggleEye('reg-password',this)"><i class="fas fa-eye"></i></button>
+          </div>
+          <div id="pw-strength" style="height:3px;border-radius:2px;margin-top:5px;transition:all .3s;background:#1e293b"></div>
+          <div id="pw-strength-label" style="font-size:10px;margin-top:3px;color:var(--text-muted)"></div>
         </div>
-        <div id="pw-strength" style="height:3px;border-radius:2px;margin-top:5px;transition:all .3s;background:#1e293b"></div>
-        <div id="pw-strength-label" style="font-size:10px;margin-top:3px;color:var(--text-muted)"></div>
+
+        <button class="btn-submit" id="reg-btn" onclick="doRegister()">
+          <div class="spinner"></div>
+          <span class="btn-text"><i class="fas fa-user-plus"></i> &nbsp;Daftarkan Akun</span>
+        </button>
       </div>
 
-      <button class="btn-submit" id="reg-btn" onclick="doRegister()">
-        <div class="spinner"></div>
-        <span class="btn-text"><i class="fas fa-user-plus"></i> &nbsp;Daftarkan Akun</span>
-      </button>
+      <!-- EMAIL SENT CONFIRMATION (shown after successful registration) -->
+      <div id="email-sent-state" style="display:none">
+        <div style="text-align:center; padding:8px 0 4px">
+          <div style="width:76px;height:76px;background:linear-gradient(135deg,rgba(34,197,94,.12),rgba(6,182,212,.08));border:1px solid rgba(34,197,94,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;position:relative">
+            <i class="fas fa-envelope-open-text" style="color:#4ade80;font-size:28px"></i>
+            <div style="position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(34,197,94,.15);animation:glowPulse 2.5s ease-in-out infinite"></div>
+          </div>
+          <h3 style="color:#60a5fa;font-size:18px;font-weight:800;margin-bottom:10px;letter-spacing:.5px">Cek Inbox Email Anda!</h3>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.8;margin-bottom:4px">Link aktivasi telah dikirim ke:</p>
+          <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:13px;font-weight:600;color:#93c5fd;word-break:break-all" id="sent-to-email"></div>
+          <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#fcd34d;text-align:left;line-height:1.7">
+            <i class="fas fa-lightbulb" style="margin-right:6px"></i>
+            Klik link di email untuk mengaktifkan akun. Cek folder <strong>Spam</strong> jika tidak ada di inbox.
+            Link berlaku <strong>24 jam</strong>.
+          </div>
+          <button onclick="switchView('login')" class="btn-submit" style="background:linear-gradient(135deg,#1e3a5f,#1d4ed8)">
+            <span class="btn-text"><i class="fas fa-sign-in-alt"></i> &nbsp;Masuk ke Portal</span>
+          </button>
+          <div style="margin-top:14px;font-size:12px;color:var(--text-muted)">
+            Sudah verifikasi? <button class="link-btn" onclick="switchView('login')">Login sekarang</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── VIEW: FORGOT / RESET ── -->
@@ -576,6 +611,11 @@
     const idx = {login:0, register:1, forgot:2}[v];
     document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
     clearAlerts();
+    // Reset register view if switching away and coming back
+    if (v === 'register') {
+      document.getElementById('reg-form-fields').style.display = 'block';
+      document.getElementById('email-sent-state').style.display = 'none';
+    }
   }
   function clearAlerts() {
     document.querySelectorAll('.alert-box').forEach(el => el.classList.remove('show'));
@@ -706,12 +746,11 @@
       });
       const d = await r.json();
       if (d.status === 'ok') {
-        showAlert('reg-success','reg-success-msg', d.message);
-        document.getElementById('reg-name').value = '';
-        document.getElementById('reg-email').value = '';
-        document.getElementById('reg-password').value = '';
-        document.getElementById('reg-nip').value = '';
-        document.getElementById('reg-unit').value = '';
+        // Show email confirmation screen
+        document.getElementById('sent-to-email').textContent = email;
+        document.getElementById('reg-form-fields').style.display = 'none';
+        document.getElementById('email-sent-state').style.display = 'block';
+        document.getElementById('email-sent-state').style.animation = 'fadeSlide .35s ease';
       } else {
         showAlert('reg-error','reg-error-msg', d.message || 'Registrasi gagal.');
       }
