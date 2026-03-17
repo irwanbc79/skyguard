@@ -409,8 +409,11 @@ async function hitungPajak(fobUsd, jumlahUnit = 1, currency = "USD") {
 
   const kenaFob = Math.max(0, fobUsd - BEBAS_BEA);
   const nilaiPabean = kenaFob * kurs;
-  const bm = nilaiPabean * TARIF_BM;
-  const ppn = (nilaiPabean + bm) * TARIF_PPN;
+  const bm_exact = nilaiPabean * TARIF_BM;
+  // BM dibulatkan ke atas ke kelipatan 1.000 (sesuai sistem billing CEISA)
+  const bm_idr = Math.ceil(bm_exact / 1000) * 1000;
+  // PPN dihitung dari nilai pabean + BM eksak (bukan BM yang sudah dibulatkan)
+  const ppn_idr = Math.round((nilaiPabean + bm_exact) * TARIF_PPN);
 
   return {
     input: { fob_usd: fobUsd, jumlah_unit: jumlahUnit, currency },
@@ -420,10 +423,10 @@ async function hitungPajak(fobUsd, jumlahUnit = 1, currency = "USD") {
       kena_pajak_usd: kenaFob,
       nilai_pabean_idr: Math.round(nilaiPabean),
       bm_persen: "10%",
-      bm_idr: Math.round(bm),
+      bm_idr,
       ppn_persen: "11%",
-      ppn_idr: Math.round(ppn),
-      total_pajak_idr: Math.round(bm + ppn),
+      ppn_idr,
+      total_pajak_idr: bm_idr + ppn_idr,
     },
     catatan: jumlahUnit > 2 ? "PERINGATAN: Maksimal 2 IMEI per paspor!" : null,
   };

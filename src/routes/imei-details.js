@@ -820,4 +820,171 @@ router.get("/price-analysis", async (req, res) => {
   }
 });
 
+// ============================================================
+// 9. GET /penetapan-sejenis — Referensi FOB dari penetapan petugas BC lain
+//    Membantu petugas menentukan harga FOB yang wajar berdasarkan
+//    penetapan nyata petugas lain untuk tipe HP yang sama.
+//
+//    Query: merk, tipe, storage (opsional), limit, date_from, date_to, kantor
+// ============================================================
+router.get("/penetapan-sejenis", async (req, res) => {
+  const { getKantorName } = require("../utils/constants");
+  try {
+    const { merk, tipe, storage, limit = 100, date_from, date_to, kantor } = req.query;
+
+    if (!merk || !tipe) {
+      return res.status(400).json({
+        status: "error",
+        message: "Parameter merk dan tipe wajib diisi",
+      });
+    }
+
+    const filter = {
+      merk: new RegExp(escapeRegex(merk.trim()), "i"),
+      tipe: new RegExp(escapeRegex(tipe.trim()), "i"),
+      harga_fob_usd: { $gt: 0 },
+    };
+    if (storage) filter.storage = new RegExp(escapeRegex(storage.trim()), "i");
+    if (kantor) filter.kode_kantor = kantor;
+    if (date_from || date_to) {
+      filter.tgl_dokumen = {};
+      if (date_from) filter.tgl_dokumen.$gte = new Date(date_from);
+      if (date_to) filter.tgl_dokumen.$lte = new Date(date_to + "T23:59:59Z");
+    }
+
+    const cap = Math.min(200, Math.max(1, parseInt(limit) || 100));
+
+    // Parallel: daftar penetapan terbaru + statistik agregat
+    const [recent, aggStats, byKantor, byStorage] = await Promise.all([
+      // 50 penetapan terbaru
+      ImeiDetail.find(filter)
+        .select("tgl_dokumen harga_fob_usd storage cara_pembayaran kode_kantor no_dokumen merk tipe nama bekas waktu_kedatangan")
+        .sort({ tgl_dokumen: -1 })
+        .limit(cap)
+        .lean(),
+
+      // Statistik global (count, avg, min, max, sum)
+      ImeiDetail.aggregate([
+        { $match: { ...filter } },
+        {
+          $group: {
+            _id: null,
+            count: { $sum: 1 },
+            avg_fob: { $avg: "$harga_fob_usd" },
+            min_fob: { $min: "$harga_fob_usd" },
+            max_fob: { $max: "$harga_fob_usd" },
+            billing_count: {
+              $sum: { $cond: [{ $eq: ["$cara_pembayaran", "BILLING"] }, 1, 0] },
+            },
+            pembebasan_count: {
+              $sum: { $cond: [{ $eq: ["$cara_pembayaran", "PEMBEBASAN"] }, 1, 0] },
+            },
+          },
+        },
+      ]),
+
+      // Breakdown per kantor
+      ImeiDetail.aggregate([
+        { $match: { ...filter } },
+        {
+          $group: {
+            _id: "$kode_kantor",
+            count: { $sum: 1 },
+            avg_fob: { $avg: "$harga_fob_usd" },
+            billing: {
+              $sum: { $cond: [{ $eq: ["$cara_pembayaran", "BILLING"] }, 1, 0] },
+            },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+
+      // Breakdown per storage (jika tidak difilter)
+      !storage
+        ? ImeiDetail.aggregate([
+            { $match: { ...filter } },
+            {
+              $group: {
+                _id: "$storage",
+                count: { $sum: 1 },
+                avg_fob: { $avg: "$harga_fob_usd" },
+                min_fob: { $min: "$harga_fob_usd" },
+                max_fob: { $max: "$harga_fob_usd" },
+              },
+            },
+            { $sort: { avg_fob: 1 } },
+          ])
+        : Promise.resolve([]),
+    ]);
+
+    // Hitung persentil median (approx: median dari recent 100 data)
+    const fobValues = recent.map((r) => r.harga_fob_usd).filter(Boolean).sort((a, b) => a - b);
+    const mid = Math.floor(fobValues.length / 2);
+    const median_fob = fobValues.length > 0
+      ? fobValues.length % 2 === 0
+        ? (fobValues[mid - 1] + fobValues[mid]) / 2
+        : fobValues[mid]
+      : 0;
+
+    const stat = aggStats[0] || {};
+
+    // Distribusi FOB (bucket per $50)
+    const distribution = {};
+    fobValues.forEach((v) => {
+      const bucket = Math.floor(v / 50) * 50;
+      const key = `$${bucket}-$${bucket + 50}`;
+      distribution[key] = (distribution[key] || 0) + 1;
+    });
+
+    res.json({
+      status: "ok",
+      query: { merk: merk.toUpperCase(), tipe: tipe.toUpperCase(), storage: storage || null },
+      stats: {
+        count: stat.count || 0,
+        avg_fob_usd: stat.avg_fob ? Math.round(stat.avg_fob * 100) / 100 : 0,
+        median_fob_usd: Math.round(median_fob * 100) / 100,
+        min_fob_usd: stat.min_fob || 0,
+        max_fob_usd: stat.max_fob || 0,
+        billing_count: stat.billing_count || 0,
+        pembebasan_count: stat.pembebasan_count || 0,
+      },
+      by_kantor: byKantor.map((k) => ({
+        kode: k._id,
+        nama: getKantorName(k._id),
+        count: k.count,
+        avg_fob: Math.round(k.avg_fob * 100) / 100,
+        billing: k.billing,
+      })),
+      by_storage: byStorage.map((s) => ({
+        storage: s._id || "-",
+        count: s.count,
+        avg_fob: Math.round(s.avg_fob * 100) / 100,
+        min_fob: s.min_fob,
+        max_fob: s.max_fob,
+      })),
+      distribution: Object.entries(distribution)
+        .sort((a, b) => {
+          const aVal = parseInt(a[0].replace("$", ""));
+          const bVal = parseInt(b[0].replace("$", ""));
+          return aVal - bVal;
+        })
+        .map(([range, count]) => ({ range, count })),
+      recent: recent.map((r) => ({
+        tgl_dokumen: r.tgl_dokumen,
+        harga_fob_usd: r.harga_fob_usd,
+        storage: r.storage,
+        cara_pembayaran: r.cara_pembayaran,
+        kode_kantor: r.kode_kantor,
+        kantor_nama: getKantorName(r.kode_kantor),
+        no_dokumen: r.no_dokumen,
+        bekas: r.bekas,
+      })),
+    });
+  } catch (err) {
+    console.error("[PENETAPAN SEJENIS]", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 module.exports = router;

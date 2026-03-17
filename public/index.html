@@ -2961,6 +2961,11 @@
               label: "Integritas Data",
               icon: "fa-shield-alt",
             },
+            {
+              id: "penetapan",
+              label: "Penetapan Sejenis",
+              icon: "fa-gavel",
+            },
           ],
           color: "#22c55e",
         },
@@ -3233,6 +3238,8 @@
           } else if (subId === "integritas") {
             container.innerHTML = getIntegritasContent();
             loadIntegritasDashboard();
+          } else if (subId === "penetapan") {
+            container.innerHTML = getPenetapanSejenisContent();
           }
         } else if (menu === "penumpang") {
           loadPenumpangSubContent(subId);
@@ -7551,16 +7558,18 @@
       let currentBrandGrouped = "Apple";
       let currentKursUSD = 16777; // Default kurs
 
-      // Fungsi hitung pajak real-time
+      // Fungsi hitung pajak real-time — sesuai metode billing CEISA
+      // BM dibulatkan ke atas ke kelipatan Rp 1.000, PPN dihitung dari BM eksak
       function calculateTax(priceUsd) {
         const BEBAS_BEA = 500;
         const TARIF_BM = 0.1;
         const TARIF_PPN = 0.11;
         const kenaFob = Math.max(0, priceUsd - BEBAS_BEA);
         const nilaiPabean = kenaFob * currentKursUSD;
-        const bm = nilaiPabean * TARIF_BM;
-        const ppn = (nilaiPabean + bm) * TARIF_PPN;
-        return Math.round(bm + ppn);
+        const bm_exact = nilaiPabean * TARIF_BM;
+        const bm = Math.ceil(bm_exact / 1000) * 1000;
+        const ppn = Math.round((nilaiPabean + bm_exact) * TARIF_PPN);
+        return bm + ppn;
       }
 
       // Load kurs saat startup
@@ -20548,6 +20557,299 @@
         overlapPage: 1,
         overlapFilter: "all",
       };
+
+      // ============================================================
+      // PENETAPAN SEJENIS — Referensi FOB dari penetapan petugas BC lain
+      // ============================================================
+      function getPenetapanSejenisContent() {
+        return `
+        <style>
+          .ps-hero { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius:1.5rem; padding:2rem; margin-bottom:1.5rem; position:relative; overflow:hidden; }
+          .ps-hero::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; background:radial-gradient(circle, rgba(251,191,36,.15) 0%, transparent 70%); border-radius:50%; }
+          .ps-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius:1rem; padding:1.25rem; }
+          .ps-stat-box { background: rgba(255,255,255,.06); border-radius:.75rem; padding:1rem; text-align:center; }
+          .ps-table tr:hover { background: rgba(255,255,255,.04); }
+          .ps-badge-billing { background:rgba(239,68,68,.15); color:#f87171; border:1px solid rgba(239,68,68,.3); border-radius:.375rem; padding:.1rem .5rem; font-size:.7rem; font-weight:700; }
+          .ps-badge-bebas { background:rgba(34,197,94,.15); color:#4ade80; border:1px solid rgba(34,197,94,.3); border-radius:.375rem; padding:.1rem .5rem; font-size:.7rem; font-weight:700; }
+          .ps-badge-bekas { background:rgba(251,146,60,.15); color:#fb923c; border:1px solid rgba(251,146,60,.3); border-radius:.375rem; padding:.1rem .5rem; font-size:.7rem; font-weight:600; }
+          .ps-dist-bar { height:8px; background:linear-gradient(90deg,#3b82f6,#8b5cf6); border-radius:4px; transition:width .4s; }
+        </style>
+        <div id="ps-wrap">
+          <!-- HERO -->
+          <div class="ps-hero">
+            <div class="flex flex-col md:flex-row md:items-center gap-4">
+              <div class="flex-1">
+                <h2 class="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                  <i class="fas fa-gavel text-yellow-400"></i> Penetapan Sejenis
+                </h2>
+                <p class="text-gray-300 text-sm">Referensi harga FOB dari penetapan nyata petugas BC seluruh Indonesia untuk tipe HP yang sama. Gunakan sebagai acuan saat melakukan penelitian nilai pabean.</p>
+              </div>
+              <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 text-xs text-yellow-300 max-w-xs">
+                <i class="fas fa-info-circle mr-1"></i>
+                <strong>Catatan:</strong> Data ini bersumber dari rekaman IMEI yang telah diproses petugas. Bukan harga pasar, melainkan harga FOB yang pernah ditetapkan.
+              </div>
+            </div>
+          </div>
+
+          <!-- FORM PENCARIAN -->
+          <div class="ps-card mb-5">
+            <h3 class="text-base font-semibold text-white mb-4 flex items-center gap-2">
+              <i class="fas fa-search text-blue-400"></i> Cari Penetapan
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Merk <span class="text-red-400">*</span></label>
+                <select id="ps-merk" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" onchange="psOnMerkChange()">
+                  <option value="">-- Pilih Merk --</option>
+                  <option value="APPLE">Apple</option>
+                  <option value="SAMSUNG">Samsung</option>
+                  <option value="XIAOMI">Xiaomi</option>
+                  <option value="OPPO">Oppo</option>
+                  <option value="VIVO">Vivo</option>
+                  <option value="HUAWEI">Huawei</option>
+                  <option value="REALME">Realme</option>
+                  <option value="SONY">Sony</option>
+                  <option value="GOOGLE">Google</option>
+                  <option value="ONEPLUS">OnePlus</option>
+                  <option value="MOTOROLA">Motorola</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Tipe / Model <span class="text-red-400">*</span></label>
+                <input type="text" id="ps-tipe" list="ps-tipe-list" placeholder="cth: IPHONE 15 PRO MAX" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" onkeydown="if(event.key==='Enter')loadPenetapanSejenis()">
+                <datalist id="ps-tipe-list"></datalist>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Storage (opsional)</label>
+                <select id="ps-storage" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm">
+                  <option value="">Semua Storage</option>
+                  <option>64GB</option><option>128GB</option><option>256GB</option>
+                  <option>512GB</option><option>1TB</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Kantor BC (opsional)</label>
+                <select id="ps-kantor" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm">
+                  <option value="">Semua Kantor</option>
+                  <option value="010100">Kuala Namu</option>
+                  <option value="050100">KPU Soekarno-Hatta</option>
+                  <option value="040300">KPU Tanjung Priok</option>
+                  <option value="020400">KPU Batam</option>
+                  <option value="010700">Belawan</option>
+                  <option value="070500">Juanda, Surabaya</option>
+                  <option value="080100">Ngurah Rai, Bali</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="loadPenetapanSejenis()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2">
+                <i class="fas fa-search"></i> Cari Penetapan
+              </button>
+              <button onclick="psClear()" class="bg-slate-600 hover:bg-slate-500 text-gray-300 px-4 py-2.5 rounded-lg text-sm">
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <!-- HASIL -->
+          <div id="ps-result"></div>
+        </div>
+        `;
+      }
+
+      async function psOnMerkChange() {
+        const merk = document.getElementById("ps-merk")?.value;
+        const dl = document.getElementById("ps-tipe-list");
+        if (!merk || !dl) return;
+        try {
+          const r = await fetch(`/api/imei-details?merk=${encodeURIComponent(merk)}&limit=200`);
+          const d = await r.json();
+          const types = [...new Set((d.data || []).map(x => x.tipe).filter(Boolean))].sort();
+          dl.innerHTML = types.map(t => `<option value="${t}">`).join("");
+        } catch(e) {}
+      }
+
+      function psClear() {
+        ["ps-merk","ps-tipe","ps-storage","ps-kantor"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        });
+        const res = document.getElementById("ps-result");
+        if (res) res.innerHTML = "";
+      }
+
+      async function loadPenetapanSejenis() {
+        const merk = document.getElementById("ps-merk")?.value?.trim();
+        const tipe = document.getElementById("ps-tipe")?.value?.trim();
+        const storage = document.getElementById("ps-storage")?.value?.trim();
+        const kantor = document.getElementById("ps-kantor")?.value?.trim();
+        const resEl = document.getElementById("ps-result");
+        if (!resEl) return;
+
+        if (!merk || !tipe) {
+          resEl.innerHTML = '<div class="bg-red-900/30 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm"><i class="fas fa-exclamation-triangle mr-2"></i>Merk dan Tipe wajib diisi.</div>';
+          return;
+        }
+
+        resEl.innerHTML = '<div class="flex justify-center py-12"><div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-400"></div></div>';
+
+        try {
+          let url = `/api/imei-details/penetapan-sejenis?merk=${encodeURIComponent(merk)}&tipe=${encodeURIComponent(tipe)}&limit=100`;
+          if (storage) url += `&storage=${encodeURIComponent(storage)}`;
+          if (kantor) url += `&kantor=${encodeURIComponent(kantor)}`;
+          const r = await fetch(url);
+          const d = await r.json();
+
+          if (d.status !== "ok") { resEl.innerHTML = `<div class="text-red-400 p-4">${d.message}</div>`; return; }
+          if (!d.stats.count) {
+            resEl.innerHTML = '<div class="ps-card text-center py-8 text-gray-400"><i class="fas fa-search text-4xl mb-3 block opacity-30"></i>Tidak ditemukan penetapan untuk kombinasi ini.</div>';
+            return;
+          }
+
+          const s = d.stats;
+          const fmtRp = v => "Rp " + Math.round(v).toLocaleString("id-ID");
+          const fmtUsd = v => "$" + (Math.round(v*100)/100).toLocaleString("en-US", {minimumFractionDigits:2});
+          const billingPct = s.count ? Math.round(s.billing_count/s.count*100) : 0;
+
+          let html = `
+          <!-- STATISTIK UTAMA -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <div class="ps-stat-box">
+              <p class="text-2xl font-bold text-blue-400">${s.count.toLocaleString()}</p>
+              <p class="text-xs text-gray-400 mt-1">Total Penetapan</p>
+            </div>
+            <div class="ps-stat-box">
+              <p class="text-2xl font-bold text-green-400">${fmtUsd(s.avg_fob_usd)}</p>
+              <p class="text-xs text-gray-400 mt-1">Rata-rata FOB</p>
+            </div>
+            <div class="ps-stat-box">
+              <p class="text-2xl font-bold text-yellow-400">${fmtUsd(s.median_fob_usd)}</p>
+              <p class="text-xs text-gray-400 mt-1">Median FOB</p>
+            </div>
+            <div class="ps-stat-box">
+              <p class="text-xl font-bold text-purple-400">${fmtUsd(s.min_fob_usd)} – ${fmtUsd(s.max_fob_usd)}</p>
+              <p class="text-xs text-gray-400 mt-1">Range FOB</p>
+            </div>
+          </div>
+
+          <!-- BILLING vs PEMBEBASAN -->
+          <div class="ps-card mb-5">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm text-gray-300 font-semibold">Hasil Penelitian</span>
+              <span class="text-xs text-gray-500">${s.billing_count} Billing · ${s.pembebasan_count} Pembebasan</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+              <div class="h-full bg-red-500 rounded-full" style="width:${billingPct}%"></div>
+            </div>
+            <div class="flex justify-between text-xs mt-1">
+              <span class="text-red-400">${billingPct}% Billing (Kena Pajak)</span>
+              <span class="text-green-400">${100-billingPct}% Pembebasan</span>
+            </div>
+          </div>`;
+
+          // By Storage (jika tidak difilter)
+          if (d.by_storage && d.by_storage.length > 0) {
+            html += `<div class="ps-card mb-5">
+              <h4 class="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2"><i class="fas fa-hdd text-cyan-400"></i> Breakdown per Storage</h4>
+              <div class="overflow-x-auto"><table class="w-full text-sm ps-table">
+                <thead><tr class="border-b border-gray-700 text-xs text-gray-500">
+                  <th class="py-2 text-left">Storage</th>
+                  <th class="py-2 text-right">Jumlah</th>
+                  <th class="py-2 text-right">FOB Min</th>
+                  <th class="py-2 text-right">FOB Rata-rata</th>
+                  <th class="py-2 text-right">FOB Max</th>
+                </tr></thead><tbody>`;
+            d.by_storage.forEach(s2 => {
+              html += `<tr class="border-b border-gray-800/50">
+                <td class="py-2 text-white font-semibold">${s2.storage}</td>
+                <td class="py-2 text-right text-gray-300">${s2.count}</td>
+                <td class="py-2 text-right text-gray-400">${fmtUsd(s2.min_fob)}</td>
+                <td class="py-2 text-right text-green-400 font-bold">${fmtUsd(s2.avg_fob)}</td>
+                <td class="py-2 text-right text-gray-400">${fmtUsd(s2.max_fob)}</td>
+              </tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+          }
+
+          // By Kantor
+          if (d.by_kantor && d.by_kantor.length > 0) {
+            html += `<div class="ps-card mb-5">
+              <h4 class="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2"><i class="fas fa-building text-orange-400"></i> Kantor Paling Aktif</h4>
+              <div class="space-y-2">`;
+            const maxKantor = Math.max(...d.by_kantor.map(k => k.count));
+            d.by_kantor.forEach(k => {
+              const pct = Math.round(k.count / maxKantor * 100);
+              html += `<div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-gray-300">${k.nama}</span>
+                  <span class="text-green-400 font-semibold">${fmtUsd(k.avg_fob)} <span class="text-gray-500 font-normal">(${k.count}x)</span></span>
+                </div>
+                <div class="w-full bg-slate-700 rounded h-1.5">
+                  <div class="h-full bg-blue-500 rounded" style="width:${pct}%"></div>
+                </div>
+              </div>`;
+            });
+            html += `</div></div>`;
+          }
+
+          // Distribusi FOB
+          if (d.distribution && d.distribution.length > 0) {
+            const maxDist = Math.max(...d.distribution.map(x => x.count));
+            html += `<div class="ps-card mb-5">
+              <h4 class="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2"><i class="fas fa-chart-bar text-purple-400"></i> Distribusi Harga FOB</h4>
+              <div class="space-y-1.5">`;
+            d.distribution.forEach(dist => {
+              const pct = Math.round(dist.count / maxDist * 100);
+              html += `<div class="flex items-center gap-2 text-xs">
+                <span class="text-gray-400 w-28 shrink-0">${dist.range}</span>
+                <div class="flex-1 bg-slate-700 rounded h-4 overflow-hidden">
+                  <div class="ps-dist-bar h-full" style="width:${pct}%"></div>
+                </div>
+                <span class="text-gray-300 w-8 text-right">${dist.count}</span>
+              </div>`;
+            });
+            html += `</div></div>`;
+          }
+
+          // Tabel Penetapan Terbaru
+          html += `<div class="ps-card">
+            <h4 class="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+              <i class="fas fa-list text-blue-400"></i> ${d.recent.length} Penetapan Terbaru
+            </h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm ps-table">
+                <thead><tr class="border-b border-gray-700 text-xs text-gray-500">
+                  <th class="py-2 text-left">Tanggal</th>
+                  <th class="py-2 text-left">Storage</th>
+                  <th class="py-2 text-right">FOB (USD)</th>
+                  <th class="py-2 text-center">Hasil</th>
+                  <th class="py-2 text-left">Kantor</th>
+                  <th class="py-2 text-left">No. Dok</th>
+                  <th class="py-2 text-center">Bekas</th>
+                </tr></thead><tbody>`;
+          d.recent.forEach(r => {
+            const tgl = r.tgl_dokumen ? new Date(r.tgl_dokumen).toLocaleDateString("id-ID") : "-";
+            const badgePay = r.cara_pembayaran === "BILLING"
+              ? '<span class="ps-badge-billing">BILLING</span>'
+              : '<span class="ps-badge-bebas">BEBAS</span>';
+            const badgeBekas = r.bekas ? '<span class="ps-badge-bekas">Bekas</span>' : '<span class="text-gray-600 text-xs">Baru</span>';
+            html += `<tr class="border-b border-gray-800/40">
+              <td class="py-2 text-gray-300">${tgl}</td>
+              <td class="py-2 text-gray-300">${r.storage || "-"}</td>
+              <td class="py-2 text-right font-bold text-green-400">$${(r.harga_fob_usd||0).toLocaleString("en-US",{minimumFractionDigits:2})}</td>
+              <td class="py-2 text-center">${badgePay}</td>
+              <td class="py-2 text-gray-400 text-xs">${r.kantor_nama}</td>
+              <td class="py-2 text-gray-500 text-xs font-mono">${r.no_dokumen || "-"}</td>
+              <td class="py-2 text-center">${badgeBekas}</td>
+            </tr>`;
+          });
+          html += `</tbody></table></div></div>`;
+
+          resEl.innerHTML = html;
+        } catch(e) {
+          resEl.innerHTML = `<div class="text-red-400 p-4"><i class="fas fa-exclamation-circle mr-2"></i>Error: ${e.message}</div>`;
+        }
+      }
 
       function getIntegritasContent() {
         return `
