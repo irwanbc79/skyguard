@@ -116,7 +116,8 @@ function sanitizeForScript(s) {
 // ── GET /api/scraper/script - Generate browser scraper script ──
 router.get("/script", async (req, res) => {
   const baseUrl = sanitizeForScript(req.query.api_url || `${req.protocol}://${req.get("host")}`).slice(0, 500);
-  const ceisaUrl = sanitizeForScript(req.query.ceisa_url || "http://ceisa.customs.go.id/cdIMEI.html").slice(0, 500);
+  const ceisaUrl = sanitizeForScript(req.query.ceisa_url || "https://regimei.customs.go.id/cdIMEI.html").slice(0, 500);
+  const sgToken = sanitizeForScript(req.query.sg_token || "").slice(0, 1000);
   const totalPages = Math.min(100000, Math.max(1, parseInt(req.query.pages, 10) || 5330));
   const dateStart = sanitizeForScript(req.query.date_start || "27-12-2025").slice(0, 20);
   const dateEnd = sanitizeForScript(req.query.date_end || "25-02-2026").slice(0, 20);
@@ -126,6 +127,7 @@ router.get("/script", async (req, res) => {
   const script = generateBrowserScript({
     baseUrl,
     ceisaUrl,
+    sgToken,
     totalPages,
     dateStart,
     dateEnd,
@@ -145,6 +147,7 @@ function generateBrowserScript(cfg) {
 // ═══════════════════════════════════════════════════════════
 (async function(){
   var API = '${cfg.baseUrl}/api/scraper';
+  var SG_TOKEN = '${cfg.sgToken}';
   var TOTAL_PAGES = ${cfg.totalPages};
   var DELAY = ${cfg.delay};
   var BATCH_SIZE = ${cfg.batchSize};
@@ -153,13 +156,22 @@ function generateBrowserScript(cfg) {
 
   // ── CEISA URL (configurable — fallback ke auto-detect) ──
   var CEISA_URL = '${cfg.ceisaUrl}';
-  // Auto-detect jika URL tidak valid atau relative
+  // Auto-detect dari URL halaman saat ini jika lebih tepat
   (function(){
     try {
-      // Cari dari Network requests yang sudah ada di halaman
+      // Prioritas 1: URL halaman saat ini mengandung cdIMEI → pakai origin-nya
+      var cur = window.location.href;
+      if(cur.indexOf('cdIMEI')>-1 || cur.indexOf('regimei.customs.go.id')>-1){
+        var base = window.location.origin + window.location.pathname.split('#')[0];
+        if(base.indexOf('cdIMEI')>-1){ CEISA_URL=base; }
+        else { CEISA_URL=window.location.origin+'/cdIMEI.html'; }
+        console.log('[SkyGuard] Auto-detect dari current URL: '+CEISA_URL);
+        return;
+      }
+      // Prioritas 2: network resource history
       var entries = performance.getEntriesByType('resource');
       for(var i=0;i<entries.length;i++){
-        if(entries[i].name && entries[i].name.indexOf('cdIMEI')>-1 && entries[i].initiatorType==='xmlhttprequest'){
+        if(entries[i].name && entries[i].name.indexOf('cdIMEI')>-1){
           var detected = entries[i].name.split('?')[0];
           if(detected !== CEISA_URL){ console.log('[SkyGuard] Auto-detect CEISA URL dari network history: '+detected); CEISA_URL=detected; }
           break;
@@ -332,10 +344,16 @@ function generateBrowserScript(cfg) {
   }
 
   // ── SkyGuard API Calls ──
+  function sgHeaders(){
+    var h={'Content-Type':'application/json'};
+    if(SG_TOKEN) h['Authorization']='Bearer '+SG_TOKEN;
+    return h;
+  }
+
   async function apiPost(path, data){
     var r=await fetch(API+path,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:sgHeaders(),
       body:JSON.stringify(data)
     });
     return r.json();
@@ -344,7 +362,7 @@ function generateBrowserScript(cfg) {
   async function apiPut(path, data){
     var r=await fetch(API+path,{
       method:'PUT',
-      headers:{'Content-Type':'application/json'},
+      headers:sgHeaders(),
       body:JSON.stringify(data)
     });
     return r.json();
