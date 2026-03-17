@@ -70,7 +70,18 @@ function verifyEmailTemplate(name, link) {
       <a href="${link}" class="btn">✓ Verifikasi Email Saya</a>
     </div>
     <div class="alert">⏱ Link verifikasi berlaku selama <strong>24 jam</strong>. Jika Anda tidak mendaftar, abaikan email ini.</div>
-    <p style="font-size:12px;color:#64748b;margin-top:12px">Atau salin link ini ke browser:<br><span style="color:#93c5fd;word-break:break-all">${link}</span></p>
+    <div style="margin-top:20px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);border-radius:10px;padding:14px 16px">
+      <p style="font-size:12px;font-weight:700;color:#67e8f9;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px">
+        ⚠️ Link diblokir keamanan email? Salin URL ini ke browser:
+      </p>
+      <p style="font-size:11px;color:#94a3b8;margin-bottom:8px;line-height:1.6">
+        Microsoft Defender / Safe Links mungkin memindai link di atas. Jika muncul halaman pemindaian,
+        silakan <strong style="color:#e2e8f0">salin URL di bawah</strong> dan tempel langsung di address bar browser Anda.
+      </p>
+      <div style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px 12px;word-break:break-all;font-size:12px;color:#93c5fd;font-family:monospace">
+        ${link}
+      </div>
+    </div>
   `);
 }
 
@@ -78,11 +89,22 @@ function resetPasswordTemplate(name, link) {
   return emailBase(`
     <p>Halo, <strong style="color:#60a5fa">${name}</strong>.</p>
     <p>Kami menerima permintaan reset password untuk akun SkyGuard Intelligence Anda.</p>
-    <div style="text-align:center">
+    <div style="text-align:center;margin:20px 0">
       <a href="${link}" class="btn">🔑 Reset Password Saya</a>
     </div>
     <div class="alert">⏱ Link reset berlaku selama <strong>1 jam</strong>. Jika Anda tidak meminta reset, abaikan dan password Anda aman.</div>
-    <p style="font-size:12px;color:#64748b;margin-top:12px">Atau salin link ini ke browser:<br><span style="color:#93c5fd;word-break:break-all">${link}</span></p>
+    <div style="margin-top:20px;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);border-radius:10px;padding:14px 16px">
+      <p style="font-size:12px;font-weight:700;color:#67e8f9;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px">
+        ⚠️ Link diblokir keamanan email? Salin URL ini ke browser:
+      </p>
+      <p style="font-size:11px;color:#94a3b8;margin-bottom:8px;line-height:1.6">
+        Microsoft Defender / Safe Links mungkin memindai link di atas. Jika muncul halaman pemindaian,
+        silakan <strong style="color:#e2e8f0">salin URL di bawah</strong> dan tempel langsung di address bar browser Anda.
+      </p>
+      <div style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px 12px;word-break:break-all;font-size:12px;color:#93c5fd;font-family:monospace">
+        ${link}
+      </div>
+    </div>
   `);
 }
 
