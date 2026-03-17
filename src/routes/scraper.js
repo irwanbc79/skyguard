@@ -136,9 +136,10 @@ router.get("/script", async (req, res) => {
 
 function generateBrowserScript(cfg) {
   return `// ═══════════════════════════════════════════════════════════
-// SkyGuard Auto Scraper - CEISA IMEI Detail Bridge
+// SkyGuard Auto Scraper v2 - CEISA IMEI Detail Bridge
 // Jalankan di console browser CEISA (cdIMEI.html)
 // Data langsung masuk ke database SkyGuard tanpa download CSV
+// v2: native fetch + DOMParser (tidak perlu jQuery/$)
 // ═══════════════════════════════════════════════════════════
 (async function(){
   var API = '${cfg.baseUrl}/api/scraper';
@@ -148,8 +149,13 @@ function generateBrowserScript(cfg) {
   var DATE_START = '${cfg.dateStart}';
   var DATE_END = '${cfg.dateEnd}';
 
+  // ── Native DOM parser (no jQuery needed) ──
+  var _dp = new DOMParser();
+  function parseHtml(html){ return _dp.parseFromString(html,'text/html'); }
+
   // ── Helpers ──
   function s(t){return (t||'').replace(/&nbsp;/g,' ').replace(/;/g,',').replace(/\\n/g,' ').replace(/\\s+/g,' ').trim();}
+  function qt(el,sel){var e=el?el.querySelector(sel):null;return e?s(e.textContent):'';}
 
   function jsVar(html, name){
     var re=new RegExp("var\\\\s+"+name+"\\\\s*=\\\\s*'([^']*)'");
@@ -157,55 +163,55 @@ function generateBrowserScript(cfg) {
     return m?m[1]:'';
   }
 
-  function getLabel($d, label){
-    var val='';
-    $d.find('td strong').each(function(){
-      if($(this).text().trim()===label){
-        val=$(this).closest('td').next('td').text().trim();
-        return false;
+  function getLabel(doc, label){
+    var strongs=doc.querySelectorAll('td strong');
+    for(var i=0;i<strongs.length;i++){
+      if(strongs[i].textContent.trim()===label){
+        var next=strongs[i].closest('td')?strongs[i].closest('td').nextElementSibling:null;
+        return next?s(next.textContent):'';
       }
-    });
-    return s(val);
+    }
+    return '';
   }
 
   function getIds(html){
+    var doc=parseHtml(html);
+    var rows=doc.querySelectorAll('tr.list_daftarCdImei');
     var ids=[];
-    $('<div>').html(html).find('tr.list_daftarCdImei').each(function(){
-      var id=$(this).find('td.id').text().trim();
-      if(id) ids.push(id);
+    rows.forEach(function(row){
+      var idCell=row.querySelector('td.id');
+      if(idCell){var v=idCell.textContent.trim();if(v)ids.push(v);}
     });
     return ids;
   }
 
-  // ── Parse Detail (script 1 format - 39 columns) ──
+  // ── Parse Detail (39 kolom) ──
   function parseDetail(html, id){
-    var $d=$('<div>').html(html);
+    var doc=parseHtml(html);
     var lines=[];
 
     var cara='';
-    $d.find('h4').each(function(){
-      var t=$(this).text().trim();
-      if(t.indexOf('Cara Pembayaran')>-1){
-        cara=s(t.split(':')[1]||'');
-        return false;
-      }
-    });
+    var h4s=doc.querySelectorAll('h4');
+    for(var hi=0;hi<h4s.length;hi++){
+      var ht=h4s[hi].textContent.trim();
+      if(ht.indexOf('Cara Pembayaran')>-1){cara=s(ht.split(':')[1]||'');break;}
+    }
 
-    var dokRaw=getLabel($d,'No / Tgl Dokumen');
+    var dokRaw=getLabel(doc,'No / Tgl Dokumen');
     var noDok='',tglDok='';
     var dokParts=dokRaw.split(/\\s+\\/\\s+/);
     if(dokParts.length>=2){noDok=s(dokParts[0]);tglDok=s(dokParts[1]);}
     else{noDok=s(dokRaw);}
 
-    var nama=getLabel($d,'Nama Lengkap');
-    var noId=getLabel($d,'Nomor Identitas');
-    var wn=getLabel($d,'Kewarganegaraan');
-    var npwp=getLabel($d,'NPWP / NIK');
-    var flight=getLabel($d,'Nomor Flight Voyage');
-    var wkDatang=getLabel($d,'Waktu Kedatangan');
-    var wkRekam=getLabel($d,'Waktu Rekam Petugas');
+    var nama=getLabel(doc,'Nama Lengkap');
+    var noId=getLabel(doc,'Nomor Identitas');
+    var wn=getLabel(doc,'Kewarganegaraan');
+    var npwp=getLabel(doc,'NPWP / NIK');
+    var flight=getLabel(doc,'Nomor Flight Voyage');
+    var wkDatang=getLabel(doc,'Waktu Kedatangan');
+    var wkRekam=getLabel(doc,'Waktu Rekam Petugas');
 
-    var bilRaw=getLabel($d,'Kode Billing / Tgl Billing');
+    var bilRaw=getLabel(doc,'Kode Billing / Tgl Billing');
     var kdBil='',tglBil='';
     var bilParts=bilRaw.split(/\\s+\\/\\s+/);
     if(bilParts.length>=2){kdBil=s(bilParts[0]);tglBil=s(bilParts[1]);}
@@ -228,8 +234,8 @@ function generateBrowserScript(cfg) {
     var tpn=html.match(/divPpn'\\)\\.html\\('(\\d+)\\s*%/);if(tpn) tarifPpn=tpn[1]+'%';
     var tph=html.match(/divPph'\\)\\.html\\('(\\d+)\\s*%/);if(tph) tarifPph=tph[1]+'%';
 
-    var $rows=$d.find('tr.list_previewdetailimei');
-    if($rows.length===0){
+    var devRows=doc.querySelectorAll('tr.list_previewdetailimei');
+    if(devRows.length===0){
       lines.push({
         'ID':id,'No Dokumen':noDok,'Tgl Dokumen':tglDok,'Nama':nama,'No Identitas':noId,
         'Kebangsaan':wn,'NPWP/NIK':npwp,'Flight Voyage':flight,'Waktu Kedatangan':wkDatang,
@@ -244,26 +250,26 @@ function generateBrowserScript(cfg) {
         'Pungutan PPh':jmlPph,'Total Pungutan':jmlTotalP
       });
     } else {
-      $rows.each(function(){
+      devRows.forEach(function(row){
         lines.push({
           'ID':id,'No Dokumen':noDok,'Tgl Dokumen':tglDok,'Nama':nama,'No Identitas':noId,
           'Kebangsaan':wn,'NPWP/NIK':npwp,'Flight Voyage':flight,'Waktu Kedatangan':wkDatang,
           'Waktu Rekam Petugas':wkRekam,'Cara Pembayaran':cara,'Kode Billing':kdBil,
           'Tgl Billing':tglBil,'NDPBM':ndpbm,'Pembebasan USD':pembebasan,
-          'No':s($(this).find('.urut').text()),
-          'Merk':s($(this).find('.kdMerkHp').text()),
-          'Tipe':s($(this).find('.kdTipeHp').text()),
-          'Storage':s($(this).find('.kdKapasitasHp').text()),
-          'RAM':s($(this).find('.ram').text()),
-          'Warna':s($(this).find('.warna').text()),
-          'IMEI1':s($(this).find('.imei1').text()),
-          'IMEI2':s($(this).find('.imei2').text()),
-          'Harga FOB':s($(this).find('.hargaBrg').text()),
-          'Mata Uang':s($(this).find('.kdKurs').text()),
-          'Harga FOB USD':s($(this).find('.hargaBrgUsd').text()),
-          'HS Code':s($(this).find('.hsCode').text()),
-          'Bekas':s($(this).find('.flBekas').text()),
-          'CIF USD':s($(this).find('.hargaPenetapan').text()),
+          'No':qt(row,'.urut'),
+          'Merk':qt(row,'.kdMerkHp'),
+          'Tipe':qt(row,'.kdTipeHp'),
+          'Storage':qt(row,'.kdKapasitasHp'),
+          'RAM':qt(row,'.ram'),
+          'Warna':qt(row,'.warna'),
+          'IMEI1':qt(row,'.imei1'),
+          'IMEI2':qt(row,'.imei2'),
+          'Harga FOB':qt(row,'.hargaBrg'),
+          'Mata Uang':qt(row,'.kdKurs'),
+          'Harga FOB USD':qt(row,'.hargaBrgUsd'),
+          'HS Code':qt(row,'.hsCode'),
+          'Bekas':qt(row,'.flBekas'),
+          'CIF USD':qt(row,'.hargaPenetapan'),
           'Total CIF USD':cifUsdTotal,'Total CIF Pembebasan USD':npUsd,
           'Nilai Pabean Rp':npRupiah,'Tarif BM':tarifBm,'Pungutan BM':jmlBm,
           'Tarif PPN':tarifPpn,'Pungutan PPN':jmlPpn,'Tarif PPh':tarifPph,
@@ -274,24 +280,29 @@ function generateBrowserScript(cfg) {
     return lines;
   }
 
-  // ── CEISA API Calls ──
+  // ── CEISA API Calls (native fetch — tidak butuh jQuery) ──
   function fetchBrowse(p){
-    return new Promise(function(ok,fail){
-      $.post('cdIMEI.html',{
-        content:'listNew',txtPage:p,txtPar:'WK_REKAM_PETUGAS',txtOrder:'DESC',
-        txtNama:'',txtJenisIdentitas:'',txtNoIdentitas:'',txtKebangsaan:'',
-        txtNPWP:'',txtFlightVoyageNum:'',
-        txtTglDatangAwal:DATE_START,txtTglDatangAkhir:DATE_END,
-        txtNipPetugas:'',txtNoCd:'',txtQrCode:'',
-        txtTglCdAwal:'',txtTglCdAkhir:'',txtStatusPembayaran:'',txtKdKantorPetugas:''
-      }).done(ok).fail(fail);
+    var params=new URLSearchParams({
+      content:'listNew',txtPage:String(p),txtPar:'WK_REKAM_PETUGAS',txtOrder:'DESC',
+      txtNama:'',txtJenisIdentitas:'',txtNoIdentitas:'',txtKebangsaan:'',
+      txtNPWP:'',txtFlightVoyageNum:'',
+      txtTglDatangAwal:DATE_START,txtTglDatangAkhir:DATE_END,
+      txtNipPetugas:'',txtNoCd:'',txtQrCode:'',
+      txtTglCdAwal:'',txtTglCdAkhir:'',txtStatusPembayaran:'',txtKdKantorPetugas:''
     });
+    return fetch('cdIMEI.html',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      credentials:'same-origin',
+      body:params.toString()
+    }).then(function(r){return r.text();});
   }
 
   function fetchDetail(id){
-    return new Promise(function(ok,fail){
-      $.get('cdIMEI.html',{content:'detailNew',txtIdPelaporImei:id}).done(ok).fail(fail);
-    });
+    var params=new URLSearchParams({content:'detailNew',txtIdPelaporImei:String(id)});
+    return fetch('cdIMEI.html?'+params.toString(),{
+      credentials:'same-origin'
+    }).then(function(r){return r.text();});
   }
 
   // ── SkyGuard API Calls ──
