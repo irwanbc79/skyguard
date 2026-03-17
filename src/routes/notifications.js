@@ -30,6 +30,16 @@ router.get("/unread-count", async (req, res) => {
   }
 });
 
+// PUT /api/notifications/read-all - Mark all as read (HARUS sebelum /:id/read)
+router.put("/read-all", async (req, res) => {
+  try {
+    const result = await markAllRead();
+    res.json({ status: "ok", ...result });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 // PUT /api/notifications/:id/read - Mark single as read
 router.put("/:id/read", async (req, res) => {
   try {
@@ -37,16 +47,6 @@ router.put("/:id/read", async (req, res) => {
     if (!notif)
       return res.status(404).json({ status: "error", message: "Not found" });
     res.json({ status: "ok", notification: notif });
-  } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
-  }
-});
-
-// PUT /api/notifications/read-all - Mark all as read
-router.put("/read-all", async (req, res) => {
-  try {
-    const result = await markAllRead();
-    res.json({ status: "ok", ...result });
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
   }

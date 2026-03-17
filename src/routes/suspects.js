@@ -57,7 +57,7 @@ router.get("/:id", validateObjectId("id"), async (req, res) => {
 router.post("/", photoFields, async (req, res) => {
   try {
     const suspect = await suspectService.createSuspect(req.body, req.files);
-    res.json({
+    res.status(201).json({
       status: "ok",
       data: suspect,
       message: "Suspect berhasil ditambahkan ke watchlist",

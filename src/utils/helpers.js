@@ -49,11 +49,57 @@ async function extractPdfText(buffer) {
   }
 }
 
+/**
+ * Validasi format nomor paspor Indonesia & internasional umum.
+ * Mendukung: paspor RI (A-Z + 7 digit), paspor umum internasional.
+ * @param {string} str
+ * @returns {boolean}
+ */
+function isValidPassportNumber(str) {
+  if (!str || typeof str !== "string") return false;
+  const s = str.trim();
+  return s.length >= 6 && s.length <= 20 && /^[A-Z0-9]+$/i.test(s);
+}
+
+/**
+ * Bersihkan input string dari karakter kontrol dan whitespace berlebih.
+ * @param {string} str
+ * @returns {string}
+ */
+function sanitizeInput(str) {
+  if (!str || typeof str !== "string") return "";
+  // hapus karakter kontrol, normalize whitespace
+  return str.replace(/[\x00-\x1F\x7F]/g, "").trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Buat date range filter MongoDB dari query string.
+ * @param {string} dateFrom - YYYY-MM-DD
+ * @param {string} dateTo - YYYY-MM-DD
+ * @returns {object|null} MongoDB date filter atau null jika tidak ada input
+ */
+function buildDateRangeFilter(dateFrom, dateTo) {
+  if (!dateFrom && !dateTo) return null;
+  const filter = {};
+  if (dateFrom) {
+    const d = new Date(dateFrom);
+    if (!isNaN(d)) filter.$gte = d;
+  }
+  if (dateTo) {
+    const d = new Date(dateTo + "T23:59:59.999Z");
+    if (!isNaN(d)) filter.$lte = d;
+  }
+  return Object.keys(filter).length > 0 ? filter : null;
+}
+
 module.exports = {
   escapeRegex,
   sanitizeHtml,
   sanitizeCsv,
+  sanitizeInput,
   parsePagination,
   extractPdfText,
   isValidObjectId,
+  isValidPassportNumber,
+  buildDateRangeFilter,
 };

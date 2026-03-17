@@ -249,11 +249,19 @@ async function scanCargoForSuspect(suspect) {
   }
 }
 
+// Lock untuk mencegah concurrent scan
+let _scanLock = false;
+
 /**
  * Full cargo scan: check all active suspects against cargo database
  * Run this periodically or on-demand
  */
 async function scanAllCargoForSuspects() {
+  if (_scanLock) {
+    console.log("[NOTIF] Cargo scan already running, skipping duplicate trigger.");
+    return { scanned: 0, found: 0, skipped: true };
+  }
+  _scanLock = true;
   try {
     const activeSuspects = await Suspect.find({
       status: { $in: ["ACTIVE", "MONITORING"] },
@@ -293,6 +301,8 @@ async function scanAllCargoForSuspects() {
   } catch (err) {
     console.error("[NOTIF] Full cargo scan error:", err.message);
     return { scanned: 0, found: 0 };
+  } finally {
+    _scanLock = false;
   }
 }
 

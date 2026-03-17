@@ -7,6 +7,8 @@ const path = require("path");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 
+const { auditLogger } = require("./middleware/audit");
+
 const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -35,21 +37,32 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors(corsOptions));
 app.use(compression()); // Compress responses (Gzip/Brotli)
 
-// Rate Limiting (Global)
+// Rate Limiting — global (ringan)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Limit each IP to 500 requests per `window` (here, per 15 minutes)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  message: {
-    status: "error",
-    message: "Too many requests, please try again later.",
-  },
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: "error", message: "Too many requests, please try again later." },
 });
+
+// Rate Limiting — ketat untuk operasi berat (QSVM, analytics, parsing)
+const heavyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: "error", message: "Too many heavy requests, please wait." },
+});
+
 app.use("/api/", limiter);
+app.use("/api/qsvm/scan", heavyLimiter);
+app.use("/api/imei-registrations/analytics", heavyLimiter);
+app.use("/api/manifests/parse", heavyLimiter);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(auditLogger);
 app.use(express.static(path.join(__dirname, "../public")));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
@@ -116,15 +129,52 @@ app.get("/api/health", (req, res) => {
     status: isDbUp ? "ok" : "degraded",
     db: isDbUp ? "connected" : "disconnected",
     uptime_sec: Math.floor(process.uptime()),
+    memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
     version: pkg.version || "1.0.0",
     app: pkg.name,
     timestamp: new Date(),
   });
 });
 
-// Global error handler
+// Endpoint lookup kode kantor — berguna untuk frontend autocomplete
+app.get("/api/kantor-list", (req, res) => {
+  const { KANTOR_MAP } = require("./utils/constants");
+  const q = (req.query.q || "").toLowerCase().trim();
+  const list = Object.entries(KANTOR_MAP)
+    .map(([kode, nama]) => ({ kode, nama }))
+    .filter((k) => !q || k.kode.includes(q) || k.nama.toLowerCase().includes(q));
+  res.json({ status: "ok", data: list, total: list.length });
+});
+
+// Global error handler — tangani jenis error umum secara spesifik
 app.use((err, req, res, next) => {
-  console.error("[ERROR]", err.message);
+  // Multer: file upload error
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ status: "error", message: "File terlalu besar (maks 10MB)" });
+  }
+  if (err.message && err.message.includes("Only image files")) {
+    return res.status(415).json({ status: "error", message: err.message });
+  }
+  // Mongoose validation error
+  if (err.name === "ValidationError") {
+    const fields = Object.keys(err.errors).join(", ");
+    return res.status(422).json({ status: "error", message: `Validasi gagal: ${fields}`, errors: err.errors });
+  }
+  // Mongoose CastError (ObjectId tidak valid)
+  if (err.name === "CastError") {
+    return res.status(400).json({ status: "error", message: "Format ID tidak valid" });
+  }
+  // MongoDB duplicate key
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern || {}).join(", ");
+    return res.status(409).json({ status: "error", message: `Data duplikat pada field: ${field}` });
+  }
+  // CORS
+  if (err.message === "CORS blocked") {
+    return res.status(403).json({ status: "error", message: "Origin tidak diizinkan" });
+  }
+
+  console.error("[ERROR]", err.message, err.stack);
   res.status(500).json({ status: "error", message: "Internal server error" });
 });
 

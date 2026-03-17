@@ -5,19 +5,7 @@ const Manifest = require("../models/Manifest");
 const Passenger = require("../models/Passenger");
 const ImeiRegistration = require("../models/ImeiRegistration");
 const ImeiDetail = require("../models/ImeiDetail");
-
-// Kantor mapping
-const KANTOR_MAP = {
-  "040300": "KPU Tanjung Priok",
-  "020400": "KPU Batam",
-  "050100": "KPU Soekarno-Hatta",
-  "010100": "Kuala Namu",
-  "010700": "Belawan",
-  "010800": "Medan",
-};
-function getKantorName(code) {
-  return KANTOR_MAP[code] || code || "-";
-}
+const { getKantorName } = require("../utils/constants");
 
 // ============================================================
 // PENCARIAN TERPADU — Unified Passport-Centric Search

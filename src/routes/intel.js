@@ -13,77 +13,10 @@ const Passenger = require("../models/Passenger");
 const ImeiRegistration = require("../models/ImeiRegistration");
 const ImeiDetail = require("../models/ImeiDetail");
 const Suspect = require("../models/Suspect");
+const { getKantorName, AIRPORTS } = require("../utils/constants");
 
-// ─── Airport coordinates for flight map (IATA → [lat, lng]) ───
-const AIRPORTS = {
-  KNO: { lat: 3.6422, lng: 98.8853, name: "Kualanamu, Medan" },
-  KUL: { lat: 2.7456, lng: 101.7099, name: "KLIA, Kuala Lumpur" },
-  SIN: { lat: 1.3644, lng: 103.9915, name: "Changi, Singapore" },
-  CGK: { lat: -6.1256, lng: 106.6558, name: "Soekarno-Hatta, Jakarta" },
-  SUB: { lat: -7.3798, lng: 112.7868, name: "Juanda, Surabaya" },
-  DPS: { lat: -8.7482, lng: 115.1672, name: "Ngurah Rai, Bali" },
-  PEN: { lat: 5.2972, lng: 100.2769, name: "Penang Intl" },
-  JHB: { lat: 1.6411, lng: 103.6696, name: "Senai, Johor Bahru" },
-  BKK: { lat: 13.6811, lng: 100.7472, name: "Suvarnabhumi, Bangkok" },
-  HKG: { lat: 22.308, lng: 113.9185, name: "Hong Kong Intl" },
-  ICN: { lat: 37.4602, lng: 126.4407, name: "Incheon, Seoul" },
-  NRT: { lat: 35.7647, lng: 140.3864, name: "Narita, Tokyo" },
-  HND: { lat: 35.5494, lng: 139.7798, name: "Haneda, Tokyo" },
-  PVG: { lat: 31.1434, lng: 121.8052, name: "Pudong, Shanghai" },
-  CAN: { lat: 23.3924, lng: 113.2988, name: "Baiyun, Guangzhou" },
-  SZX: { lat: 22.6393, lng: 113.8107, name: "Shenzhen Intl" },
-  PEK: { lat: 40.0799, lng: 116.6031, name: "Capital, Beijing" },
-  SYD: { lat: -33.9461, lng: 151.1772, name: "Sydney Intl" },
-  MEL: { lat: -37.6733, lng: 144.8431, name: "Melbourne Intl" },
-  JED: { lat: 21.6796, lng: 39.1564, name: "Jeddah Intl" },
-  MED: { lat: 24.5534, lng: 39.7051, name: "Madinah Intl" },
-  DOH: { lat: 25.2731, lng: 51.6081, name: "Hamad, Doha" },
-  DXB: { lat: 25.2528, lng: 55.3644, name: "Dubai Intl" },
-  AUH: { lat: 24.433, lng: 54.6511, name: "Abu Dhabi Intl" },
-  DEL: { lat: 28.5562, lng: 77.1, name: "Indira Gandhi, Delhi" },
-  BOM: { lat: 19.0887, lng: 72.8679, name: "Mumbai Intl" },
-  CMB: { lat: 7.1808, lng: 79.8841, name: "Colombo Intl" },
-  DAC: { lat: 23.8433, lng: 90.3978, name: "Dhaka Intl" },
-  RGN: { lat: 16.9073, lng: 96.1332, name: "Yangon Intl" },
-  SGN: { lat: 10.8188, lng: 106.6519, name: "Tan Son Nhat, HCMC" },
-  HAN: { lat: 21.2212, lng: 105.807, name: "Noi Bai, Hanoi" },
-  MNL: { lat: 14.5086, lng: 121.0198, name: "NAIA, Manila" },
-  TPE: { lat: 25.0797, lng: 121.2342, name: "Taoyuan, Taipei" },
-  BTJ: { lat: 5.5239, lng: 95.4206, name: "Sultan Iskandar Muda, Aceh" },
-  PKU: { lat: 0.4606, lng: 101.4455, name: "Sultan Syarif Kasim, Pekanbaru" },
-  PDG: { lat: -0.787, lng: 100.2808, name: "Minangkabau, Padang" },
-  PLM: { lat: -2.8978, lng: 104.6997, name: "Sultan M. Badaruddin, Palembang" },
-  BTH: { lat: 1.1212, lng: 104.1191, name: "Hang Nadim, Batam" },
-  BPN: {
-    lat: -1.2683,
-    lng: 116.8946,
-    name: "Sultan Aji M. Sulaiman, Balikpapan",
-  },
-  UPG: { lat: -5.0613, lng: 119.5538, name: "Sultan Hasanuddin, Makassar" },
-  MDC: { lat: 1.5493, lng: 124.9262, name: "Sam Ratulangi, Manado" },
-  SOC: { lat: -7.516, lng: 110.7565, name: "Adisumarmo, Solo" },
-  JOG: { lat: -7.7882, lng: 110.4317, name: "YIA, Yogyakarta" },
-  SRG: { lat: -6.9714, lng: 110.3741, name: "Ahmad Yani, Semarang" },
-  LOP: { lat: -8.7573, lng: 116.2769, name: "Lombok Intl" },
-  TKG: { lat: -5.2405, lng: 105.1759, name: "Radin Inten, Lampung" },
-  BDO: { lat: -6.9006, lng: 107.5764, name: "Husein Sastranegara, Bandung" },
-  AMQ: { lat: -3.7103, lng: 128.0892, name: "Pattimura, Ambon" },
-  DJJ: { lat: -2.5769, lng: 140.5163, name: "Sentani, Jayapura" },
-  AMS: { lat: 52.3086, lng: 4.7639, name: "Schiphol, Amsterdam" },
-  IST: { lat: 41.2753, lng: 28.7519, name: "Istanbul Intl" },
-  LHR: { lat: 51.47, lng: -0.4543, name: "Heathrow, London" },
-};
-
-const KANTOR_MAP = {
-  "040300": "KPU Tanjung Priok",
-  "020400": "KPU Batam",
-  "050100": "KPU Soekarno-Hatta",
-  "010100": "Kuala Namu",
-  "010700": "Belawan",
-  "010800": "Medan",
-};
 function kantorName(c) {
-  return KANTOR_MAP[c] || c || "-";
+  return getKantorName(c);
 }
 
 // ─── Utility: Detect search type ───
