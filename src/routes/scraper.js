@@ -119,6 +119,7 @@ router.get("/script", async (req, res) => {
   const ceisaUrl = sanitizeForScript(req.query.ceisa_url || "https://regimei.customs.go.id/cdIMEI.html").slice(0, 500);
   const sgToken = sanitizeForScript(req.query.sg_token || "").slice(0, 1000);
   const totalPages = Math.min(100000, Math.max(1, parseInt(req.query.pages, 10) || 5330));
+  const startPage = Math.min(totalPages, Math.max(1, parseInt(req.query.start_page, 10) || 1));
   const dateStart = sanitizeForScript(req.query.date_start || "27-12-2025").slice(0, 20);
   const dateEnd = sanitizeForScript(req.query.date_end || "25-02-2026").slice(0, 20);
   const delay = Math.min(10000, Math.max(100, parseInt(req.query.delay, 10) || 250));
@@ -129,6 +130,7 @@ router.get("/script", async (req, res) => {
     ceisaUrl,
     sgToken,
     totalPages,
+    startPage,
     dateStart,
     dateEnd,
     delay,
@@ -149,6 +151,7 @@ function generateBrowserScript(cfg) {
   var API = '${cfg.baseUrl}/api/scraper';
   var SG_TOKEN = '${cfg.sgToken}';
   var TOTAL_PAGES = ${cfg.totalPages};
+  var START_PAGE = ${cfg.startPage};
   var DELAY = ${cfg.delay};
   var BATCH_SIZE = ${cfg.batchSize};
   var DATE_START = '${cfg.dateStart}';
@@ -433,7 +436,9 @@ function generateBrowserScript(cfg) {
   var buffer=[], count=0, newTotal=0, dupTotal=0, errTotal=0;
   var startTime=Date.now();
 
-  for(var p=1;p<=TOTAL_PAGES;p++){
+  if(START_PAGE>1) console.log('[SkyGuard] Resume dari halaman '+START_PAGE+' (skip 1-'+(START_PAGE-1)+')');
+
+  for(var p=START_PAGE;p<=TOTAL_PAGES;p++){
     if(cancelled){
       await apiPut('/session/'+SESSION,{status:'cancelled',elapsed_seconds:Math.round((Date.now()-startTime)/1000)});
       setStatus('CANCELLED at page '+p);
