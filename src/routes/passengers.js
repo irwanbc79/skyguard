@@ -228,6 +228,97 @@ router.get("/travel-history/search", async (req, res) => {
   }
 });
 
+// GET /api/passengers/pnr/:pnr — PNR affiliation intelligence
+// Returns ALL passengers sharing the same booking code + cross-flight history
+router.get("/pnr/:pnr", async (req, res) => {
+  try {
+    const pnr = req.params.pnr.trim().toUpperCase();
+    if (pnr.length < 4) {
+      return res.status(400).json({ status: "error", message: "PNR minimal 4 karakter" });
+    }
+
+    // All passengers with this PNR across all flights
+    const members = await ManifestPassenger.find({ pnr })
+      .sort({ flight_date: -1 })
+      .lean();
+
+    if (!members.length) {
+      return res.json({ status: "ok", pnr, total: 0, passengers: [], flights: [] });
+    }
+
+    // Unique passengers by name (travel companions / family)
+    const byName = {};
+    members.forEach((m) => {
+      const key = (m.name || "").toUpperCase();
+      if (!byName[key]) {
+        byName[key] = { name: m.name, passport_number: m.passport_number, nationality: m.nationality, gender: m.gender, pnr_flights: [] };
+      }
+      byName[key].pnr_flights.push({
+        flight_number: m.flight_number,
+        flight_date: m.flight_date,
+        seat_no: m.seat_no,
+        status: m.status,
+        destination_code: m.destination_code,
+      });
+    });
+
+    // For each unique passenger, also look up their other PNRs (full travel history)
+    const passengers = await Promise.all(
+      Object.values(byName).map(async (p) => {
+        const allFlights = await ManifestPassenger.find({
+          name: { $regex: "^" + (p.name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", $options: "i" },
+        })
+          .sort({ flight_date: -1 })
+          .limit(30)
+          .lean();
+
+        const ceisaCount = p.passport_number
+          ? await Passenger.countDocuments({ paspor: p.passport_number.toUpperCase() })
+          : 0;
+
+        const otherPnrs = [...new Set(allFlights.map((f) => f.pnr).filter((x) => x && x !== pnr))];
+        const allFlightNos = [...new Set(allFlights.map((f) => f.flight_number).filter(Boolean))];
+
+        let riskLevel = "NORMAL";
+        if (ceisaCount >= 5) riskLevel = "HIGH";
+        else if (ceisaCount >= 2) riskLevel = "MEDIUM";
+
+        return {
+          ...p,
+          total_flights: allFlights.length,
+          other_pnrs: otherPnrs.slice(0, 10),
+          all_flight_numbers: allFlightNos,
+          ceisa_records: ceisaCount,
+          risk_level: riskLevel,
+          first_seen: allFlights.length ? allFlights[allFlights.length - 1].flight_date : null,
+          last_seen: allFlights.length ? allFlights[0].flight_date : null,
+        };
+      }),
+    );
+
+    // Flights this PNR appears on
+    const flights = [
+      ...new Map(
+        members.map((m) => [
+          m.flight_number + (m.flight_date || ""),
+          { flight_number: m.flight_number, flight_date: m.flight_date, destination_code: m.destination_code },
+        ]),
+      ).values(),
+    ].sort((a, b) => new Date(b.flight_date) - new Date(a.flight_date));
+
+    res.json({
+      status: "ok",
+      pnr,
+      total: passengers.length,
+      flights,
+      passengers,
+    });
+  } catch (err) {
+    console.error("[PNR AFFILIATION]", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 // GET /api/passengers/travel-history/:identifier — Full travel dossier
 router.get("/travel-history/:identifier", async (req, res) => {
   try {

@@ -112,6 +112,66 @@ async function createManifestFromFile({
 
   await manifest.save();
 
+  // === AUTO-SYNC: Write passengers to manifest_passengers immediately ===
+  if (manifest.status === "parsed") {
+    try {
+      const ManifestPassenger = require("../models/ManifestPassenger");
+      const p = manifest.parsed_fields || {};
+      const hasFlatPax = (p.passengers || []).length > 0;
+      const hasSegPax = (p.segments || []).some(
+        (s) => (s.passengers || []).length > 0 || (s.no_shows || []).length > 0,
+      );
+      if (hasFlatPax || hasSegPax) {
+        const buildDoc = (px, defaultStatus, segIdx) => ({
+          manifest_id: manifest._id,
+          flight_number: manifest.flight_number,
+          flight_date: manifest.flight_date,
+          segment_index: segIdx,
+          status: px.status || defaultStatus,
+          name: px.name,
+          level: px.level || null,
+          pnr: px.pnr || null,
+          fare_class: px.fare_class || null,
+          seq_no: px.seq_no || null,
+          travel_date: px.travel_date || null,
+          seat_no: px.seat_no || null,
+          destination_code: px.destination_code || null,
+          flight_no: px.flight_no || null,
+          raw_line: px.raw_line || null,
+          passport_number: px.passport_number || null,
+          nationality: px.nationality || null,
+          gender: px.gender || null,
+          date_of_birth: px.date_of_birth || null,
+          passport_expiry: px.passport_expiry || null,
+          doc_type: px.doc_type || null,
+          bag_weight: px.bag_weight || null,
+          ticket_number: px.ticket_number || null,
+          pax_type: px.pax_type || null,
+        });
+        const docs = [];
+        if (hasFlatPax) {
+          (p.passengers || []).forEach((px) => docs.push(buildDoc(px, "checked_in", 0)));
+          (p.no_shows || []).forEach((px) => docs.push(buildDoc(px, "no_show", 0)));
+        }
+        if (hasSegPax) {
+          (p.segments || []).forEach((seg, idx) => {
+            (seg.passengers || []).forEach((px) => docs.push(buildDoc(px, "checked_in", idx)));
+            (seg.no_shows || []).forEach((px) => docs.push(buildDoc(px, "no_show", idx)));
+          });
+        }
+        if (docs.length) {
+          await ManifestPassenger.deleteMany({ manifest_id: manifest._id });
+          await ManifestPassenger.insertMany(docs);
+          manifest.status = "synced";
+          await manifest.save();
+          console.log(`[Manifest Ingest] Auto-synced ${docs.length} pax: ${manifest.filename}`);
+        }
+      }
+    } catch (e) {
+      console.error("[Manifest Ingest] Auto-sync error:", e.message);
+    }
+  }
+
   // === AUTO-NOTIFY: New manifest received ===
   try {
     await notifyManifestReceived(manifest);

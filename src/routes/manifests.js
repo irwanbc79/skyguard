@@ -358,7 +358,11 @@ router.post("/bulk-sync", requireAuth, async (req, res) => {
   try {
     const manifests = await Manifest.find({
       status: "parsed",
-      "parsed_fields.passengers.0": { $exists: true },
+      $or: [
+        { "parsed_fields.passengers.0": { $exists: true } },
+        { "parsed_fields.segments.0.passengers.0": { $exists: true } },
+        { "parsed_fields.segments.0.no_shows.0": { $exists: true } },
+      ],
     }).lean();
 
     let totalSynced = 0;
