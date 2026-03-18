@@ -140,7 +140,14 @@ router.get("/analytics/command-center", async (req, res) => {
         { $limit: 10 },
       ]),
       Manifest.aggregate([
-        { $match: { carrier: { $nin: [null, "", undefined] } } },
+        {
+          $match: {
+            carrier: {
+              $nin: [null, "", undefined],
+              $not: /weight|kilograms|kg|lbs|pounds|type|unit/i,
+            },
+          },
+        },
         { $group: { _id: "$carrier", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 },
