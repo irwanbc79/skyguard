@@ -22883,66 +22883,146 @@
 
       // ==================== ADMIN PANEL ====================
       let _adminUsersCache = null;
+      let _adminOnlineCache = [];
 
       function getAdminPanelHTML() {
-        const isSuperAdmin = (window._sgUser || {}).role === "superadmin";
         return `
-<div class="mb-6">
-  <div class="flex items-center justify-between flex-wrap gap-3">
+<div class="mb-4">
+  <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
     <div>
       <h2 class="text-2xl font-bold text-white flex items-center gap-3">
         <i class="fas fa-users-cog text-yellow-400"></i> Manajemen Pengguna
       </h2>
-      <p class="text-gray-400 text-sm mt-1">Kelola akun, role, dan status akses petugas SkyGuard</p>
+      <p class="text-gray-400 text-sm mt-1">Kelola akun, role, dan audit akses petugas SkyGuard</p>
     </div>
-    <div id="admin-stats-row" class="flex gap-3 flex-wrap"></div>
+    <div id="admin-stats-row" class="flex gap-2 flex-wrap"></div>
+  </div>
+  <!-- TABS -->
+  <div class="flex gap-1 border-b border-white/10 mb-4">
+    <button onclick="adminSwitchTab('users')" id="admin-tab-users"
+      class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-500 text-blue-400 transition">
+      <i class="fas fa-users mr-1"></i> Pengguna
+    </button>
+    <button onclick="adminSwitchTab('online')" id="admin-tab-online"
+      class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition">
+      <span class="relative inline-flex mr-1"><span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500 mt-0.5"></span></span>
+      Siapa Online <span id="admin-online-badge" class="ml-1 px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs"></span>
+    </button>
+    <button onclick="adminSwitchTab('log')" id="admin-tab-log"
+      class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition">
+      <i class="fas fa-list-alt mr-1"></i> Log Aktivitas
+    </button>
   </div>
 </div>
 
-<!-- FILTERS -->
-<div class="glass-card rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
-  <div class="flex-1 min-w-[160px]">
-    <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Cari</label>
-    <input type="text" id="admin-search-q" placeholder="Nama / Email / NIP..." onkeydown="if(event.key==='Enter')adminSearch()"
-      class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500/50">
+<!-- TAB: PENGGUNA -->
+<div id="admin-panel-users">
+  <div class="glass-card rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+    <div class="flex-1 min-w-[160px]">
+      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Cari</label>
+      <input type="text" id="admin-search-q" placeholder="Nama / Email / NIP..." onkeydown="if(event.key==='Enter')adminSearch()"
+        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500/50">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Role</label>
+      <select id="admin-filter-role" onchange="adminSearch()"
+        class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+        <option value="">Semua</option>
+        <option value="petugas">Petugas</option>
+        <option value="admin">Admin</option>
+        <option value="superadmin">Superadmin</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Status</label>
+      <select id="admin-filter-status" onchange="adminSearch()"
+        class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+        <option value="">Semua</option>
+        <option value="active">Aktif</option>
+        <option value="inactive">Nonaktif</option>
+        <option value="unverified">Belum Verifikasi</option>
+      </select>
+    </div>
+    <button onclick="adminSearch()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition">
+      <i class="fas fa-search mr-1"></i> Cari
+    </button>
+    <button onclick="adminSearch(true)" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm transition">
+      <i class="fas fa-sync-alt mr-1"></i> Refresh
+    </button>
   </div>
-  <div>
-    <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Role</label>
-    <select id="admin-filter-role" onchange="adminSearch()"
-      class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
-      <option value="">Semua</option>
-      <option value="petugas">Petugas</option>
-      <option value="admin">Admin</option>
-      <option value="superadmin">Superadmin</option>
-    </select>
+  <div class="glass-card rounded-xl overflow-hidden">
+    <div id="admin-users-table">
+      <div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+    </div>
   </div>
-  <div>
-    <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Status</label>
-    <select id="admin-filter-status" onchange="adminSearch()"
-      class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
-      <option value="">Semua</option>
-      <option value="active">Aktif</option>
-      <option value="inactive">Nonaktif</option>
-      <option value="unverified">Belum Verifikasi</option>
-    </select>
-  </div>
-  <button onclick="adminSearch()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition">
-    <i class="fas fa-search mr-1"></i> Cari
-  </button>
-  <button onclick="adminSearch(true)" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm transition">
-    <i class="fas fa-sync-alt mr-1"></i> Refresh
-  </button>
 </div>
 
-<!-- TABLE -->
-<div class="glass-card rounded-xl overflow-hidden">
-  <div id="admin-users-table">
-    <div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+<!-- TAB: SIAPA ONLINE -->
+<div id="admin-panel-online" style="display:none">
+  <div class="glass-card rounded-xl overflow-hidden">
+    <div class="p-4 border-b border-white/10 flex items-center justify-between">
+      <div>
+        <span class="text-sm font-semibold text-white">Pengguna Aktif (30 menit terakhir)</span>
+        <p class="text-xs text-gray-400 mt-0.5">Diperbarui setiap kali halaman di-refresh</p>
+      </div>
+      <button onclick="loadOnlineUsers()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs transition">
+        <i class="fas fa-sync-alt mr-1"></i> Refresh
+      </button>
+    </div>
+    <div id="admin-online-table">
+      <div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+    </div>
   </div>
+</div>
+
+<!-- TAB: LOG AKTIVITAS -->
+<div id="admin-panel-log" style="display:none">
+  <div class="glass-card rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+    <div class="flex-1 min-w-[140px]">
+      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Cari</label>
+      <input type="text" id="log-search-q" placeholder="Nama / Email / IP / Detail..."
+        onkeydown="if(event.key==='Enter')loadActivityLog()"
+        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Aksi</label>
+      <select id="log-filter-action" class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+        <option value="">Semua</option>
+        <option value="login">Login</option>
+        <option value="login_failed">Login Gagal</option>
+        <option value="logout">Logout</option>
+        <option value="role_changed">Ubah Role</option>
+        <option value="user_toggled">Toggle Akun</option>
+        <option value="user_deleted">Hapus Akun</option>
+        <option value="profile_update">Update Profil</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Status</label>
+      <select id="log-filter-status" class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+        <option value="">Semua</option>
+        <option value="success">Berhasil</option>
+        <option value="failed">Gagal</option>
+        <option value="warning">Peringatan</option>
+      </select>
+    </div>
+    <button onclick="loadActivityLog()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition">
+      <i class="fas fa-search mr-1"></i> Cari
+    </button>
+    <button onclick="loadActivityLog(1)" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm transition">
+      <i class="fas fa-sync-alt mr-1"></i> Refresh
+    </button>
+  </div>
+  <div class="glass-card rounded-xl overflow-hidden">
+    <div id="admin-log-table">
+      <div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+    </div>
+  </div>
+  <div id="admin-log-pagination" class="mt-3 flex justify-center gap-2"></div>
 </div>
 
 <!-- MODAL: Edit User -->
-<div id="admin-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center">
+<div id="admin-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div class="glass-card-solid rounded-2xl p-6 w-full max-w-md mx-4 border border-white/15" style="max-height:90vh;overflow-y:auto">
     <div class="flex items-center justify-between mb-5">
       <h3 class="text-lg font-bold text-white"><i class="fas fa-user-edit text-yellow-400 mr-2"></i> Edit Pengguna</h3>
@@ -22953,32 +23033,54 @@
 </div>`;
       }
 
+      function adminSwitchTab(tab) {
+        ["users","online","log"].forEach(t => {
+          const panel = document.getElementById("admin-panel-"+t);
+          const btn = document.getElementById("admin-tab-"+t);
+          if (panel) panel.style.display = t === tab ? "" : "none";
+          if (btn) {
+            btn.classList.toggle("border-blue-500", t === tab);
+            btn.classList.toggle("text-blue-400", t === tab);
+            btn.classList.toggle("border-transparent", t !== tab);
+            btn.classList.toggle("text-gray-400", t !== tab);
+          }
+        });
+        if (tab === "online") loadOnlineUsers();
+        if (tab === "log") loadActivityLog();
+      }
+
       async function loadAdminPanel() {
         const container = document.getElementById("content-admin");
         if (!container) return;
         container.innerHTML = getAdminPanelHTML();
-        await adminLoadStats();
-        await adminSearch();
+        await Promise.all([adminLoadStats(), adminSearch()]);
       }
 
       async function adminLoadStats() {
         try {
-          const r = await fetch("/api/admin/users/stats");
-          const d = await r.json();
-          if (d.status !== "ok") return;
-          const s = d.data;
+          const [rStats, rActivity] = await Promise.all([
+            fetch("/api/admin/users/stats"),
+            fetch("/api/admin/activity-stats"),
+          ]);
+          const [dStats, dAct] = await Promise.all([rStats.json(), rActivity.json()]);
+          const s = dStats.data || {};
+          const a = dAct.data || {};
           const row = document.getElementById("admin-stats-row");
           if (!row) return;
+          const badge = document.getElementById("admin-online-badge");
+          if (badge) badge.textContent = a.online_now || 0;
           row.innerHTML = [
-            { label: "Total", val: s.total, color: "#60a5fa", icon: "fa-users" },
-            { label: "Aktif", val: s.active, color: "#4ade80", icon: "fa-user-check" },
-            { label: "Belum Verif", val: s.unverified, color: "#fbbf24", icon: "fa-envelope" },
-            { label: "Nonaktif", val: s.inactive, color: "#f87171", icon: "fa-user-slash" },
-          ].map(s => `
+            { label: "Total", val: s.total||0, color: "#60a5fa", icon: "fa-users" },
+            { label: "Aktif", val: s.active||0, color: "#4ade80", icon: "fa-user-check" },
+            { label: "Online", val: a.online_now||0, color: "#34d399", icon: "fa-circle", pulse: true },
+            { label: "Login 24j", val: a.logins_24h||0, color: "#a78bfa", icon: "fa-sign-in-alt" },
+            { label: "Gagal 24j", val: a.failed_24h||0, color: "#f87171", icon: "fa-exclamation-triangle" },
+            { label: "Nonaktif", val: s.inactive||0, color: "#94a3b8", icon: "fa-user-slash" },
+          ].map(x => `
             <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
-              <i class="fas ${s.icon} text-xs" style="color:${s.color}"></i>
-              <span class="text-lg font-bold" style="color:${s.color}">${s.val}</span>
-              <span class="text-xs text-gray-400">${s.label}</span>
+              <i class="fas ${x.icon} text-xs" style="color:${x.color}"></i>
+              <span class="text-base font-bold" style="color:${x.color}">${x.val}</span>
+              <span class="text-xs text-gray-400">${x.label}</span>
             </div>`).join("");
         } catch (e) { /* silent */ }
       }
@@ -23009,11 +23111,140 @@
         }
       }
 
+      async function loadOnlineUsers() {
+        const el = document.getElementById("admin-online-table");
+        if (!el) return;
+        el.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        try {
+          const r = await fetch("/api/admin/online-users");
+          const d = await r.json();
+          _adminOnlineCache = (d.data || []).map(u => u._id);
+          const badge = document.getElementById("admin-online-badge");
+          if (badge) badge.textContent = d.count || 0;
+          if (!d.data?.length) {
+            el.innerHTML = '<div class="py-12 text-center text-gray-500"><i class="fas fa-moon fa-2x mb-3 block"></i>Tidak ada pengguna online saat ini.</div>';
+            return;
+          }
+          const now = Date.now();
+          el.innerHTML = `
+<div class="p-3 border-b border-white/10 text-xs text-gray-400">${d.count} pengguna aktif dalam 30 menit terakhir</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead><tr class="border-b border-white/10 text-xs text-gray-400 uppercase tracking-wider">
+  <th class="text-left px-4 py-3">Pengguna</th>
+  <th class="text-left px-4 py-3">Role</th>
+  <th class="text-left px-4 py-3">Terakhir Aktif</th>
+  <th class="text-left px-4 py-3">Login Terakhir</th>
+  <th class="text-left px-4 py-3">Total Login</th>
+</tr></thead>
+<tbody>
+${d.data.map(u => {
+  const secsAgo = Math.round((now - new Date(u.last_seen).getTime()) / 1000);
+  const agoStr = secsAgo < 60 ? secsAgo+"d lalu" : Math.round(secsAgo/60)+"m lalu";
+  const roleColors = { petugas:"#60a5fa", admin:"#f59e0b", superadmin:"#ef4444" };
+  const roleLabel = { petugas:"Petugas", admin:"Admin", superadmin:"Superadmin" };
+  const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "-";
+  return `<tr class="border-b border-white/5 hover:bg-white/3">
+    <td class="px-4 py-3">
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span></span>
+        <div>
+          <div class="font-semibold text-white">${u.full_name}</div>
+          <div class="text-gray-400 text-xs">${u.email}</div>
+          ${u.unit_kerja ? `<div class="text-gray-500 text-xs">${u.unit_kerja}</div>` : ""}
+        </div>
+      </div>
+    </td>
+    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-semibold" style="background:${roleColors[u.role]}20;color:${roleColors[u.role]}">${roleLabel[u.role]||u.role}</span></td>
+    <td class="px-4 py-3"><span class="text-green-400 text-xs font-semibold">${agoStr}</span></td>
+    <td class="px-4 py-3 text-gray-400 text-xs">${lastLogin}</td>
+    <td class="px-4 py-3 text-gray-400 text-xs">${u.login_count||0}x</td>
+  </tr>`;
+}).join("")}
+</tbody></table></div>`;
+        } catch {
+          el.innerHTML = '<div class="p-6 text-red-400">Gagal memuat data.</div>';
+        }
+      }
+
+      let _logPage = 1;
+      async function loadActivityLog(page) {
+        if (page) _logPage = page;
+        const el = document.getElementById("admin-log-table");
+        const pgEl = document.getElementById("admin-log-pagination");
+        if (!el) return;
+        el.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        const q = document.getElementById("log-search-q")?.value.trim() || "";
+        const action = document.getElementById("log-filter-action")?.value || "";
+        const status = document.getElementById("log-filter-status")?.value || "";
+        const params = new URLSearchParams({ page: _logPage, limit: 50 });
+        if (q) params.set("q", q);
+        if (action) params.set("action", action);
+        if (status) params.set("status", status);
+        try {
+          const r = await fetch("/api/admin/activity-log?" + params);
+          const d = await r.json();
+          if (!d.data?.length) {
+            el.innerHTML = '<div class="py-12 text-center text-gray-500"><i class="fas fa-clipboard-list fa-2x mb-3 block"></i>Tidak ada log aktivitas.</div>';
+            if (pgEl) pgEl.innerHTML = "";
+            return;
+          }
+          const actionIcons = { login:"fa-sign-in-alt text-green-400", login_failed:"fa-times-circle text-red-400", logout:"fa-sign-out-alt text-gray-400", role_changed:"fa-user-shield text-purple-400", user_toggled:"fa-toggle-on text-yellow-400", user_deleted:"fa-user-minus text-red-500", profile_update:"fa-user-edit text-blue-400", user_verified:"fa-check-circle text-green-400", password_reset:"fa-key text-orange-400" };
+          const statusColors = { success:"text-green-400", failed:"text-red-400", warning:"text-yellow-400" };
+          const statusLabels = { success:"Berhasil", failed:"Gagal", warning:"Peringatan" };
+          el.innerHTML = `
+<div class="p-3 border-b border-white/10 text-xs text-gray-400">${d.total} log total · Halaman ${_logPage} dari ${Math.ceil(d.total/50)}</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead><tr class="border-b border-white/10 text-xs text-gray-400 uppercase tracking-wider">
+  <th class="text-left px-4 py-3">Waktu</th>
+  <th class="text-left px-4 py-3">Pengguna</th>
+  <th class="text-left px-4 py-3">Aksi</th>
+  <th class="text-left px-4 py-3">Detail</th>
+  <th class="text-left px-4 py-3">IP</th>
+  <th class="text-left px-4 py-3">Status</th>
+</tr></thead>
+<tbody>
+${d.data.map(l => {
+  const dt = new Date(l.created_at).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const icon = actionIcons[l.action] || "fa-circle text-gray-400";
+  const sc = statusColors[l.status] || "text-gray-400";
+  const sl = statusLabels[l.status] || l.status;
+  const ua = (l.user_agent||"").substring(0,60);
+  return `<tr class="border-b border-white/5 hover:bg-white/3">
+    <td class="px-4 py-2.5 text-gray-400 text-xs whitespace-nowrap">${dt}</td>
+    <td class="px-4 py-2.5">
+      <div class="text-white text-xs font-semibold">${l.full_name||l.email||"-"}</div>
+      <div class="text-gray-500 text-xs">${l.email||""}</div>
+    </td>
+    <td class="px-4 py-2.5 whitespace-nowrap"><i class="fas ${icon} mr-1"></i><span class="text-xs">${l.action}</span></td>
+    <td class="px-4 py-2.5 text-gray-300 text-xs max-w-xs">${l.detail||"-"}</td>
+    <td class="px-4 py-2.5 text-gray-500 text-xs font-mono">${l.ip||"-"}</td>
+    <td class="px-4 py-2.5"><span class="text-xs font-semibold ${sc}">${sl}</span></td>
+  </tr>`;
+}).join("")}
+</tbody></table></div>`;
+
+          // Pagination
+          if (pgEl) {
+            const totalPages = Math.ceil(d.total / 50);
+            let pgHtml = "";
+            if (_logPage > 1) pgHtml += `<button onclick="loadActivityLog(${_logPage-1})" class="px-3 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs">‹ Prev</button>`;
+            pgHtml += `<span class="px-3 py-1 text-gray-400 text-xs">${_logPage} / ${totalPages}</span>`;
+            if (_logPage < totalPages) pgHtml += `<button onclick="loadActivityLog(${_logPage+1})" class="px-3 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs">Next ›</button>`;
+            pgEl.innerHTML = pgHtml;
+          }
+        } catch {
+          el.innerHTML = '<div class="p-6 text-red-400">Gagal memuat log.</div>';
+        }
+      }
+
       function renderAdminTable(users, total) {
         const table = document.getElementById("admin-users-table");
         if (!table) return;
         const isSuperAdmin = (window._sgUser || {}).role === "superadmin";
         const myId = (window._sgUser || {}).id || (window._sgUser || {})._id;
+        const now = Date.now();
 
         if (!users.length) {
           table.innerHTML = '<div class="py-12 text-center text-gray-500"><i class="fas fa-user-slash fa-2x mb-3 block"></i>Tidak ada pengguna ditemukan.</div>';
@@ -23039,7 +23270,9 @@
 <tbody>
 ${users.map(u => {
   const isMe = String(u._id) === String(myId);
-  const lastLogin = u.last_login ? new Date(u.last_login).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "-";
+  const isOnline = u.last_seen && (now - new Date(u.last_seen).getTime()) < 30 * 60 * 1000;
+  const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString("id-ID", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "-";
+  const lastSeenStr = u.last_seen ? (() => { const s = Math.round((now-new Date(u.last_seen).getTime())/1000); return s<60?s+"d lalu":s<3600?Math.round(s/60)+"m lalu":Math.round(s/3600)+"j lalu"; })() : null;
   const verBadge = u.is_verified
     ? '<span class="text-green-400 text-xs"><i class="fas fa-check-circle mr-1"></i>Terverifikasi</span>'
     : '<span class="text-yellow-400 text-xs"><i class="fas fa-clock mr-1"></i>Menunggu</span>';
@@ -23048,10 +23281,13 @@ ${users.map(u => {
     : '<span class="text-red-400 text-xs"><i class="fas fa-ban mr-1"></i>Nonaktif</span>';
   return `<tr class="border-b border-white/5 hover:bg-white/3 transition ${isMe ? 'bg-blue-500/5' : ''}">
     <td class="px-4 py-3">
-      <div class="font-semibold text-white">${u.full_name}${isMe ? ' <span class="text-[10px] text-blue-400">(Anda)</span>' : ''}</div>
-      <div class="text-gray-400 text-xs">${u.email}</div>
-      ${u.nip ? `<div class="text-gray-500 text-xs">NIP: ${u.nip}</div>` : ''}
-      ${u.unit_kerja ? `<div class="text-gray-500 text-xs">${u.unit_kerja}</div>` : ''}
+      <div class="font-semibold text-white flex items-center gap-2">
+        ${isOnline ? '<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>' : '<span class="h-2 w-2 rounded-full bg-gray-600 inline-block"></span>'}
+        ${u.full_name}${isMe ? ' <span class="text-[10px] text-blue-400">(Anda)</span>' : ''}
+      </div>
+      <div class="text-gray-400 text-xs ml-4">${u.email}</div>
+      ${u.nip ? `<div class="text-gray-500 text-xs ml-4">NIP: ${u.nip}</div>` : ''}
+      ${u.unit_kerja ? `<div class="text-gray-500 text-xs ml-4">${u.unit_kerja}</div>` : ''}
     </td>
     <td class="px-4 py-3">
       <span class="px-2 py-1 rounded text-xs font-semibold" style="background:${roleColors[u.role]}20;color:${roleColors[u.role]}">${roleLabel[u.role]||u.role}</span>
@@ -23059,13 +23295,13 @@ ${users.map(u => {
     <td class="px-4 py-3">
       <div>${verBadge}</div>
       <div class="mt-1">${activeBadge}</div>
+      ${isOnline ? '<div class="mt-1"><span class="text-green-400 text-xs font-semibold"><i class="fas fa-wifi mr-1"></i>Online</span></div>' : (lastSeenStr ? `<div class="mt-1 text-gray-500 text-xs">${lastSeenStr}</div>` : '')}
     </td>
     <td class="px-4 py-3 text-gray-400 text-xs">${lastLogin}<br><span class="text-gray-500">${u.login_count||0}x login</span></td>
     <td class="px-4 py-3">
       <div class="flex gap-2 flex-wrap">
-        <button onclick="openAdminModal('${u._id}')" class="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded text-xs transition" title="Edit">
-          <i class="fas fa-edit"></i>
-        </button>
+        <button onclick="openAdminModal('${u._id}')" class="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded text-xs transition" title="Edit"><i class="fas fa-edit"></i></button>
+        <button onclick="adminViewActivity('${u._id}','${u.full_name}')" class="px-2 py-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 rounded text-xs transition" title="Riwayat Aktivitas"><i class="fas fa-history"></i></button>
         ${!u.is_verified ? `<button onclick="adminVerify('${u._id}','${u.email}')" class="px-2 py-1 bg-green-500/20 hover:bg-green-500/40 text-green-300 rounded text-xs transition" title="Verifikasi Manual"><i class="fas fa-check"></i></button>` : ''}
         ${!isMe ? `<button onclick="adminToggleActive('${u._id}','${u.email}',${u.is_active})" class="px-2 py-1 ${u.is_active ? 'bg-orange-500/20 hover:bg-orange-500/40 text-orange-300' : 'bg-green-500/20 hover:bg-green-500/40 text-green-300'} rounded text-xs transition" title="${u.is_active ? 'Nonaktifkan' : 'Aktifkan'}"><i class="fas ${u.is_active ? 'fa-ban' : 'fa-user-check'}"></i></button>` : ''}
         ${isSuperAdmin && !isMe ? `<button onclick="adminDelete('${u._id}','${u.email}')" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded text-xs transition" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
@@ -23076,6 +23312,45 @@ ${users.map(u => {
 </tbody>
 </table>
 </div>`;
+      }
+
+      async function adminViewActivity(userId, name) {
+        const modal = document.getElementById("admin-modal");
+        const body = document.getElementById("admin-modal-body");
+        if (!modal || !body) return;
+        body.innerHTML = `<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin fa-2x"></i></div>`;
+        modal.style.display = "flex";
+        try {
+          const r = await fetch("/api/admin/users/" + userId + "/activity");
+          const d = await r.json();
+          const s = d.summary || {};
+          const actionIcons = { login:"fa-sign-in-alt text-green-400", login_failed:"fa-times-circle text-red-400", logout:"fa-sign-out-alt text-gray-400", role_changed:"fa-user-shield text-purple-400", user_toggled:"fa-toggle-on text-yellow-400", user_deleted:"fa-user-minus text-red-500", profile_update:"fa-user-edit text-blue-400" };
+          body.innerHTML = `
+<div class="font-semibold text-white mb-3">${name}</div>
+<div class="grid grid-cols-3 gap-2 mb-4">
+  <div class="bg-green-500/10 rounded-lg p-2 text-center"><div class="text-xl font-bold text-green-400">${s.login_count||0}</div><div class="text-xs text-gray-400">Login</div></div>
+  <div class="bg-red-500/10 rounded-lg p-2 text-center"><div class="text-xl font-bold text-red-400">${s.failed_count||0}</div><div class="text-xs text-gray-400">Login Gagal</div></div>
+  <div class="bg-blue-500/10 rounded-lg p-2 text-center"><div class="text-xl font-bold text-blue-400">${(d.data||[]).length}</div><div class="text-xs text-gray-400">Total Event</div></div>
+</div>
+<div class="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+${(d.data||[]).slice(0,50).map(l => {
+  const dt = new Date(l.created_at).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+  const icon = actionIcons[l.action] || "fa-circle text-gray-400";
+  const sc = l.status==="success"?"text-green-400":l.status==="failed"?"text-red-400":"text-yellow-400";
+  return `<div class="flex items-start gap-2 px-3 py-2 rounded-lg bg-white/5 text-xs">
+    <i class="fas ${icon} mt-0.5 w-4 flex-shrink-0"></i>
+    <div class="flex-1 min-w-0">
+      <span class="text-white">${l.detail||l.action}</span>
+      <span class="text-gray-500 ml-2">${dt}</span>
+    </div>
+    <span class="${sc} flex-shrink-0">${l.ip||""}</span>
+  </div>`;
+}).join("")}
+</div>
+<button onclick="closeAdminModal()" class="mt-4 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-sm">Tutup</button>`;
+        } catch {
+          body.innerHTML = '<div class="p-4 text-red-400">Gagal memuat data.</div>';
+        }
       }
 
       function openAdminModal(userId) {

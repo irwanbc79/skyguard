@@ -98,6 +98,12 @@ app.use("/api", async (req, res, next) => {
       return res.status(401).json({ status: "error", message: "Akun tidak valid atau telah dinonaktifkan." });
     }
     req.user = user;
+    // Update last_seen (max once per minute to avoid excessive writes)
+    const now = Date.now();
+    User.updateOne(
+      { _id: user._id, $or: [{ last_seen: { $lt: new Date(now - 60000) } }, { last_seen: { $exists: false } }] },
+      { $set: { last_seen: new Date(now) } }
+    ).catch(() => {});
     next();
   } catch {
     return res.status(401).json({ status: "error", message: "Token tidak valid atau sudah kadaluarsa. Silakan login ulang." });

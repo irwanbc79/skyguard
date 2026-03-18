@@ -36,6 +36,7 @@ const userSchema = new mongoose.Schema(
 
     is_active: { type: Boolean, default: true },
     last_login: { type: Date },
+    last_seen: { type: Date, index: true },  // updated on every authenticated request
     login_count: { type: Number, default: 0 },
   },
   { timestamps: true }

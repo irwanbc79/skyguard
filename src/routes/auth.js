@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
+const ActivityLog = require("../models/ActivityLog");
 const {
   generateToken,
   signJwt,
@@ -9,6 +10,14 @@ const {
 } = require("../services/authService");
 
 const ALLOWED_DOMAIN = "kemenkeu.go.id";
+
+function getIp(req) {
+  return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+}
+
+function logActivity(data) {
+  ActivityLog.create(data).catch(() => {});
+}
 
 function isDomainAllowed(email) {
   return typeof email === "string" && email.toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
@@ -101,18 +110,40 @@ router.post("/login", async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user || !(await user.comparePassword(password))) {
+      logActivity({
+        email: email.toLowerCase(),
+        full_name: user?.full_name || "",
+        role: user?.role || "",
+        action: "login_failed",
+        detail: `Gagal login: email atau password salah`,
+        ip: getIp(req),
+        user_agent: req.headers["user-agent"] || "",
+        status: "failed",
+      });
       return res.status(401).json({ status: "error", message: "Email atau password salah" });
     }
     if (!user.is_verified) {
       return res.status(403).json({ status: "error", message: "Email belum diverifikasi. Cek inbox Anda untuk link aktivasi." });
     }
     if (!user.is_active) {
+      logActivity({
+        user_id: user._id, email: user.email, full_name: user.full_name, role: user.role,
+        action: "login_failed", detail: "Gagal login: akun nonaktif",
+        ip: getIp(req), user_agent: req.headers["user-agent"] || "", status: "warning",
+      });
       return res.status(403).json({ status: "error", message: "Akun Anda telah dinonaktifkan. Hubungi administrator." });
     }
 
     user.last_login = new Date();
+    user.last_seen = new Date();
     user.login_count = (user.login_count || 0) + 1;
     await user.save();
+
+    logActivity({
+      user_id: user._id, email: user.email, full_name: user.full_name, role: user.role,
+      action: "login", detail: `Login berhasil (login ke-${user.login_count})`,
+      ip: getIp(req), user_agent: req.headers["user-agent"] || "", status: "success",
+    });
 
     const token = signJwt({ id: user._id, email: user.email, role: user.role });
 
