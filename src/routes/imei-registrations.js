@@ -17,7 +17,7 @@ const router = express.Router();
 const ImeiRegistration = require("../models/ImeiRegistration");
 const Passenger = require("../models/Passenger");
 const ManifestPassenger = require("../models/ManifestPassenger");
-const { getKantorName } = require("../utils/constants");
+const { getKantorName, KANTOR_MAP } = require("../utils/constants");
 
 // ==================== LIST WITH FILTERS ====================
 router.get("/", async (req, res) => {
