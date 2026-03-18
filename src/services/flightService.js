@@ -31,6 +31,12 @@ const AIRLABS_BASE_URL = "https://airlabs.co/api/v9";
 let airLabsLastPoll = 0;
 const AIRLABS_CACHE_TTL = 900; // 15 minutes cache for AirLabs data
 
+// AviationStack — free tier 500 req/month, real-time + schedule data
+let AVIATIONSTACK_API_KEY = process.env.AVIATIONSTACK_API_KEY || "";
+const AVIATIONSTACK_BASE_URL = "http://api.aviationstack.com/v1"; // free tier = HTTP only
+let aviationStackLastPoll = 0;
+const AVIATIONSTACK_CACHE_TTL = 900; // 15 min cache
+
 // OpenSky Network — free ADS-B, no API key required (anonymous: 400 req/day)
 const OPENSKY_BASE_URL = "https://opensky-network.org/api";
 const OPENSKY_USERNAME = process.env.OPENSKY_USERNAME || "";
@@ -441,6 +447,101 @@ function processOpenSkyData(arrivals, states) {
   );
 }
 
+// ---------- AviationStack API caller ----------
+async function callAviationStack(endpoint, params) {
+  if (!AVIATIONSTACK_API_KEY) return null;
+  const url = new URL(AVIATIONSTACK_BASE_URL + endpoint);
+  url.searchParams.set("access_key", AVIATIONSTACK_API_KEY);
+  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  try {
+    const r = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      console.error("[AviationStack] API error " + r.status + ": " + t.slice(0, 200));
+      return null;
+    }
+    const json = await r.json();
+    if (json.error) {
+      console.error("[AviationStack] Error:", json.error.message || JSON.stringify(json.error));
+      return null;
+    }
+    return json;
+  } catch (err) {
+    console.error("[AviationStack] Request failed:", err.message);
+    return null;
+  }
+}
+
+// ---------- Process AviationStack data ----------
+function processAviationStackData(items) {
+  const now = new Date();
+  const iso = now.toISOString();
+
+  const flights = [];
+  for (const f of items) {
+    if (!f.arrival || f.arrival.iata !== "KNO") continue;
+
+    const dep = f.departure || {};
+    const arr = f.arrival || {};
+    const airline = f.airline || {};
+    const flight = f.flight || {};
+    const aircraft = f.aircraft || {};
+
+    const depIata = dep.iata || "";
+    const isIntl = !ID_AIRPORTS.has(depIata) && depIata !== "";
+
+    let status = "Scheduled";
+    switch ((f.flight_status || "").toLowerCase()) {
+      case "landed": status = "On Ground"; break;
+      case "active": status = "En Route"; break;
+      case "cancelled": status = "Cancelled"; break;
+      case "diverted": status = "Diverted"; break;
+    }
+
+    const airlineName = AIRLINE_IATA_NAMES[airline.iata || ""] || airline.name || airline.iata || "";
+
+    flights.push({
+      flight_id: flight.iata || flight.icao || "",
+      callsign: flight.icao || "",
+      flight_number: flight.iata || "",
+      airline: airlineName,
+      origin: depIata,
+      origin_icao: dep.icao || "",
+      destination: "KNO",
+      destination_icao: "WIMM",
+      sched_time: arr.scheduled || null,
+      est_time: arr.estimated || arr.scheduled || null,
+      actual_time: arr.actual || null,
+      landing_time: status === "On Ground" && arr.actual ? arr.actual : null,
+      status,
+      is_arrival: true,
+      aircraft: aircraft.iata || aircraft.icao || "",
+      registration: aircraft.registration || "",
+      source: "aviationstack",
+      is_international: isIntl,
+      delayed: arr.delay || null,
+    });
+  }
+
+  flights.sort((a, b) => (a.sched_time || "").localeCompare(b.sched_time || ""));
+
+  cache.set("kno:board", {
+    flights,
+    updated_at: iso,
+    source: "aviationstack",
+    total: flights.length,
+    international: flights.filter((f) => f.is_international).length,
+  }, AVIATIONSTACK_CACHE_TTL);
+
+  cache.set("kno:positions", { positions: [], updated_at: iso, source: "aviationstack" }, AVIATIONSTACK_CACHE_TTL);
+
+  console.log(
+    "[AviationStack] Processed: " + flights.length + " flights (" +
+    flights.filter((f) => f.is_international).length + " intl) | Source: aviationstack",
+  );
+}
+
 // ---------- Process AirLabs schedule data ----------
 // regMap: optional { flight_iata: reg_number } from AirLabs real-time /flights API
 function processAirLabsData(items, regMap) {
@@ -618,7 +719,25 @@ async function collectUnified() {
     }
   }
 
-  // Strategy 1: OpenSky Network (free ADS-B, no key required)
+  // Strategy 1: AviationStack (free 500 req/month, real-time + schedule)
+  if (AVIATIONSTACK_API_KEY) {
+    const asNow = Date.now();
+    const cachedBoard = cache.get("kno:board");
+    if (asNow - aviationStackLastPoll > 10 * 60 * 1000 || !cachedBoard) {
+      console.log("[AviationStack] Fetching KNO arrivals...");
+      const data = await callAviationStack("/flights", { arr_iata: "KNO", flight_status: "active,scheduled,landed", limit: 100 });
+      if (data && Array.isArray(data.data) && data.data.length > 0) {
+        aviationStackLastPoll = asNow;
+        processAviationStackData(data.data);
+        return;
+      }
+      console.log("[AviationStack] No data, trying next strategy...");
+    } else {
+      return; // cached data still fresh
+    }
+  }
+
+  // Strategy 3: OpenSky Network (free ADS-B, no key required)
   const openSkyNow = Date.now();
   if (openSkyNow - openSkyLastPoll > OPENSKY_MIN_INTERVAL || !cache.get("kno:board")) {
     console.log("[OpenSky] Fetching WIMM arrivals & live positions...");
@@ -1365,6 +1484,10 @@ function startPolling() {
         : "NOT SET"),
   );
   console.log(
+    "[AviationStack] API Key: " +
+      (AVIATIONSTACK_API_KEY ? "configured (" + AVIATIONSTACK_API_KEY.substring(0, 8) + "...)" : "NOT SET"),
+  );
+  console.log(
     "[OpenSky] Mode: " +
       (OPENSKY_USERNAME ? "authenticated (" + OPENSKY_USERNAME + ")" : "anonymous (400 req/day)"),
   );
@@ -1425,9 +1548,10 @@ function getStatus() {
     polling_active: pollingActive,
     api_key_configured: !!FR24_API_KEY,
     airlabs_configured: !!AIRLABS_API_KEY,
+    aviationstack_configured: !!AVIATIONSTACK_API_KEY,
     opensky_configured: true,
     opensky_authenticated: !!(OPENSKY_USERNAME && OPENSKY_PASSWORD),
-    mode: AIRLABS_API_KEY ? "airlabs" : "opensky+fr24",
+    mode: AIRLABS_API_KEY ? "airlabs" : AVIATIONSTACK_API_KEY ? "aviationstack" : "opensky+fr24",
     cache_keys: cache.keys(),
     credits: {
       today: creditUsage.today,
