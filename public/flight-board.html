@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>FIDS — SkyGuard Kualanamu</title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="/assets/logo-bc-kualanamu.png?v=12"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-primary: #0a1628;
+        --bg-secondary: #0f1f36;
+        --bg-row-even: rgba(255, 255, 255, 0.03);
+        --bg-row-hover: rgba(59, 130, 246, 0.08);
+        --border-color: rgba(100, 180, 255, 0.15);
+        --text-primary: #e2e8f0;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --accent-blue: #3b82f6;
+        --accent-green: #22c55e;
+        --accent-yellow: #eab308;
+        --accent-red: #ef4444;
+        --accent-cyan: #06b6d4;
+        --accent-purple: #a855f7;
+        --accent-orange: #f97316;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* ====== HEADER ====== */
+      .fids-header {
+        background: linear-gradient(
+          135deg,
+          #0c1929 0%,
+          #1a3a5c 50%,
+          #0d2137 100%
+        );
+        border-bottom: 2px solid var(--border-color);
+        padding: 12px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+      }
+      .fids-header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        z-index: 1;
+      }
+      .fids-header-center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 0;
+      }
+      .fids-logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 0;
+        border: none;
+        object-fit: contain;
+        background: transparent;
+        padding: 0;
+      }
+      .fids-title-group h1 {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        background: linear-gradient(135deg, #60a5fa, #a78bfa);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .fids-title-group p {
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        margin-top: 2px;
+      }
+      .fids-header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .fids-clock {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 28px;
+        font-weight: 700;
+        color: #ffd700;
+        text-shadow:
+          0 0 20px rgba(255, 215, 0, 0.6),
+          0 0 40px rgba(255, 215, 0, 0.3);
+        letter-spacing: 2px;
+      }
+      .fids-date {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-align: right;
+        letter-spacing: 0.5px;
+      }
+
+      /* ====== CONTROLS BAR ====== */
+      .controls-bar {
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 1px solid var(--border-color);
+        padding: 8px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .tab-group {
+        display: flex;
+        gap: 4px;
+      }
+      .tab-btn {
+        padding: 6px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        transition: all 0.2s;
+        letter-spacing: 0.5px;
+      }
+      .tab-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+      .tab-btn.active {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: var(--accent-blue);
+        color: #60a5fa;
+      }
+      .control-btns {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .ctrl-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ctrl-btn:hover {
+        background: rgba(59, 130, 246, 0.15);
+        border-color: var(--accent-blue);
+        color: #60a5fa;
+      }
+      .ctrl-btn.fullscreen-btn {
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.2),
+          rgba(139, 92, 246, 0.2)
+        );
+        border-color: rgba(139, 92, 246, 0.4);
+        color: #a78bfa;
+      }
+      .ctrl-btn.fullscreen-btn:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.3),
+          rgba(139, 92, 246, 0.3)
+        );
+      }
+      .status-badge {
+        font-size: 10px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      .badge-live {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--accent-green);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+      .badge-mock {
+        background: rgba(234, 179, 8, 0.2);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(234, 179, 8, 0.3);
+      }
+
+      /* ====== TABLE ====== */
+      .fids-table-wrapper {
+        padding: 0;
+        flex: 1;
+        overflow: auto;
+      }
+      .fids-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .fids-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .fids-table thead tr {
+        background: linear-gradient(90deg, #0d2440, #162d4a, #0d2440);
+        border-bottom: 2px solid var(--accent-blue);
+      }
+      .fids-table th {
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--accent-cyan);
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .fids-table tbody tr {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        transition: background 0.15s;
+      }
+      .fids-table tbody tr:nth-child(even) {
+        background: var(--bg-row-even);
+      }
+      .fids-table tbody tr:hover {
+        background: var(--bg-row-hover);
+      }
+      .fids-table tbody tr.row-landed {
+        opacity: 0.6;
+      }
+      .fids-table td {
+        padding: 14px 16px;
+        font-size: 21px;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      /* Column widths — balanced for 8-column FIDS (REG = no registrasi pesawat) */
+      .col-airline {
+        width: 14%;
+      }
+      .col-reg {
+        width: 9%;
+      }
+      .col-flight {
+        width: 10%;
+      }
+      .col-origin {
+        width: 20%;
+      }
+      .col-aircraft {
+        width: 12%;
+      }
+      .col-sched {
+        width: 10%;
+      }
+      .col-est {
+        width: 9%;
+      }
+      .col-remark {
+        width: 14%;
+      }
+
+      /* Airline cell */
+      .airline-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .airline-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 4px;
+        object-fit: contain;
+        background: #fff;
+        padding: 2px;
+        flex-shrink: 0;
+      }
+      .airline-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 110px;
+        padding: 6px 16px;
+        border-radius: 5px;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      /* Airline colors matching the FIDS board style */
+      .airline-batik {
+        background: #b8860b;
+        color: #fff;
+      }
+      .airline-airasia {
+        background: #dc2626;
+        color: #fff;
+      }
+      .airline-sia {
+        background: #1e3a5f;
+        color: #d4af37;
+        border: 1px solid #d4af37;
+      }
+      .airline-etihad {
+        background: #1a1a2e;
+        color: #d4af37;
+        border: 1px solid #d4af37;
+      }
+      .airline-lion {
+        background: #dc2626;
+        color: #fff;
+      }
+      .airline-garuda {
+        background: #0d4f8b;
+        color: #fff;
+      }
+      .airline-citilink {
+        background: #22c55e;
+        color: #fff;
+      }
+      .airline-scoot {
+        background: #eab308;
+        color: #1a1a2e;
+      }
+      .airline-saudia {
+        background: #166534;
+        color: #fff;
+      }
+      .airline-qatar {
+        background: #5b0d3a;
+        color: #fff;
+      }
+      .airline-malaysia {
+        background: #1e3a5f;
+        color: #dc2626;
+        border: 1px solid #dc2626;
+      }
+      .airline-default {
+        background: rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+      }
+
+      /* Flight number */
+      .flight-num {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 1.5px;
+      }
+
+      /* Origin/Destination city */
+      .city-name {
+        font-size: 22px;
+        font-weight: 600;
+        color: #e2e8f0;
+      }
+      .city-code {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-left: 6px;
+      }
+
+      /* Time display */
+      .time-display {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 26px;
+        font-weight: 600;
+        color: #fff;
+        text-align: center;
+      }
+      .time-na {
+        color: var(--text-muted);
+        font-size: 18px;
+      }
+
+      /* Status badges */
+      .flight-status {
+        font-size: 17px;
+        font-weight: 700;
+        padding: 8px 20px;
+        border-radius: 5px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        display: inline-block;
+        text-align: center;
+        min-width: 130px;
+      }
+      .status-mendarat {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--accent-green);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        animation: pulseGreen 2s infinite;
+      }
+      .status-approach {
+        background: rgba(249, 115, 22, 0.2);
+        color: var(--accent-orange);
+        border: 1px solid rgba(249, 115, 22, 0.3);
+      }
+      .status-enroute {
+        background: rgba(6, 182, 212, 0.2);
+        color: var(--accent-cyan);
+        border: 1px solid rgba(6, 182, 212, 0.3);
+      }
+      .status-delayed {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        animation: pulseRed 1.5s infinite;
+      }
+      .status-scheduled {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .status-departed {
+        background: rgba(59, 130, 246, 0.2);
+        color: var(--accent-blue);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+      }
+      .status-taxiing {
+        background: rgba(168, 85, 247, 0.2);
+        color: var(--accent-purple);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+      }
+      .status-onground {
+        background: rgba(34, 197, 94, 0.15);
+        color: #86efac;
+        border: 1px solid rgba(34, 197, 94, 0.2);
+      }
+
+      /* Remark column — customs intel */
+      .remark-manifest {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .remark-ready {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--accent-green);
+      }
+      .remark-missing {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--accent-red);
+      }
+      .remark-suspect {
+        background: rgba(239, 68, 68, 0.25);
+        color: #fca5a5;
+      }
+      .remark-intl {
+        background: rgba(168, 85, 247, 0.2);
+        color: var(--accent-purple);
+      }
+      .remark-domestic {
+        background: rgba(100, 116, 139, 0.2);
+        color: var(--text-muted);
+      }
+
+      /* ====== DATE SEPARATOR ====== */
+      .date-separator {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(100, 180, 255, 0.15),
+          transparent
+        );
+        text-align: center;
+        padding: 8px 0;
+      }
+      .date-separator td {
+        font-size: 13px !important;
+        font-weight: 600;
+        color: var(--accent-cyan);
+        letter-spacing: 2px;
+        padding: 8px 0 !important;
+      }
+
+      /* ====== FOOTER ====== */
+      .fids-footer {
+        background: linear-gradient(90deg, #0d2440, #162d4a, #0d2440);
+        border-top: 1px solid var(--border-color);
+        padding: 10px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .footer-welcome {
+        font-size: 13px;
+        color: var(--text-secondary);
+        letter-spacing: 0.5px;
+      }
+      .footer-welcome strong {
+        color: var(--accent-cyan);
+      }
+      .footer-info {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .footer-info .update-time {
+        color: var(--accent-green);
+        font-weight: 600;
+      }
+
+      /* ====== SCROLL ANIMATION ====== */
+      .scroll-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .scroll-container.fullscreen {
+        height: 100vh;
+      }
+
+      /* ====== ANIMATIONS ====== */
+      @keyframes pulseGreen {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 12px 2px rgba(34, 197, 94, 0.2);
+        }
+      }
+      @keyframes pulseRed {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.2);
+        }
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .row-animate {
+        animation: slideIn 0.3s ease forwards;
+      }
+
+      /* Fullscreen adjustments */
+      .scroll-container:fullscreen .fids-table td {
+        font-size: 24px;
+        padding: 22px 24px;
+      }
+      .scroll-container:fullscreen .time-display {
+        font-size: 32px;
+      }
+      .scroll-container:fullscreen .flight-num {
+        font-size: 28px;
+      }
+      .scroll-container:fullscreen .city-name {
+        font-size: 26px;
+      }
+      .scroll-container:fullscreen .fids-clock {
+        font-size: 40px;
+      }
+      .scroll-container:fullscreen .controls-bar {
+        display: none;
+      }
+      .scroll-container:fullscreen .airline-badge {
+        font-size: 18px;
+        min-width: 140px;
+        padding: 8px 20px;
+      }
+      .scroll-container:fullscreen .airline-icon {
+        width: 44px;
+        height: 44px;
+      }
+      .scroll-container:fullscreen .flight-status {
+        font-size: 20px;
+        padding: 10px 24px;
+        min-width: 160px;
+      }
+      .scroll-container:fullscreen .city-code {
+        font-size: 16px;
+      }
+      .scroll-container:fullscreen .fids-table th {
+        font-size: 18px;
+        padding: 18px 24px;
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-muted);
+      }
+      .empty-state i {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.3;
+      }
+      .empty-state p {
+        font-size: 14px;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .fids-header {
+          padding: 8px 12px;
+        }
+        .fids-table td {
+          font-size: 12px;
+          padding: 8px;
+        }
+        .airline-badge {
+          min-width: 60px;
+          font-size: 9px;
+          padding: 3px 6px;
+        }
+        .time-display {
+          font-size: 14px;
+        }
+        .controls-bar {
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scroll-container" id="fidsContainer">
+      <!-- HEADER -->
+      <div class="fids-header">
+        <div class="fids-header-left">
+          <div class="fids-title-group">
+            <h1><i class="fas fa-plane"></i> SkyGuard FIDS</h1>
+            <p id="fidsSubtitle">
+              Kedatangan Internasional — Bandara Internasional Kualanamu
+            </p>
+          </div>
+        </div>
+        <div class="fids-header-center">
+          <img
+            src="/assets/logo-bc-kualanamu.png"
+            alt="BC Kualanamu"
+            class="fids-logo"
+          />
+        </div>
+        <div class="fids-header-right">
+          <div>
+            <div class="fids-clock" id="fidsClock">--:--</div>
+            <div class="fids-date" id="fidsDate">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="controls-bar" id="controlsBar">
+        <div class="tab-group">
+          <span
+            style="
+              font-size: 12px;
+              font-weight: 700;
+              color: var(--accent-cyan);
+              letter-spacing: 1px;
+            "
+            ><i class="fas fa-plane-arrival"></i> KEDATANGAN INTERNASIONAL</span
+          >
+        </div>
+        <div class="control-btns">
+          <span class="status-badge badge-mock" id="sourceBadge">LOADING</span>
+          <span
+            style="font-size: 11px; color: var(--text-muted)"
+            id="flightCountBadge"
+            >-- penerbangan</span
+          >
+          <button class="ctrl-btn" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+          <button
+            class="ctrl-btn fullscreen-btn"
+            onclick="toggleFullscreen()"
+            id="fsBtn"
+          >
+            <i class="fas fa-expand"></i> Full Screen
+          </button>
+          <a href="/" class="ctrl-btn" style="text-decoration: none">
+            <i class="fas fa-arrow-left"></i> Dashboard
+          </a>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="fids-table-wrapper" id="tableWrapper">
+        <table class="fids-table">
+          <thead>
+            <tr>
+              <th class="col-airline">Maskapai</th>
+              <th class="col-reg" title="No. Registrasi Pesawat">REG</th>
+              <th class="col-flight">Penerbangan</th>
+              <th class="col-origin">Kota Asal</th>
+              <th class="col-sched">Jadwal</th>
+              <th class="col-est">Waktu</th>
+              <th class="col-aircraft">Status</th>
+              <th class="col-remark">Keterangan</th>
+            </tr>
+          </thead>
+          <tbody id="fidsBody">
+            <tr>
+              <td colspan="8" class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Memuat data penerbangan...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="fids-footer">
+        <div class="footer-welcome">
+          Selamat Datang di <strong>Bandara Internasional Kualanamu</strong> ✈
+        </div>
+        <div class="footer-info">
+          <span>SkyGuard Intelligence System</span>
+          <span>|</span>
+          <span
+            >Update:
+            <span class="update-time" id="lastUpdate">--:--</span></span
+          >
+          <span>|</span>
+          <span style="font-size:10px;color:var(--text-muted)" title="Kolom REG = No. Registrasi Pesawat">FIDS v2</span>
+          <span
+            id="autoRefreshLabel"
+            style="color: var(--accent-green); font-size: 10px"
+          >
+            <i
+              class="fas fa-circle pulse-anim"
+              style="font-size: 6px; vertical-align: middle; margin-right: 3px"
+            ></i
+            >Auto-refresh 60s
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ====== STATE ======
+      let allFlights = [];
+      let refreshTimer = null;
+      const REFRESH_INTERVAL = 60000; // 60 seconds
+      const API_URL = "/api/flights/customs-intel";
+
+      // ====== CITY NAME MAP ======
+      const CITY_NAMES = {
+        KUL: "Kuala Lumpur",
+        DMK: "Bangkok Don Mueang",
+        BKK: "Bangkok Suvarnabhumi",
+        SIN: "Singapura",
+        PEN: "Penang",
+        AUH: "Abu Dhabi",
+        DXB: "Dubai",
+        JED: "Jeddah",
+        MED: "Madinah",
+        RUH: "Riyadh",
+        DOH: "Doha",
+        IST: "Istanbul",
+        CGK: "Jakarta (CGK)",
+        HLP: "Jakarta (HLP)",
+        SUB: "Surabaya",
+        DPS: "Bali/Denpasar",
+        UPG: "Makassar",
+        BPN: "Balikpapan",
+        PKU: "Pekanbaru",
+        PDG: "Padang",
+        PLM: "Palembang",
+        BTH: "Batam",
+        BDO: "Bandung",
+        SOC: "Solo",
+        JOG: "Yogyakarta",
+        SRG: "Semarang",
+        MDC: "Manado",
+        AMQ: "Ambon",
+        DJJ: "Jayapura",
+        BDJ: "Banjarmasin",
+        PNK: "Pontianak",
+        TKG: "Lampung",
+        PKY: "Palangkaraya",
+        KNO: "Kualanamu",
+        MES: "Medan",
+        BTJ: "Banda Aceh",
+        TNJ: "Tanjung Pinang",
+        TJQ: "Tanjung Pandan",
+        LOP: "Lombok",
+        KOE: "Kupang",
+        KDI: "Kendari",
+        GTO: "Gorontalo",
+        PGK: "Pangkal Pinang",
+        MLG: "Malang",
+        LGK: "Langkawi",
+        SZB: "Subang",
+        IPH: "Ipoh",
+        JHB: "Johor Bahru",
+        KBR: "Kota Bharu",
+        KCH: "Kuching",
+        BKI: "Kota Kinabalu",
+        HKG: "Hong Kong",
+        ICN: "Seoul Incheon",
+        NRT: "Tokyo Narita",
+        KIX: "Osaka Kansai",
+        TPE: "Taipei",
+        CAN: "Guangzhou",
+        SZX: "Shenzhen",
+        PVG: "Shanghai Pudong",
+        PEK: "Beijing",
+        DEL: "New Delhi",
+        BOM: "Mumbai",
+        CMB: "Colombo",
+        RGN: "Yangon",
+        SGN: "Ho Chi Minh",
+        HAN: "Hanoi",
+        MNL: "Manila",
+        ADD: "Addis Ababa",
+        NBO: "Nairobi",
+        JNB: "Johannesburg",
+        LHR: "London Heathrow",
+        CDG: "Paris CDG",
+        AMS: "Amsterdam",
+        FRA: "Frankfurt",
+        ZRH: "Zurich",
+        SYD: "Sydney",
+        MEL: "Melbourne",
+        MCT: "Muscat",
+      };
+
+      // ====== COUNTRY FLAG MAP (airport code → country ISO) ======
+      const AIRPORT_COUNTRY = {
+        KUL: "MY",
+        SZB: "MY",
+        PEN: "MY",
+        LGK: "MY",
+        IPH: "MY",
+        JHB: "MY",
+        KBR: "MY",
+        KCH: "MY",
+        BKI: "MY",
+        SIN: "SG",
+        AUH: "AE",
+        DXB: "AE",
+        JED: "SA",
+        MED: "SA",
+        RUH: "SA",
+        DOH: "QA",
+        IST: "TR",
+        DMK: "TH",
+        BKK: "TH",
+        HKG: "HK",
+        ICN: "KR",
+        NRT: "JP",
+        KIX: "JP",
+        TPE: "TW",
+        CAN: "CN",
+        SZX: "CN",
+        PVG: "CN",
+        PEK: "CN",
+        DEL: "IN",
+        BOM: "IN",
+        CMB: "LK",
+        RGN: "MM",
+        SGN: "VN",
+        HAN: "VN",
+        MNL: "PH",
+        ADD: "ET",
+        NBO: "KE",
+        JNB: "ZA",
+        LHR: "GB",
+        CDG: "FR",
+        AMS: "NL",
+        FRA: "DE",
+        ZRH: "CH",
+        SYD: "AU",
+        MEL: "AU",
+        MCT: "OM",
+        // Indonesia
+        CGK: "ID",
+        HLP: "ID",
+        SUB: "ID",
+        DPS: "ID",
+        UPG: "ID",
+        BPN: "ID",
+        PKU: "ID",
+        PDG: "ID",
+        PLM: "ID",
+        BTH: "ID",
+        BDO: "ID",
+        SOC: "ID",
+        JOG: "ID",
+        SRG: "ID",
+        MDC: "ID",
+        AMQ: "ID",
+        DJJ: "ID",
+        BDJ: "ID",
+        PNK: "ID",
+        TKG: "ID",
+        PKY: "ID",
+        KNO: "ID",
+        MES: "ID",
+        BTJ: "ID",
+        TNJ: "ID",
+        TJQ: "ID",
+        LOP: "ID",
+        KOE: "ID",
+        KDI: "ID",
+        GTO: "ID",
+        PGK: "ID",
+        MLG: "ID",
+      };
+
+      // Convert ISO 2-letter country code to flag emoji
+      function countryFlag(isoCode) {
+        if (!isoCode || isoCode.length !== 2) return "";
+        const cp1 = 0x1f1e6 - 65 + isoCode.charCodeAt(0);
+        const cp2 = 0x1f1e6 - 65 + isoCode.charCodeAt(1);
+        return String.fromCodePoint(cp1, cp2);
+      }
+
+      function getFlag(airportCode) {
+        const cc = AIRPORT_COUNTRY[airportCode];
+        return cc ? countryFlag(cc) : "";
+      }
+
+      // ====== AIRLINE CONFIG ======
+      const AIRLINE_CONFIG = {
+        "Batik Air": {
+          code: "Batik air",
+          cssClass: "airline-batik",
+          short: "Batik Air",
+        },
+        AirAsia: {
+          code: "AirAsia",
+          cssClass: "airline-airasia",
+          short: "AirAsia",
+        },
+        "Indonesia AirAsia": {
+          code: "AirAsia",
+          cssClass: "airline-airasia",
+          short: "AirAsia",
+        },
+        "Singapore Airlines": {
+          code: "SINGAPORE AIRLINES",
+          cssClass: "airline-sia",
+          short: "SIA",
+        },
+        Scoot: { code: "Scoot", cssClass: "airline-scoot", short: "Scoot" },
+        "Lion Air": {
+          code: "Lion Air",
+          cssClass: "airline-lion",
+          short: "Lion Air",
+        },
+        "Garuda Indonesia": {
+          code: "Garuda",
+          cssClass: "airline-garuda",
+          short: "Garuda",
+        },
+        Citilink: {
+          code: "Citilink",
+          cssClass: "airline-citilink",
+          short: "Citilink",
+        },
+        "Malaysia Airlines": {
+          code: "Malaysia",
+          cssClass: "airline-malaysia",
+          short: "MAS",
+        },
+        Saudia: { code: "Saudia", cssClass: "airline-saudia", short: "Saudia" },
+        "Qatar Airways": {
+          code: "Qatar",
+          cssClass: "airline-qatar",
+          short: "Qatar",
+        },
+        Etihad: { code: "ETIHAD", cssClass: "airline-etihad", short: "Etihad" },
+        "Ethiopian Airlines": {
+          code: "Ethiopian",
+          cssClass: "airline-default",
+          short: "Ethiopian",
+        },
+        Emirates: {
+          code: "Emirates",
+          cssClass: "airline-default",
+          short: "Emirates",
+        },
+        "Thai Airways": {
+          code: "Thai Airways",
+          cssClass: "airline-default",
+          short: "Thai",
+        },
+        "Cathay Pacific": {
+          code: "Cathay",
+          cssClass: "airline-default",
+          short: "Cathay",
+        },
+        "Silk Air": {
+          code: "SilkAir",
+          cssClass: "airline-sia",
+          short: "SilkAir",
+        },
+        "JetStar Asia": {
+          code: "Jetstar",
+          cssClass: "airline-default",
+          short: "Jetstar",
+        },
+        FedEx: { code: "FedEx", cssClass: "airline-default", short: "FedEx" },
+        "Thai Lion Air": {
+          code: "Thai Lion",
+          cssClass: "airline-lion",
+          short: "Thai Lion",
+        },
+      };
+
+      // ====== CLOCK ======
+      function updateClock() {
+        const now = new Date();
+        const clock = document.getElementById("fidsClock");
+        const dateEl = document.getElementById("fidsDate");
+        clock.textContent = now.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        dateEl.textContent = now.toLocaleDateString("id-ID", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        });
+      }
+
+      // ====== FULLSCREEN ======
+      function toggleFullscreen() {
+        const el = document.getElementById("fidsContainer");
+        if (!document.fullscreenElement) {
+          el.requestFullscreen().catch(() => {});
+          document.getElementById("fsBtn").innerHTML =
+            '<i class="fas fa-compress"></i> Exit Full Screen';
+        } else {
+          document.exitFullscreen();
+          document.getElementById("fsBtn").innerHTML =
+            '<i class="fas fa-expand"></i> Full Screen';
+        }
+      }
+      document.addEventListener("fullscreenchange", () => {
+        const btn = document.getElementById("fsBtn");
+        if (document.fullscreenElement) {
+          btn.innerHTML = '<i class="fas fa-compress"></i> Exit';
+        } else {
+          btn.innerHTML = '<i class="fas fa-expand"></i> Full Screen';
+        }
+      });
+
+      // ====== GET CITY NAME ======
+      function getCityName(code) {
+        if (!code) return "";
+        return CITY_NAMES[code] || code;
+      }
+
+      // ====== FORMAT TIME ======
+      function formatTime(isoStr) {
+        if (!isoStr) return null;
+        try {
+          const d = new Date(isoStr);
+          return d.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch {
+          return null;
+        }
+      }
+
+      // ====== AIRLINE LOGO URLs ======
+      const AIRLINE_LOGOS = {
+        AirAsia: "https://images.kiwi.com/airlines/64/AK.png",
+        "Indonesia AirAsia": "https://images.kiwi.com/airlines/64/QZ.png",
+        "Singapore Airlines": "https://images.kiwi.com/airlines/64/SQ.png",
+        Scoot: "https://images.kiwi.com/airlines/64/TR.png",
+        "Lion Air": "https://images.kiwi.com/airlines/64/JT.png",
+        "Batik Air": "https://images.kiwi.com/airlines/64/ID.png",
+        "Garuda Indonesia": "https://images.kiwi.com/airlines/64/GA.png",
+        Citilink: "https://images.kiwi.com/airlines/64/QG.png",
+        "Malaysia Airlines": "https://images.kiwi.com/airlines/64/MH.png",
+        Saudia: "https://images.kiwi.com/airlines/64/SV.png",
+        "Qatar Airways": "https://images.kiwi.com/airlines/64/QR.png",
+        Etihad: "https://images.kiwi.com/airlines/64/EY.png",
+        "Ethiopian Airlines": "https://images.kiwi.com/airlines/64/ET.png",
+        Emirates: "https://images.kiwi.com/airlines/64/EK.png",
+        "Thai Airways": "https://images.kiwi.com/airlines/64/TG.png",
+        "Cathay Pacific": "https://images.kiwi.com/airlines/64/CX.png",
+        "Silk Air": "https://images.kiwi.com/airlines/64/MI.png",
+        "JetStar Asia": "https://images.kiwi.com/airlines/64/3K.png",
+        FedEx: "https://images.kiwi.com/airlines/64/FX.png",
+        "Thai Lion Air": "https://images.kiwi.com/airlines/64/SL.png",
+      };
+
+      // Derive logo URL from flight number IATA prefix
+      function getLogoFromFlightNum(fn) {
+        if (!fn) return null;
+        const m = fn.match(/^([A-Z]{2})/i);
+        if (m)
+          return (
+            "https://images.kiwi.com/airlines/64/" + m[1].toUpperCase() + ".png"
+          );
+        return null;
+      }
+
+      // ====== AIRLINE BADGE ======
+      function getAirlineBadge(airline, flightNumber) {
+        const logoUrl =
+          AIRLINE_LOGOS[airline] || getLogoFromFlightNum(flightNumber);
+        const logoImg = logoUrl
+          ? `<img src="${logoUrl}" class="airline-icon" alt="" onerror="this.style.display='none'">`
+          : "";
+        const cfg = AIRLINE_CONFIG[airline];
+        if (cfg) {
+          return `${logoImg}<span class="airline-badge ${cfg.cssClass}">${cfg.short}</span>`;
+        }
+        const short = airline
+          ? airline.length > 12
+            ? airline.substring(0, 10) + ".."
+            : airline
+          : "—";
+        return `${logoImg}<span class="airline-badge airline-default">${short}</span>`;
+      }
+
+      // ====== FORMAT FLIGHT NUMBER for display (add space like "OD 0324") ======
+      function formatFlightNum(fn) {
+        if (!fn) return "—";
+        const m = fn.match(/^([A-Z]{2,3})(\d+)$/i);
+        if (m) return m[1].toUpperCase() + " " + m[2].padStart(4, "0");
+        return fn;
+      }
+
+      // ====== KETERANGAN MAPPING ======
+      function getKeterangan(flight) {
+        const s = (flight.status || "").toLowerCase();
+        const isLanded =
+          s.includes("on ground") ||
+          s.includes("taxiing") ||
+          s.includes("landing");
+
+        // Check for delay: est_time or actual_time > sched_time
+        const schedMs = flight.sched_time
+          ? new Date(flight.sched_time).getTime()
+          : 0;
+        const estMs = flight.est_time ? new Date(flight.est_time).getTime() : 0;
+        const actMs = flight.actual_time
+          ? new Date(flight.actual_time).getTime()
+          : 0;
+        const compareMs = actMs || estMs;
+        const delayMs = schedMs && compareMs ? compareMs - schedMs : 0;
+        const delayMin = Math.floor(delayMs / 60000);
+        const isDelayed = delayMin >= 5; // 5+ minutes = delayed
+
+        // Format delay as duration
+        function fmtDelayDuration(delayMinutes) {
+          if (delayMinutes < 60) return delayMinutes + " mnt";
+          const h = Math.floor(delayMinutes / 60);
+          const m = delayMinutes % 60;
+          return m > 0 ? h + "j " + m + "m" : h + " jam";
+        }
+
+        // Delay info (for STATUS column)
+        flight._isDelayed = isDelayed;
+        flight._delayText = isDelayed
+          ? "TERLAMBAT " + fmtDelayDuration(delayMin)
+          : "";
+
+        if (isLanded) {
+          return { text: "MENDARAT", cssClass: "status-mendarat" };
+        }
+        if (
+          s.includes("cancelled") ||
+          s.includes("canceled") ||
+          s.includes("dibatalkan")
+        )
+          return { text: "DIBATALKAN", cssClass: "status-delayed" };
+        if (
+          s.includes("en route") ||
+          s.includes("approach") ||
+          s.includes("active") ||
+          s.includes("delayed")
+        )
+          return { text: "DI UDARA", cssClass: "status-enroute" };
+        if (s.includes("scheduled"))
+          return { text: "DIJADWALKAN", cssClass: "status-scheduled" };
+        // Default
+        return { text: "DI UDARA", cssClass: "status-enroute" };
+      }
+
+      // ====== RENDER BOARD ======
+      function renderBoard() {
+        const body = document.getElementById("fidsBody");
+        const nowMs = Date.now();
+        const ONE_HOUR = 60 * 60 * 1000;
+
+        // Only international arrivals
+        let flights = allFlights.filter(
+          (f) => f.is_arrival && f.is_international,
+        );
+
+        // Split into landed vs upcoming (airborne/scheduled)
+        const landed = [];
+        const upcoming = [];
+        flights.forEach((f) => {
+          const st = (f.status || "").toLowerCase();
+          const isLanded =
+            st.includes("on ground") ||
+            st.includes("taxiing") ||
+            st.includes("landing");
+          if (isLanded) {
+            landed.push(f);
+          } else {
+            upcoming.push(f);
+          }
+        });
+
+        // Landed: most recent landing at top (descending by actual/est/sched time)
+        landed.sort((a, b) => {
+          const tA = a.actual_time || a.est_time || a.sched_time || "";
+          const tB = b.actual_time || b.est_time || b.sched_time || "";
+          return tB.localeCompare(tA);
+        });
+
+        // Upcoming: next to arrive first (ascending by est/sched time)
+        upcoming.sort((a, b) => {
+          const tA = a.est_time || a.sched_time || "";
+          const tB = b.est_time || b.sched_time || "";
+          return tA.localeCompare(tB);
+        });
+
+        // Landed first, then upcoming — cap at 10
+        let display = [...landed, ...upcoming].slice(0, 10);
+
+        // Update count
+        document.getElementById("flightCountBadge").textContent =
+          display.length + " penerbangan";
+
+        if (!display.length) {
+          body.innerHTML = `<tr><td colspan="8" class="empty-state">
+            <i class="fas fa-plane-slash"></i>
+            <p>Tidak ada data penerbangan internasional</p>
+          </td></tr>`;
+          return;
+        }
+
+        let html = "";
+        display.forEach((f, i) => {
+          const airline = f.airline || "";
+          const fn = formatFlightNum(f.flight_number);
+          const cityCode = f.is_arrival ? f.origin : f.destination;
+          const city = getCityName(cityCode);
+
+          // scheduled time — use sched_time (fixed daily schedule)
+          const schedTime =
+            formatTime(f.sched_time) ||
+            formatTime(f.est_time) ||
+            formatTime(f.landing_time) ||
+            "";
+          // waktu — elapsed time since scheduled arrival
+          const st = (f.status || "").toLowerCase();
+          function timeAgo(schedDate) {
+            if (!schedDate) return "";
+            const now = new Date();
+            const sched = new Date(schedDate);
+            const diffMs = now - sched;
+            const absDiff = Math.abs(diffMs);
+            const isPast = diffMs > 0;
+            if (absDiff < 60000) {
+              const s = Math.floor(absDiff / 1000);
+              return isPast ? s + " dyl" : s + " dtk";
+            } else if (absDiff < 3600000) {
+              const m = Math.floor(absDiff / 60000);
+              return isPast ? m + " myl" : m + " mnt";
+            } else {
+              const h = Math.floor(absDiff / 3600000);
+              const m = Math.floor((absDiff % 3600000) / 60000);
+              if (isPast) return m > 0 ? h + "j " + m + "myl" : h + " jyl";
+              return m > 0 ? h + "j " + m + "m" : h + " jam";
+            }
+          }
+          const waktuText = timeAgo(f.sched_time);
+
+          const keterangan = getKeterangan(f);
+          const isLanded =
+            st.includes("on ground") ||
+            st.includes("taxiing") ||
+            st.includes("landing");
+
+          const reg = (f.registration || "").trim().toUpperCase() || "—";
+          html += `
+            <tr class="${isLanded ? "row-landed" : ""} row-animate" style="animation-delay:${i * 30}ms">
+              <td>
+                <div class="airline-logo">
+                  ${getAirlineBadge(airline, f.flight_number)}
+                </div>
+              </td>
+              <td class="col-reg" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:#cbd5e1;letter-spacing:0.5px">${reg}</td>
+              <td style="text-align:center"><span class="flight-num">${fn}</span></td>
+              <td>
+                <span style="font-size:22px;margin-right:6px">${getFlag(cityCode)}</span>
+                <span class="city-name">${city || cityCode}</span>
+                ${cityCode && city ? `<span class="city-code">(${cityCode})</span>` : ""}
+              </td>
+              <td class="time-display">${schedTime || '<span class="time-na">—</span>'}</td>
+              <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:17px;color:#94a3b8;letter-spacing:0.3px">${waktuText || "—"}</td>
+              <td class="center" style="font-family:'JetBrains Mono',monospace;font-size:16px;letter-spacing:0.3px;${f._isDelayed ? "color:var(--accent-red);font-weight:700" : "color:var(--text-secondary)"}">${f._isDelayed ? f._delayText : "—"}</td>
+              <td style="text-align:center"><span class="flight-status ${keterangan.cssClass}">${keterangan.text}</span></td>
+            </tr>`;
+        });
+
+        body.innerHTML = html;
+      }
+
+      function getStatusPriority(status, isArrival) {
+        const s = (status || "").toLowerCase();
+        if (s.includes("approach")) return 0;
+        if (s.includes("landing")) return 1;
+        if (s.includes("en route")) return 2;
+        if (s.includes("climbing") || s.includes("departing")) return 3;
+        if (s.includes("taxiing")) return 4;
+        if (s.includes("on ground")) return 5;
+        if (s.includes("delayed")) return 1;
+        return 6;
+      }
+
+      // ====== FETCH DATA ======
+      async function refreshData() {
+        try {
+          const res = await fetch(API_URL);
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+
+          const data = json.data;
+          allFlights = data.intel || [];
+
+          // Update source badge
+          const badge = document.getElementById("sourceBadge");
+          if (data.source === "fr24_live" || data.source === "airlabs") {
+            badge.className = "status-badge badge-live";
+            badge.textContent = "● LIVE";
+          } else if (data.source === "fr24_regional") {
+            badge.className = "status-badge badge-live";
+            badge.textContent = "● REGIONAL";
+          } else {
+            badge.className = "status-badge badge-mock";
+            badge.textContent = "◉ SIMULASI";
+          }
+
+          // Update timestamp
+          const upd = document.getElementById("lastUpdate");
+          upd.textContent = new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+
+          renderBoard();
+        } catch (err) {
+          console.error("[FIDS] Refresh error:", err);
+          const body = document.getElementById("fidsBody");
+          body.innerHTML = `<tr><td colspan="8" class="empty-state">
+            <i class="fas fa-exclamation-triangle" style="color:var(--accent-red)"></i>
+            <p style="color:var(--accent-red)">Gagal memuat data: ${err.message}</p>
+            <p style="margin-top:8px;font-size:12px;">Akan mencoba lagi secara otomatis...</p>
+          </td></tr>`;
+        }
+      }
+
+      // ====== AUTO SCROLL (for fullscreen monitoring) ======
+      let autoScrollActive = false;
+      let scrollDir = 1;
+      function autoScroll() {
+        if (!document.fullscreenElement) return;
+        const wrapper = document.getElementById("tableWrapper");
+        if (!wrapper) return;
+        const maxScroll = wrapper.scrollHeight - wrapper.clientHeight;
+        if (maxScroll <= 0) return;
+
+        wrapper.scrollTop += scrollDir * 0.5;
+        if (wrapper.scrollTop >= maxScroll) {
+          scrollDir = -1;
+          setTimeout(() => {
+            autoScrollActive && requestAnimationFrame(autoScroll);
+          }, 3000);
+          return;
+        }
+        if (wrapper.scrollTop <= 0) {
+          scrollDir = 1;
+          setTimeout(() => {
+            autoScrollActive && requestAnimationFrame(autoScroll);
+          }, 3000);
+          return;
+        }
+        requestAnimationFrame(autoScroll);
+      }
+      document.addEventListener("fullscreenchange", () => {
+        if (document.fullscreenElement) {
+          autoScrollActive = true;
+          setTimeout(() => requestAnimationFrame(autoScroll), 2000);
+        } else {
+          autoScrollActive = false;
+        }
+      });
+
+      // ====== INIT ======
+      updateClock();
+      setInterval(updateClock, 1000);
+      refreshData();
+      refreshTimer = setInterval(refreshData, REFRESH_INTERVAL);
+
+      // Keyboard shortcuts
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "f" || e.key === "F") {
+          if (e.target.tagName === "INPUT") return;
+          toggleFullscreen();
+        }
+        if (e.key === "r" || e.key === "R") {
+          if (e.target.tagName === "INPUT") return;
+          refreshData();
+        }
+      });
+    </script>
+
+    <style>
+      @keyframes pulse-anim-kf {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .pulse-anim {
+        animation: pulse-anim-kf 2s infinite;
+      }
+    </style>
+  </body>
+</html>
