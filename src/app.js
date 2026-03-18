@@ -83,7 +83,8 @@ app.use("/api", async (req, res, next) => {
   if (
     req.path.startsWith("/auth/") ||
     req.path === "/health" ||
-    req.path === "/kantor-list"
+    req.path === "/kantor-list" ||
+    req.path.startsWith("/flights/")   // FIDS public display board
   ) {
     return next();
   }
