@@ -31,6 +31,14 @@ const AIRLABS_BASE_URL = "https://airlabs.co/api/v9";
 let airLabsLastPoll = 0;
 const AIRLABS_CACHE_TTL = 900; // 15 minutes cache for AirLabs data
 
+// OpenSky Network — free ADS-B, no API key required (anonymous: 400 req/day)
+const OPENSKY_BASE_URL = "https://opensky-network.org/api";
+const OPENSKY_USERNAME = process.env.OPENSKY_USERNAME || "";
+const OPENSKY_PASSWORD = process.env.OPENSKY_PASSWORD || "";
+let openSkyLastPoll = 0;
+const OPENSKY_CACHE_TTL = 600; // 10 min cache
+const OPENSKY_MIN_INTERVAL = 10 * 60 * 1000; // poll at most every 10 min
+
 let pollingActive = false;
 let pollTimer = null;
 let creditUsage = { today: 0, total: 0, lastReset: new Date().toDateString() };
@@ -265,6 +273,174 @@ async function callAirLabs(endpoint, params) {
   }
 }
 
+// ---------- OpenSky Network API caller ----------
+async function callOpenSky(endpoint, params) {
+  const url = new URL(OPENSKY_BASE_URL + endpoint);
+  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  const headers = {};
+  if (OPENSKY_USERNAME && OPENSKY_PASSWORD) {
+    headers["Authorization"] =
+      "Basic " +
+      Buffer.from(OPENSKY_USERNAME + ":" + OPENSKY_PASSWORD).toString("base64");
+  }
+
+  try {
+    const r = await fetch(url.toString(), {
+      headers,
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) {
+      console.error("[OpenSky] API error " + r.status + ": " + r.statusText);
+      return null;
+    }
+    return await r.json();
+  } catch (err) {
+    console.error("[OpenSky] Request failed:", err.message);
+    return null;
+  }
+}
+
+// ---------- Process OpenSky data ----------
+function processOpenSkyData(arrivals, states) {
+  const now = new Date();
+  const iso = now.toISOString();
+
+  // Build lookup map from live state vectors (icao24 → position)
+  // State vector array: [icao24, callsign, origin_country, time_position, last_contact,
+  //   longitude, latitude, baro_altitude(m), on_ground, velocity(m/s), true_track,
+  //   vertical_rate(m/s), sensors, geo_altitude(m), squawk, spi, position_source]
+  const posMap = {};
+  if (states && Array.isArray(states.states)) {
+    for (const s of states.states) {
+      if (!s[0]) continue;
+      const icao24 = s[0].toLowerCase();
+      const entry = {
+        icao24,
+        callsign: (s[1] || "").trim(),
+        lon: s[5],
+        lat: s[6],
+        baro_alt_m: s[7],
+        on_ground: s[8],
+        velocity_ms: s[9],
+        heading: s[10],
+        vert_rate_ms: s[11],
+        geo_alt_m: s[13],
+        squawk: s[14] || "",
+      };
+      posMap[icao24] = entry;
+      if (entry.callsign) posMap[entry.callsign] = entry;
+    }
+  }
+
+  const flights = [];
+  const positions = [];
+
+  for (const f of arrivals) {
+    const callsign = (f.callsign || "").trim();
+    const depAirport = f.estDepartureAirport || "";
+
+    // OpenSky uses ICAO codes — map common ones to IATA for display
+    const ICAO_TO_IATA = {
+      WMKK: "KUL", WSSS: "SIN", VTBD: "DMK", VTBS: "BKK",
+      OMAA: "AUH", OMDB: "DXB", WBKK: "BKI", WMKP: "PEN",
+      RCTP: "TPE", ZGGG: "CAN", ZGSZ: "SZX",
+    };
+    const depIata = ICAO_TO_IATA[depAirport] || depAirport;
+    const isIntl = depAirport.length === 4 &&
+      !depAirport.startsWith("WI") &&
+      !depAirport.startsWith("WA") &&
+      !depAirport.startsWith("WQ") &&
+      depAirport !== "WIMM";
+
+    const pos = posMap[f.icao24] || (callsign ? posMap[callsign] : null);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const lastSeenAgo = f.lastSeen ? nowSec - f.lastSeen : 99999;
+    const isOnGround = pos ? pos.on_ground : lastSeenAgo < 3600;
+
+    let altFt = 0;
+    let spdKt = 0;
+    if (pos) {
+      altFt = pos.baro_alt_m ? Math.round(pos.baro_alt_m * 3.281) : 0;
+      spdKt = pos.velocity_ms ? Math.round(pos.velocity_ms * 1.944) : 0;
+    }
+
+    let status;
+    if (pos && !pos.on_ground) {
+      status = deriveStatus({ dest_iata: "KNO", dest_icao: "WIMM", alt: altFt, gspeed: spdKt });
+    } else if (isOnGround) {
+      status = "On Ground";
+    } else {
+      status = "En Route";
+    }
+
+    const arrivalTs = f.lastSeen ? new Date(f.lastSeen * 1000).toISOString() : null;
+
+    flights.push({
+      flight_id: f.icao24 || callsign,
+      callsign,
+      flight_number: callsign,
+      airline: "",
+      origin: depIata,
+      origin_icao: depAirport,
+      destination: "KNO",
+      destination_icao: "WIMM",
+      sched_time: arrivalTs,
+      est_time: arrivalTs,
+      actual_time: isOnGround ? arrivalTs : null,
+      landing_time: isOnGround ? arrivalTs : null,
+      status,
+      is_arrival: true,
+      aircraft: "",
+      registration: "",
+      source: "opensky",
+      is_international: isIntl,
+    });
+
+    if (pos && !pos.on_ground && pos.lat && pos.lon) {
+      const dist = haversineKm(KNO.lat, KNO.lon, pos.lat, pos.lon);
+      positions.push({
+        flight_id: f.icao24,
+        callsign,
+        flight_number: callsign,
+        lat: pos.lat,
+        lon: pos.lon,
+        alt_ft: altFt,
+        speed_kt: spdKt,
+        vspeed: pos.vert_rate_ms ? Math.round(pos.vert_rate_ms * 197) : 0,
+        heading: pos.heading || 0,
+        distance_km: Math.round(dist),
+        timestamp: iso,
+        source: "opensky",
+        aircraft: "",
+        registration: "",
+        origin: depIata,
+        destination: "KNO",
+        is_arrival: true,
+        squawk: pos.squawk,
+      });
+    }
+  }
+
+  flights.sort((a, b) => (a.sched_time || "").localeCompare(b.sched_time || ""));
+  positions.sort((a, b) => a.distance_km - b.distance_km);
+
+  cache.set(
+    "kno:board",
+    { flights, updated_at: iso, source: "opensky", total: flights.length,
+      international: flights.filter((f) => f.is_international).length },
+    OPENSKY_CACHE_TTL,
+  );
+  cache.set("kno:positions", { positions, updated_at: iso, source: "opensky" }, OPENSKY_CACHE_TTL);
+  generateAlerts(positions);
+
+  console.log(
+    "[OpenSky] Processed: " + flights.length + " arrivals (" +
+    flights.filter((f) => f.is_international).length + " intl), " +
+    positions.length + " live positions",
+  );
+}
+
 // ---------- Process AirLabs schedule data ----------
 // regMap: optional { flight_iata: reg_number } from AirLabs real-time /flights API
 function processAirLabsData(items, regMap) {
@@ -442,9 +618,33 @@ async function collectUnified() {
     }
   }
 
+  // Strategy 1: OpenSky Network (free ADS-B, no key required)
+  const openSkyNow = Date.now();
+  if (openSkyNow - openSkyLastPoll > OPENSKY_MIN_INTERVAL || !cache.get("kno:board")) {
+    console.log("[OpenSky] Fetching WIMM arrivals & live positions...");
+    const endTs = Math.floor(openSkyNow / 1000);
+    const beginTs = endTs - 86400; // last 24h of arrivals
+    // Bounding box around KNO: ±3° lat, ±5° lon
+    const [arrivals, states] = await Promise.all([
+      callOpenSky("/flights/arrival", { airport: "WIMM", begin: beginTs, end: endTs }),
+      callOpenSky("/states/all", {
+        lamin: KNO.lat - 3, lamax: KNO.lat + 3,
+        lomin: KNO.lon - 5, lomax: KNO.lon + 5,
+      }),
+    ]);
+    if (arrivals && Array.isArray(arrivals) && arrivals.length > 0) {
+      openSkyLastPoll = openSkyNow;
+      processOpenSkyData(arrivals, states);
+      return;
+    }
+    console.log("[OpenSky] No arrivals data, trying FR24...");
+  } else {
+    return; // OpenSky cache still fresh
+  }
+
   console.log("[FR24] Unified poll - collecting all KNO flight data...");
 
-  // Strategy 1: Airport filter (most efficient)
+  // Strategy 2: FR24 airport filter (most efficient)
   const data = await callFR24("/live/flight-positions/full", {
     airports: "both:" + KNO.iata,
     categories: "P,C",
@@ -456,7 +656,7 @@ async function collectUnified() {
     return;
   }
 
-  // Strategy 2: Bounding box fallback (if airport filter returns nothing)
+  // Strategy 3: FR24 bounding box fallback
   if (FR24_API_KEY) {
     console.log("[FR24] Airport filter empty, trying bounding box...");
     const bb = await callFR24("/live/flight-positions/full", {
@@ -494,7 +694,7 @@ async function collectUnified() {
     }
   }
 
-  // Strategy 3: Mock data (no API key or all strategies failed)
+  // Strategy 4: Mock data (all strategies failed)
   console.log("[FR24] Using mock data");
   generateMockData();
 }
@@ -1164,6 +1364,10 @@ function startPolling() {
         ? "configured (" + AIRLABS_API_KEY.substring(0, 8) + "...)"
         : "NOT SET"),
   );
+  console.log(
+    "[OpenSky] Mode: " +
+      (OPENSKY_USERNAME ? "authenticated (" + OPENSKY_USERNAME + ")" : "anonymous (400 req/day)"),
+  );
 
   collectUnified().catch((e) => console.error("[FR24] Initial poll error:", e));
 
@@ -1221,7 +1425,9 @@ function getStatus() {
     polling_active: pollingActive,
     api_key_configured: !!FR24_API_KEY,
     airlabs_configured: !!AIRLABS_API_KEY,
-    mode: AIRLABS_API_KEY ? "airlabs" : FR24_API_KEY ? "live" : "mock",
+    opensky_configured: true,
+    opensky_authenticated: !!(OPENSKY_USERNAME && OPENSKY_PASSWORD),
+    mode: AIRLABS_API_KEY ? "airlabs" : "opensky+fr24",
     cache_keys: cache.keys(),
     credits: {
       today: creditUsage.today,
