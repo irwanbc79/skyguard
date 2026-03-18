@@ -1,10 +1,14 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const manifestSchema = new mongoose.Schema(
   {
     flight_number: { type: String, index: true },
     flight_date: Date,
-    direction: { type: String, enum: ['inbound', 'outbound', 'unknown'], default: 'unknown' },
+    direction: {
+      type: String,
+      enum: ["inbound", "outbound", "unknown"],
+      default: "unknown",
+    },
     origin: String,
     destination: String,
     carrier: String,
@@ -15,16 +19,29 @@ const manifestSchema = new mongoose.Schema(
     file_type: String,
     status: {
       type: String,
-      enum: ['received', 'parsed', 'needs_review', 'approved', 'rejected', 'synced', 'failed'],
-      default: 'received'
+      enum: [
+        "received",
+        "parsed",
+        "needs_review",
+        "approved",
+        "rejected",
+        "synced",
+        "failed",
+        "classified",
+      ],
+      default: "received",
     },
     parsed_fields: { type: Object, default: {} },
     parsing_notes: String,
-    uploaded_by: { type: String, default: 'system' },
-    source: { type: String, enum: ['manual', 'email', 'api'], default: 'manual' },
-    received_at: { type: Date, default: Date.now }
+    uploaded_by: { type: String, default: "system" },
+    source: {
+      type: String,
+      enum: ["manual", "email", "api"],
+      default: "manual",
+    },
+    received_at: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model('Manifest', manifestSchema);
+module.exports = mongoose.model("Manifest", manifestSchema);

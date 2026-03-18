@@ -3,6 +3,15 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { escapeRegex } = require('../utils/helpers');
 
+function parseSectionNum(val) {
+  const n = parseInt(String(val), 10);
+  return Number.isFinite(n) && n >= 1 && n <= 21 ? n : null;
+}
+function parseChapterNum(val) {
+  const n = parseInt(String(val), 10);
+  return Number.isFinite(n) && n >= 1 && n <= 97 ? n : null;
+}
+
 const sectionData = [
     { sectionNumber: 1, titleId: 'Binatang hidup; Produk hewani', titleEn: 'Live animals; Animal products', chapterRange: ['01','02','03','04','05'] },
     { sectionNumber: 2, titleId: 'Produk nabati', titleEn: 'Vegetable products', chapterRange: ['06','07','08','09','10','11','12','13','14'] },
@@ -37,7 +46,7 @@ router.get('/stats', async (req, res) => {
             success: true,
             stats: { totalHS, totalChapters: chapters.length }
         });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /sections
@@ -55,15 +64,16 @@ router.get('/sections', async (req, res) => {
             };
         }));
         res.json({ success: true, data: sections });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /sections/:num/chapters
 router.get('/sections/:num/chapters', async (req, res) => {
     try {
-        const num = parseInt(req.params.num);
+        const num = parseSectionNum(req.params.num);
+        if (num === null) return res.status(400).json({ status: 'error', message: 'Invalid section number' });
         const section = sectionData.find(s => s.sectionNumber === num);
-        if (!section) return res.status(404).json({ success: false, error: 'Section not found' });
+        if (!section) return res.status(404).json({ status: 'error', message: 'Section not found' });
         
         const db = mongoose.connection.db;
         const chapters = await db.collection('hs_codes').aggregate([
@@ -78,13 +88,15 @@ router.get('/sections/:num/chapters', async (req, res) => {
         }));
         
         res.json({ success: true, section: { sectionNumber: num, titleId: section.titleId, titleEn: section.titleEn }, data });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /chapters/:num/hs
 router.get('/chapters/:num/hs', async (req, res) => {
     try {
-        const chapter = req.params.num.padStart(2, '0');
+        const num = parseChapterNum(req.params.num);
+        if (num === null) return res.status(400).json({ status: 'error', message: 'Invalid chapter number' });
+        const chapter = String(num).padStart(2, '0');
         const db = mongoose.connection.db;
         const codes = await db.collection('hs_codes').find({ chapter }).sort({ hs_code: 1 }).toArray();
         const data = codes.map(c => ({
@@ -97,7 +109,7 @@ router.get('/chapters/:num/hs', async (req, res) => {
             level: c.hs_level
         }));
         res.json({ success: true, data });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /chapters
@@ -110,7 +122,7 @@ router.get('/chapters', async (req, res) => {
             { $sort: { _id: 1 } }
         ]).toArray();
         res.json({ success: true, data: chapters.map(c => ({ chapterNumber: c._id, titleId: c.titleId })) });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /search
@@ -158,7 +170,7 @@ router.get('/search', async (req, res) => {
             level: c.hs_level
         }));
         res.json({ success: true, data, query: q });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /detail/:code
@@ -167,7 +179,7 @@ router.get('/detail/:code', async (req, res) => {
         const code = decodeURIComponent(req.params.code);
         const db = mongoose.connection.db;
         const hs = await db.collection('hs_codes').findOne({ hs_code: code });
-        if (!hs) return res.status(404).json({ success: false, error: 'Not found' });
+        if (!hs) return res.status(404).json({ status: 'error', message: 'Not found' });
         
         // Get parent codes
         const parts = code.split('.');
@@ -193,7 +205,7 @@ router.get('/detail/:code', async (req, res) => {
                 parents
             }
         });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+    } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
 });
 
 // GET /enote/section/:num - Get ENote page for section
@@ -203,7 +215,8 @@ router.get('/enote/section/:num', (req, res) => {
         11: 845, 12: 993, 13: 1014, 14: 1066, 15: 1090, 16: 1243, 17: 1527, 18: 1571,
         19: 1681, 20: 1687, 21: 1726
     };
-    const num = parseInt(req.params.num);
+    const num = parseSectionNum(req.params.num);
+    if (num === null) return res.status(400).json({ status: 'error', message: 'Invalid section number' });
     const page = pages[num] || 1;
     res.json({ success: true, section: num, page, url: `/docs/enote-btki-2022.pdf#page=${page}` });
 });
@@ -222,7 +235,8 @@ router.get('/enote/chapter/:num', (req, res) => {
         81: 1205, 82: 1216, 83: 1232, 84: 1250, 85: 1447, 86: 1531, 87: 1540, 88: 1560, 89: 1565, 90: 1571,
         91: 1654, 92: 1670, 93: 1681, 94: 1687, 95: 1698, 96: 1708, 97: 1726
     };
-    const num = parseInt(req.params.num);
+    const num = parseChapterNum(req.params.num);
+    if (num === null) return res.status(400).json({ status: 'error', message: 'Invalid chapter number' });
     const page = pages[num] || 1;
     res.json({ success: true, chapter: num, page, url: `/docs/enote-btki-2022.pdf#page=${page}` });
 });
@@ -230,7 +244,8 @@ router.get('/enote/chapter/:num', (req, res) => {
 // GET /notes/section/:num - Get section notes
 router.get('/notes/section/:num', async (req, res) => {
     try {
-        const num = parseInt(req.params.num);
+        const num = parseSectionNum(req.params.num);
+        if (num === null) return res.status(400).json({ status: 'error', message: 'Invalid section number' });
         const notes = {
             1: {
                 title: "BAGIAN I - HEWAN (BINATANG) HIDUP; PRODUK HEWANI",
@@ -248,14 +263,15 @@ router.get('/notes/section/:num', async (req, res) => {
         
         res.json({ success: true, section: num, ...notes[num] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ status: 'error', message: error.message });
     }
 });
 
 // GET /notes/chapter/:num - Get chapter notes
 router.get('/notes/chapter/:num', async (req, res) => {
     try {
-        const num = parseInt(req.params.num);
+        const num = parseChapterNum(req.params.num);
+        if (num === null) return res.status(400).json({ status: 'error', message: 'Invalid chapter number' });
         const notes = {
             1: {
                 title: "BAB 1 - HEWAN (BINATANG) HIDUP",
@@ -273,7 +289,7 @@ router.get('/notes/chapter/:num', async (req, res) => {
         
         res.json({ success: true, chapter: num, ...notes[num] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ status: 'error', message: error.message });
     }
 });
 

@@ -1,74 +1,39 @@
 /**
- * SkyGuard Authentication Middleware
+ * Simple API-key authentication middleware.
  * 
- * Basic API key authentication for write operations.
- * API key is set via SKYGUARD_API_KEY environment variable.
+ * Set SKYGUARD_API_KEY in .env to enable.
+ * When the env variable is not set, all requests are allowed (development mode).
  * 
- * Usage in routes:
+ * Usage:
  *   const { requireAuth, optionalAuth } = require('../middleware/auth');
- *   router.post('/upload', requireAuth, handler);
+ *   router.post('/sensitive', requireAuth, handler);
  */
 
-const API_KEY_HEADER = 'x-api-key';
-const API_KEY_QUERY = 'api_key';
+const API_KEY = process.env.SKYGUARD_API_KEY;
 
-/**
- * Extract API key from request (header or query param)
- */
-function extractApiKey(req) {
-  return req.headers[API_KEY_HEADER] || req.query[API_KEY_QUERY] || null;
+function extractKey(req) {
+  const header = req.headers['x-api-key'] || req.headers['authorization'];
+  if (!header) return null;
+  // Support "Bearer <key>" or plain key
+  return header.startsWith('Bearer ') ? header.slice(7) : header;
 }
 
 /**
- * Require valid API key for write operations (POST, PUT, DELETE)
- * If SKYGUARD_API_KEY is not set, all requests are allowed (dev mode)
+ * Reject the request if no valid API key is provided.
+ * When SKYGUARD_API_KEY is not configured, all requests pass through (dev mode).
  */
 function requireAuth(req, res, next) {
-  const configuredKey = process.env.SKYGUARD_API_KEY;
-  
-  // If no API key configured, allow all (dev mode)
-  if (!configuredKey) {
-    req.authenticated = true;
-    req.authMode = 'dev';
-    return next();
-  }
-  
-  const providedKey = extractApiKey(req);
-  
-  if (!providedKey) {
-    return res.status(401).json({ 
-      status: 'error', 
-      message: 'Authentication required. Provide API key via x-api-key header.' 
-    });
-  }
-  
-  if (providedKey !== configuredKey) {
-    return res.status(403).json({ 
-      status: 'error', 
-      message: 'Invalid API key.' 
-    });
-  }
-  
-  req.authenticated = true;
-  req.authMode = 'api_key';
-  next();
+  if (!API_KEY) return next(); // dev mode – no key configured
+  const provided = extractKey(req);
+  if (provided === API_KEY) return next();
+  return res.status(401).json({ status: 'error', message: 'Unauthorized – invalid or missing API key' });
 }
 
 /**
- * Optional auth — sets req.authenticated but doesn't block
+ * Attach `req.authenticated = true/false` without blocking.
  */
-function optionalAuth(req, res, next) {
-  const configuredKey = process.env.SKYGUARD_API_KEY;
-  
-  if (!configuredKey) {
-    req.authenticated = true;
-    req.authMode = 'dev';
-    return next();
-  }
-  
-  const providedKey = extractApiKey(req);
-  req.authenticated = providedKey === configuredKey;
-  req.authMode = req.authenticated ? 'api_key' : 'none';
+function optionalAuth(req, _res, next) {
+  req.authenticated = !API_KEY || extractKey(req) === API_KEY;
   next();
 }
 
