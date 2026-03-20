@@ -8,14 +8,17 @@
     "dev": "node src/app.js"
   },
   "dependencies": {
+    "compression": "^1.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "imapflow": "^1.0.170",
     "mailparser": "^3.7.4",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
+    "pdfkit": "^0.16.0",
     "node-cron": "^4.2.1",
     "xlsx": "^0.18.5"
   }
