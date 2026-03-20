@@ -1,5 +1,7 @@
 node_modules/
 backups/
+# Data operasional (manifest, cargo upload) — jangan di-commit
+uploads/
 .env
 .pm2/
 *.log
