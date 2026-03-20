@@ -2959,6 +2959,33 @@
       </div>
     </div>
 
+    <!-- Modul portal (refactor aman); fallback di bawah jika file gagal dimuat -->
+    <script src="/js/skyguard-ui.js?v=1"></script>
+    <script src="/js/skyguard-api.js?v=1"></script>
+    <script>
+      (function () {
+        if (typeof window.showToast !== "function") {
+          window.showToast = function (message) {
+            try {
+              alert(message);
+            } catch (e) {}
+          };
+        }
+        window.SgApi = window.SgApi || {};
+        if (typeof window.SgApi.parseJsonOrThrow !== "function") {
+          window.SgApi.parseJsonOrThrow = async function (res) {
+            var ct = (res.headers.get("content-type") || "").toLowerCase();
+            if (!res.ok || ct.indexOf("application/json") === -1) {
+              throw new Error(
+                "API tidak terjangkau. Pastikan layanan SkyGuard API berjalan (pm2 restart).",
+              );
+            }
+            return res.json();
+          };
+        }
+      })();
+    </script>
+
     <script>
       // ==================== AUTH GUARD ====================
       (function () {
@@ -7483,19 +7510,7 @@
             `;
       }
 
-      function showToast(message, type = "success") {
-        const toast = document.getElementById("toast");
-        document.getElementById("toastMessage").textContent = message;
-        document.getElementById("toastIcon").className =
-          type === "success"
-            ? "fas fa-check-circle text-green-400 text-xl"
-            : "fas fa-exclamation-circle text-red-400 text-xl";
-        toast.classList.remove("translate-y-20", "opacity-0");
-        setTimeout(
-          () => toast.classList.add("translate-y-20", "opacity-0"),
-          3000,
-        );
-      }
+      // showToast: public/js/skyguard-ui.js (+ fallback setelah tag toast)
 
       // ==================== KURS FUNCTIONS ====================
       function switchInputTab(tab) {
@@ -13561,12 +13576,8 @@
       loadHomeCharts();
 
       // ==================== QSVM ====================
-      function parseQsvmJson(res) {
-        const ct = (res.headers.get("content-type") || "").toLowerCase();
-        if (!res.ok || !ct.includes("application/json")) {
-          throw new Error("API tidak terjangkau. Pastikan layanan SkyGuard API berjalan (pm2 restart).");
-        }
-        return res.json();
+      async function parseQsvmJson(res) {
+        return window.SgApi.parseJsonOrThrow(res);
       }
       async function loadQsvmPage() {
         loadQsvmStats();
