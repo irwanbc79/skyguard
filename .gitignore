@@ -9,3 +9,18 @@ uploads/
 *.bak
 *.bak.*
 *.xlsx
+
+# Sampah / salinan salah tempat di root server (bukan struktur src/public)
+tmp_deploy/
+*.broken
+*.backup.*
+test_pdf*.js
+/imei_*.csv
+/imei_detail_*.csv
+/index.html
+/app.js
+/flightService.js
+/flights.js
+/manifestController.js
+/manifests.js
+/export
