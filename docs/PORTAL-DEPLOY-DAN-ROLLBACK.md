@@ -28,10 +28,12 @@ cp public/index.html "public/index.html.bak-$(date +%Y%m%d%H%M%S)"
 ## 2. Deploy
 
 ```bash
-git pull origin work
-npm install   # hanya jika package.json berubah
+git pull origin main
+npm install   # WAJIB setiap pull jika package.json/package-lock berubah (hindari MODULE_NOT_FOUND)
 pm2 restart skyguard-api
 ```
+
+Jika `curl` ke `/api/health` mengembalikan **000** atau PM2 **↺ (restart)** naik terus: cek `pm2 logs skyguard-api --lines 40 --nostream` — biasanya modul Node hilang; jalankan lagi `npm install` setelah `git pull`.
 
 Petugas: **hard refresh** browser (Ctrl+Shift+R / Cmd+Shift+R) jika halaman tampak aneh.
 

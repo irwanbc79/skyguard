@@ -8,6 +8,7 @@
     "dev": "node src/app.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "compression": "^1.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -15,11 +16,17 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "imapflow": "^1.0.170",
+    "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.7.4",
+    "mammoth": "^1.9.0",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
-    "pdfkit": "^0.16.0",
+    "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
+    "nodemailer": "^6.9.16",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.16.0",
+    "sharp": "^0.33.5",
     "xlsx": "^0.18.5"
   }
 }
