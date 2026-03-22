@@ -157,15 +157,24 @@ async function getStats() {
     { $count: "total" },
   ]);
 
-  // IMEI Collectors (>= 4 unique devices)
+  // IMEI Collectors (>= 4 unique devices, hkt1 + hkt2)
   const imeiCollectors = await Passenger.aggregate([
-    { $group: { _id: "$paspor", devices: { $addToSet: "$hkt1" } } },
+    {
+      $group: {
+        _id: "$paspor",
+        devices1: { $addToSet: "$hkt1" },
+        devices2: { $addToSet: "$hkt2" },
+      },
+    },
     {
       $project: {
-        nama: 1,
         deviceCount: {
           $size: {
-            $filter: { input: "$devices", as: "d", cond: { $ne: ["$$d", ""] } },
+            $filter: {
+              input: { $setUnion: ["$devices1", "$devices2"] },
+              as: "d",
+              cond: { $and: [{ $ne: ["$$d", ""] }, { $ne: ["$$d", null] }] },
+            },
           },
         },
       },
@@ -224,7 +233,7 @@ async function getAdvancedStats() {
     { $sort: { count: -1 } },
   ]);
 
-  // 3. Top Petugas (by billing count, then total as tiebreaker)
+  // 3. Top Petugas (by total, billing as tiebreaker)
   const topPetugas = await Passenger.aggregate([
     { $match: { nama_petugas: { $nin: ["", null] } } },
     {
@@ -251,7 +260,7 @@ async function getAdvancedStats() {
         },
       },
     },
-    { $sort: { total: -1 } },
+    { $sort: { total: -1, billing: -1 } },
     { $limit: 10 },
   ]);
 
@@ -281,7 +290,8 @@ async function getAdvancedStats() {
       $group: {
         _id: "$paspor",
         visits: { $sum: 1 },
-        devices: { $addToSet: "$hkt1" },
+        devices1: { $addToSet: "$hkt1" },
+        devices2: { $addToSet: "$hkt2" },
         billingCount: {
           $sum: { $cond: [{ $eq: ["$status_penelitian", "BILLING"] }, 1, 0] },
         },
@@ -291,34 +301,28 @@ async function getAdvancedStats() {
       },
     },
     {
+      $addFields: {
+        allDevices: {
+          $filter: {
+            input: { $setUnion: ["$devices1", "$devices2"] },
+            as: "d",
+            cond: { $and: [{ $ne: ["$$d", ""] }, { $ne: ["$$d", null] }] },
+          },
+        },
+      },
+    },
+    {
       $project: {
         visits: 1,
         billingCount: 1,
         lastVisit: 1,
         lastDevice: 1,
         nama: 1,
-        deviceCount: {
-          $size: {
-            $filter: { input: "$devices", as: "d", cond: { $ne: ["$$d", ""] } },
-          },
-        },
+        deviceCount: { $size: "$allDevices" },
         riskScore: {
           $add: [
             { $multiply: ["$visits", 2] },
-            {
-              $multiply: [
-                {
-                  $size: {
-                    $filter: {
-                      input: "$devices",
-                      as: "d",
-                      cond: { $ne: ["$$d", ""] },
-                    },
-                  },
-                },
-                3,
-              ],
-            },
+            { $multiply: [{ $size: "$allDevices" }, 3] },
             { $multiply: ["$billingCount", 5] },
           ],
         },
