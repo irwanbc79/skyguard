@@ -3,6 +3,7 @@ const Passenger = require("../models/Passenger");
 const ManifestPassenger = require("../models/ManifestPassenger");
 const Manifest = require("../models/Manifest");
 const Cnpibk = require("../models/cnpibk");
+const ImeiDetail = require("../models/ImeiDetail");
 const path = require("path");
 const fs = require("fs");
 const {
@@ -413,10 +414,35 @@ async function getManifestHistory(passportNumber) {
 async function getPassengerProfile(passportNumber) {
   const pp = passportNumber.toUpperCase().trim();
 
-  // 1. CEISA records
-  const ceisaRecords = await Passenger.find({ paspor: pp })
+  // 1. CEISA records (bulk upload)
+  const ceisaRecordsRaw = await Passenger.find({ paspor: pp })
     .sort({ tanggal_dokumen: -1 })
     .lean();
+
+  // 1b. ImeiDetail records (real-time IMEI registry, lebih fresh)
+  const imeiDetailRecords = await ImeiDetail.find({ no_identitas: new RegExp("^" + pp + "$", "i") })
+    .sort({ waktu_kedatangan: -1 })
+    .limit(50)
+    .lean();
+
+  // Merge: normalise ImeiDetail ke format CEISA, deduplicate by nomor_dokumen
+  const ceisaDocNums = new Set(ceisaRecordsRaw.map((r) => r.nomor_dokumen).filter(Boolean));
+  const imeiAsceisa = imeiDetailRecords
+    .filter((d) => !ceisaDocNums.has(d.no_dokumen))
+    .map((d) => ({
+      nomor_dokumen: d.no_dokumen,
+      tanggal_dokumen: d.tgl_dokumen || d.waktu_kedatangan,
+      hkt1: [d.merk, d.tipe].filter(Boolean).join(" ") || null,
+      hkt2: null,
+      status_penelitian: d.cara_pembayaran || null,
+      nama_petugas: d.nip_petugas || null,
+      nama_lengkap: d.nama,
+      _source: "imei_detail",
+    }));
+
+  const ceisaRecords = [...ceisaRecordsRaw, ...imeiAsceisa].sort(
+    (a, b) => new Date(b.tanggal_dokumen || 0) - new Date(a.tanggal_dokumen || 0),
+  );
 
   // Device analysis
   const allDevices = [];
