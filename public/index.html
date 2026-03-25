@@ -3007,7 +3007,15 @@
             if (res.status === 401) {
               localStorage.removeItem("sg_token");
               localStorage.removeItem("sg_user");
-              window.location.replace("/login");
+              window.location.replace("/login?reason=session_expired");
+            } else if (res.status === 403) {
+              res.clone().json().then(function(d) {
+                if (d.code === "ACCOUNT_DISABLED") {
+                  localStorage.removeItem("sg_token");
+                  localStorage.removeItem("sg_user");
+                  window.location.replace("/login?reason=account_disabled");
+                }
+              }).catch(function(){});
             }
             return res;
           });

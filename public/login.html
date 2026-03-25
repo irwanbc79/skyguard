@@ -586,9 +586,14 @@
   // ── URL STATUS MESSAGES ────────────────────────────────────────────────────
   const urlParams = new URLSearchParams(window.location.search);
   const status = urlParams.get('status');
+  const reason = urlParams.get('reason');
   const resetToken = urlParams.get('reset');
 
-  if (status === 'verified') {
+  if (reason === 'session_expired') {
+    showAlert('login-info','login-info-msg','Sesi Anda telah berakhir. Silakan login kembali.');
+  } else if (reason === 'account_disabled') {
+    showAlert('login-error','login-error-msg','Akun Anda telah dinonaktifkan oleh administrator. Hubungi admin untuk mengaktifkan kembali.');
+  } else if (status === 'verified') {
     showAlert('login-success','login-success-msg','✓ Email berhasil diverifikasi! Silakan masuk dengan akun Anda.');
   } else if (status === 'verify-expired') {
     showAlert('login-error','login-error-msg','Link verifikasi kadaluarsa. Silakan daftar ulang untuk mendapatkan link baru.');

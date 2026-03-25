@@ -95,8 +95,11 @@ app.use("/api", async (req, res, next) => {
   try {
     const payload = verifyJwt(header.slice(7));
     const user = await User.findById(payload.id).select("_id email role is_active").lean();
-    if (!user || !user.is_active) {
-      return res.status(401).json({ status: "error", message: "Akun tidak valid atau telah dinonaktifkan." });
+    if (!user) {
+      return res.status(401).json({ status: "error", message: "Token tidak valid atau sudah kadaluarsa. Silakan login ulang." });
+    }
+    if (!user.is_active) {
+      return res.status(403).json({ status: "error", code: "ACCOUNT_DISABLED", message: "Akun Anda telah dinonaktifkan. Hubungi administrator." });
     }
     req.user = user;
     // Update last_seen (max once per minute to avoid excessive writes)
