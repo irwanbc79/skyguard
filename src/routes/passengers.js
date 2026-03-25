@@ -334,10 +334,9 @@ router.get("/travel-history/:identifier", async (req, res) => {
     } else if (searchBy === "name") {
       paxFilter = { name: { $regex: id, $options: "i" } };
     } else {
-      const ppCheck = await ManifestPassenger.countDocuments({
-        passport_number: { $regex: new RegExp("^" + id + "$", "i") },
-      });
-      if (ppCheck > 0) {
+      // Auto-detect: if looks like a passport/ID (alphanumeric, no spaces), search by passport only.
+      // Fallback to name only if the query clearly contains spaces (likely a full name).
+      if (/^[A-Z0-9]{3,20}$/i.test(id.trim())) {
         paxFilter = {
           passport_number: { $regex: new RegExp("^" + id + "$", "i") },
         };
@@ -386,11 +385,10 @@ router.get("/travel-history/:identifier", async (req, res) => {
         .limit(50)
         .lean();
     }
-    // Fallback: search CEISA by name
-    if (!ceisaRecords.length && (ceisaByName || primaryName)) {
-      const nameSearch = ceisaByName || primaryName;
+    // Fallback: search CEISA by name ONLY when explicitly searching by name (not by passport)
+    if (!ceisaRecords.length && ceisaByName) {
       ceisaRecords = await Passenger.find({
-        nama_lengkap: { $regex: nameSearch, $options: "i" },
+        nama_lengkap: { $regex: ceisaByName, $options: "i" },
       })
         .sort({ tanggal_dokumen: -1 })
         .limit(50)
@@ -662,55 +660,8 @@ router.get("/travel-history/:identifier", async (req, res) => {
         };
       }
     }
-    // Fallback: search IMEI by name if no passport match
-    if (!imeiData.total && primaryName) {
-      const imeiByName = await ImeiRegistration.find({
-        nama: { $regex: primaryName, $options: "i" },
-      })
-        .sort({ tgl_kedatangan: -1 })
-        .limit(20)
-        .lean();
-      if (imeiByName.length) {
-        const officeSet = new Set();
-        const vesselSet = new Set();
-        let totalPungutan = 0;
-        let billingCount = 0;
-        let pembebasanCount = 0;
-        imeiByName.forEach((r) => {
-          if (r.kode_kantor) officeSet.add(r.kode_kantor);
-          if (r.vessel) vesselSet.add(r.vessel);
-          totalPungutan += r.total_pungutan || 0;
-          if (r.status_pembayaran === "BILLING") billingCount++;
-          if (r.status_pembayaran === "PEMBEBASAN") pembebasanCount++;
-        });
-        imeiData = {
-          total: imeiByName.length,
-          records: imeiByName.map((r) => ({
-            nama: r.nama,
-            vessel: r.vessel,
-            tgl_kedatangan: r.tgl_kedatangan,
-            no_dok: r.no_dok,
-            tgl_dok: r.tgl_dok,
-            total_pungutan: r.total_pungutan,
-            status_pembayaran: r.status_pembayaran,
-            kode_kantor: r.kode_kantor,
-            kantor_nama: getKantorName(r.kode_kantor),
-            nip_petugas: r.nip_petugas,
-            id_registrasi: r.id_registrasi,
-          })),
-          unique_offices: [...officeSet].map((k) => ({
-            code: k,
-            name: getKantorName(k),
-          })),
-          unique_vessels: [...vesselSet],
-          total_pungutan: totalPungutan,
-          billing_count: billingCount,
-          pembebasan_count: pembebasanCount,
-          first_record: imeiByName[imeiByName.length - 1].tgl_kedatangan,
-          last_record: imeiByName[0].tgl_kedatangan,
-        };
-      }
-    }
+    // Name-based IMEI fallback dihapus — IMEI harus dicari by no_identitas (paspor/NIK) saja
+    // untuk mencegah false attribution data IMEI ke penumpang yang salah
 
     // 9b. IMEI Device Details lookup
     let deviceData = { total: 0, devices: [], brands: {}, totalFobUsd: 0 };
