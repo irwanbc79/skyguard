@@ -4,6 +4,7 @@ const ManifestPassenger = require("../models/ManifestPassenger");
 const Manifest = require("../models/Manifest");
 const Cnpibk = require("../models/cnpibk");
 const ImeiDetail = require("../models/ImeiDetail");
+const ImeiRegistration = require("../models/ImeiRegistration");
 const path = require("path");
 const fs = require("fs");
 const {
@@ -414,33 +415,63 @@ async function getManifestHistory(passportNumber) {
 async function getPassengerProfile(passportNumber) {
   const pp = passportNumber.toUpperCase().trim();
 
-  // 1. CEISA records (bulk upload)
-  const ceisaRecordsRaw = await Passenger.find({ paspor: pp })
+  const ppRx = new RegExp("^" + pp + "$", "i");
+
+  // 1. CEISA records (bulk upload) — case-insensitive agar konsisten dengan dossier
+  const ceisaRecordsRaw = await Passenger.find({ paspor: ppRx })
     .sort({ tanggal_dokumen: -1 })
     .lean();
 
-  // 1b. ImeiDetail records (real-time IMEI registry, lebih fresh)
-  const imeiDetailRecords = await ImeiDetail.find({ no_identitas: new RegExp("^" + pp + "$", "i") })
+  // 1b. ImeiDetail records (device detail dari IMEI registry)
+  const imeiDetailRecords = await ImeiDetail.find({ no_identitas: ppRx })
     .sort({ waktu_kedatangan: -1 })
     .limit(50)
     .lean();
 
-  // Merge: normalise ImeiDetail ke format CEISA, deduplicate by nomor_dokumen
-  const ceisaDocNums = new Set(ceisaRecordsRaw.map((r) => r.nomor_dokumen).filter(Boolean));
-  const imeiAsceisa = imeiDetailRecords
-    .filter((d) => !ceisaDocNums.has(d.no_dokumen))
-    .map((d) => ({
-      nomor_dokumen: d.no_dokumen,
-      tanggal_dokumen: d.tgl_dokumen || d.waktu_kedatangan,
-      hkt1: [d.merk, d.tipe].filter(Boolean).join(" ") || null,
-      hkt2: null,
-      status_penelitian: d.cara_pembayaran || null,
-      nama_petugas: d.nip_petugas || null,
-      nama_lengkap: d.nama,
-      _source: "imei_detail",
-    }));
+  // 1c. ImeiRegistration records (registrasi IMEI real-time, paling fresh)
+  const imeiRegRecords = await ImeiRegistration.find({ no_identitas: ppRx })
+    .sort({ tgl_kedatangan: -1 })
+    .limit(50)
+    .lean();
 
-  const ceisaRecords = [...ceisaRecordsRaw, ...imeiAsceisa].sort(
+  // Gabungkan semua nomor dokumen dari CEISA & ImeiDetail untuk dedup
+  const seenDocs = new Set(ceisaRecordsRaw.map((r) => r.nomor_dokumen).filter(Boolean));
+
+  // Normalise ImeiDetail ke format CEISA
+  const fromImeiDetail = imeiDetailRecords
+    .filter((d) => d.no_dokumen && !seenDocs.has(d.no_dokumen))
+    .map((d) => {
+      seenDocs.add(d.no_dokumen);
+      return {
+        nomor_dokumen: d.no_dokumen,
+        tanggal_dokumen: d.tgl_dokumen || d.waktu_kedatangan,
+        hkt1: [d.merk, d.tipe].filter(Boolean).join(" ") || null,
+        hkt2: null,
+        status_penelitian: d.cara_pembayaran || null,
+        nama_petugas: d.nip_petugas || null,
+        nama_lengkap: d.nama,
+        _source: "imei_detail",
+      };
+    });
+
+  // Normalise ImeiRegistration ke format CEISA (tanpa info device — tidak ada di model ini)
+  const fromImeiReg = imeiRegRecords
+    .filter((r) => r.no_dok && !seenDocs.has(r.no_dok))
+    .map((r) => {
+      seenDocs.add(r.no_dok);
+      return {
+        nomor_dokumen: r.no_dok,
+        tanggal_dokumen: r.tgl_dok || r.tgl_kedatangan,
+        hkt1: null,
+        hkt2: null,
+        status_penelitian: r.status_pembayaran || null,
+        nama_petugas: r.nip_petugas || null,
+        nama_lengkap: r.nama,
+        _source: "imei_registration",
+      };
+    });
+
+  const ceisaRecords = [...ceisaRecordsRaw, ...fromImeiDetail, ...fromImeiReg].sort(
     (a, b) => new Date(b.tanggal_dokumen || 0) - new Date(a.tanggal_dokumen || 0),
   );
 
