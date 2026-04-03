@@ -20933,11 +20933,26 @@
               <i class="fas fa-search text-blue-400"></i> Cari Penetapan
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-              <div>
+              <div style="position:relative">
                 <label class="block text-xs text-gray-400 mb-1">Merk <span class="text-red-400">*</span></label>
-                <select id="ps-merk" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" onchange="psOnMerkChange()">
-                  <option value="">-- Memuat merk... --</option>
-                </select>
+                <input type="hidden" id="ps-merk" value="">
+                <div id="ps-merk-display" onclick="psMerkToggle()"
+                  class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm flex items-center justify-between cursor-pointer select-none"
+                  style="min-height:38px">
+                  <span id="ps-merk-label" class="text-gray-400">-- Memuat merk... --</span>
+                  <i class="fas fa-chevron-down text-gray-400 text-xs ml-2"></i>
+                </div>
+                <div id="ps-merk-dropdown"
+                  class="hidden"
+                  style="position:absolute;top:100%;left:0;right:0;z-index:200;background:#1e293b;border:1px solid #475569;border-radius:.5rem;box-shadow:0 8px 24px rgba(0,0,0,.5);margin-top:2px">
+                  <div style="padding:6px 6px 4px">
+                    <input id="ps-merk-search" type="text" placeholder="&#xf002; Cari merk..." autocomplete="off"
+                      oninput="psMerkFilter()"
+                      class="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-1.5 text-white text-sm"
+                      style="outline:none">
+                  </div>
+                  <div id="ps-merk-list" style="max-height:220px;overflow-y:auto;padding:0 4px 6px"></div>
+                </div>
                 <p id="ps-merk-info" class="text-xs text-gray-500 mt-1 hidden"></p>
               </div>
               <div>
@@ -20983,11 +20998,58 @@
         `;
       }
 
+      let _psMerkData = [];
+
+      function psMerkToggle() {
+        const dd = document.getElementById("ps-merk-dropdown");
+        if (!dd) return;
+        const isHidden = dd.classList.contains("hidden");
+        if (isHidden) {
+          dd.classList.remove("hidden");
+          const s = document.getElementById("ps-merk-search");
+          if (s) { s.value = ""; psMerkFilter(); s.focus(); }
+        } else {
+          dd.classList.add("hidden");
+        }
+      }
+
+      function psMerkFilter() {
+        const q = (document.getElementById("ps-merk-search")?.value || "").toLowerCase();
+        const list = document.getElementById("ps-merk-list");
+        if (!list) return;
+        const filtered = q ? _psMerkData.filter(m => m.merk.toLowerCase().includes(q)) : _psMerkData;
+        list.innerHTML = filtered.map(m => {
+          const label = m.merk.charAt(0) + m.merk.slice(1).toLowerCase();
+          const count = m.count ? ` <span style="color:#64748b;font-size:.7rem">(${m.count.toLocaleString()})</span>` : "";
+          return `<div onclick="psMerkSelect('${m.merk}','${label}')"
+            class="px-3 py-1.5 text-sm text-white rounded cursor-pointer"
+            style="transition:background .1s"
+            onmouseover="this.style.background='rgba(255,255,255,.08)'"
+            onmouseout="this.style.background=''">${label}${count}</div>`;
+        }).join("") || '<div class="px-3 py-2 text-xs text-gray-500">Tidak ditemukan</div>';
+      }
+
+      function psMerkSelect(value, label) {
+        document.getElementById("ps-merk").value = value;
+        const lbl = document.getElementById("ps-merk-label");
+        if (lbl) { lbl.textContent = label; lbl.classList.remove("text-gray-400"); lbl.classList.add("text-white"); }
+        const dd = document.getElementById("ps-merk-dropdown");
+        if (dd) dd.classList.add("hidden");
+        psOnMerkChange();
+      }
+
+      // Tutup dropdown kalau klik di luar
+      document.addEventListener("click", function(e) {
+        const wrap = document.getElementById("ps-merk-display")?.closest("[style*='position:relative']");
+        if (wrap && !wrap.contains(e.target)) {
+          const dd = document.getElementById("ps-merk-dropdown");
+          if (dd) dd.classList.add("hidden");
+        }
+      });
+
       async function psLoadMerks() {
-        const sel = document.getElementById("ps-merk");
+        const label = document.getElementById("ps-merk-label");
         const info = document.getElementById("ps-merk-info");
-        if (!sel) return;
-        // Fallback statis jika API gagal
         const fallback = [
           "APPLE","SAMSUNG","XIAOMI","OPPO","VIVO","HUAWEI","REALME","SONY",
           "GOOGLE","ONEPLUS","MOTOROLA","NOKIA","HONOR","ASUS","LENOVO","ZTE",
@@ -20999,22 +21061,17 @@
           const r = await fetch("/api/imei-details/distinct-merks");
           const d = await r.json();
           if (d.status === "ok" && d.data && d.data.length > 0) {
-            sel.innerHTML = '<option value="">-- Pilih Merk --</option>' +
-              d.data.map(m => `<option value="${m.merk}">${m.merk.charAt(0)+m.merk.slice(1).toLowerCase()} (${m.count})</option>`).join("");
-            if (info) {
-              info.textContent = `${d.data.length} merk tersedia di database`;
-              info.classList.remove("hidden");
-            }
+            _psMerkData = d.data;
+            if (label) { label.textContent = "-- Pilih Merk --"; }
+            if (info) { info.textContent = `${d.data.length} merk tersedia di database`; info.classList.remove("hidden"); }
+            psMerkFilter();
             return;
           }
         } catch(e) {}
-        // Fallback ke daftar statis
-        sel.innerHTML = '<option value="">-- Pilih Merk --</option>' +
-          fallback.map(m => `<option value="${m}">${m.charAt(0)+m.slice(1).toLowerCase()}</option>`).join("");
-        if (info) {
-          info.textContent = "Menggunakan daftar merk statis";
-          info.classList.remove("hidden");
-        }
+        _psMerkData = fallback.map(m => ({ merk: m, count: 0 }));
+        if (label) label.textContent = "-- Pilih Merk --";
+        if (info) { info.textContent = "Menggunakan daftar merk statis"; info.classList.remove("hidden"); }
+        psMerkFilter();
       }
 
       async function psOnMerkChange() {
@@ -21034,10 +21091,15 @@
       }
 
       function psClear() {
-        ["ps-merk","ps-tipe","ps-storage","ps-kantor"].forEach(id => {
+        document.getElementById("ps-merk").value = "";
+        const lbl = document.getElementById("ps-merk-label");
+        if (lbl) { lbl.textContent = "-- Pilih Merk --"; lbl.className = lbl.className.replace("text-white","text-gray-400"); }
+        ["ps-tipe","ps-storage","ps-kantor"].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = "";
         });
+        const dl = document.getElementById("ps-tipe-list");
+        if (dl) dl.innerHTML = "";
         const res = document.getElementById("ps-result");
         if (res) res.innerHTML = "";
       }
