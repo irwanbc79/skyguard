@@ -1,45 +1,84 @@
-const mongoose = require('mongoose');
+const express = require('express');
+const router = express.Router();
+const multer = require('multer');
+const ps = require('../services/passengerService');
 
-// Schema untuk data CEISA Page 2 (Data Pendaftaran HKT)
-const passengerSchema = new mongoose.Schema({
-  // Identitas unik record
-  qr_code: { type: String, required: true, unique: true, index: true },
-  
-  // Data Kantor & Dokumen
-  kode_kantor: { type: String, index: true },
-  nomor_dokumen: { type: String, index: true },
-  tanggal_dokumen: { type: Date, index: true },
-  
-  // Data Penumpang
-  paspor: { type: String, required: true, index: true },
-  nama_lengkap: { type: String }, // Nama pemilik paspor dari Data Penetapan
-  
-  // Data Rekam
-  waktu_rekam: { type: Date },
-  
-  // Data Petugas
-  nip_petugas: { type: String, index: true },
-  nama_petugas: { type: String },
-  
-  // Status & Penelitian
-  status: { type: String, index: true }, // PENELITIAN LEBIH LANJUT, PEMBEBASAN, dll
-  kode_kantor_peneliti: { type: String },
-  
-  // Data Device (HKT)
-  hkt1: { type: String }, // Device 1 - "APPLE IPHONE 13"
-  hkt2: { type: String }, // Device 2 - "APPLE IPHONE 11"
-  
-  // Status Penelitian
-  status_penelitian: { type: String, index: true }, // PEMBEBASAN, BILLING
-  
-  // Metadata
-  created_at: { type: Date, default: Date.now },
-  upload_batch: { type: String, index: true } // Track upload batch
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }
 });
 
-// Compound index untuk pencarian cepat
-passengerSchema.index({ paspor: 1, tanggal_dokumen: -1 });
-passengerSchema.index({ hkt1: 1 });
-passengerSchema.index({ status_penelitian: 1, tanggal_dokumen: -1 });
+router.get('/stats', async (req, res) => {
+  try { res.json({ status: 'ok', data: await ps.getStats() }); }
+  catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+});
 
-module.exports = mongoose.model('Passenger', passengerSchema, 'passengers');
+// NEW: Advanced Stats Endpoint
+router.get('/stats/advanced', async (req, res) => {
+  try { res.json({ status: 'ok', data: await ps.getAdvancedStats() }); }
+  catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+router.get('/repeaters', async (req, res) => {
+  try { res.json({ status: 'ok', data: await ps.getRepeaters(parseInt(req.query.min) || 5) }); }
+  catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+router.get('/upload-logs', async (req, res) => {
+  try { res.json({ status: 'ok', data: await ps.getUploadLogs() }); }
+  catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+router.get('/:paspor', async (req, res) => {
+  try {
+    const result = await ps.getByPaspor(req.params.paspor);
+    if (!result) return res.status(404).json({ status: 'error', message: 'Paspor tidak ditemukan' });
+    res.json({ status: 'ok', data: result });
+  } catch (err) { res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+router.post('/upload', upload.single('file'), async (req, res) => {
+  req.setTimeout(600000);
+  res.setTimeout(600000);
+  
+  try {
+    if (!req.file) return res.status(400).json({ status: 'error', message: 'File tidak ditemukan' });
+    
+    const filename = req.file.originalname;
+    const uploadedBy = req.body.uploaded_by || 'Unknown';
+    const isExcel = filename.match(/\.(xlsx|xls)$/i);
+    const fileSizeMB = (req.file.size / 1024 / 1024).toFixed(2);
+    
+    console.log(`[UPLOAD] File: ${filename}, Size: ${fileSizeMB}MB, Type: ${isExcel ? 'Excel' : 'CSV'}`);
+    
+    let result;
+    if (isExcel) {
+      result = await ps.importExcel(req.file.buffer, uploadedBy, filename);
+    } else {
+      const lines = req.file.buffer.toString('utf-8').split('\n').filter(l => l.trim());
+      
+      // Detect file type from filename or header
+      const isPenetapan = filename.toLowerCase().includes('penetapan') || 
+                          (lines[0] && lines[0].includes('namaLengkap'));
+      
+      if (isPenetapan) {
+        console.log('[UPLOAD] Detected: Data Penetapan CSV');
+        result = await ps.importPenetapanCSV(lines, uploadedBy, filename);
+        result.fileType = 'penetapan';
+      } else {
+        result = await ps.importCSV(lines, uploadedBy, filename);
+      }
+    }
+    
+    res.json({
+      status: 'ok',
+      message: `Import selesai: ${result.newRecords} baru, ${result.duplicateRecords} duplikat${result.errorRecords ? `, ${result.errorRecords} error` : ''}`,
+      data: { filename, uploaded_by: uploadedBy, file_type: isExcel ? 'excel' : 'csv', file_size_mb: fileSizeMB, ...result }
+    });
+  } catch (err) {
+    console.error('[UPLOAD ERROR]', err.message);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+module.exports = router;
