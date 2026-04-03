@@ -102,6 +102,8 @@ router.get("/summary", async (req, res) => {
       totalScraperSessions,
       scraperStats,
       recentScraperSessions,
+      scraperCoverage,
+      imeiDetailBillingStats,
 
       // ===== NEW: Suspect Intelligence =====
       totalSuspects,
@@ -556,10 +558,33 @@ router.get("/summary", async (req, res) => {
             .sort({ started_at: -1 })
             .limit(3)
             .select(
-              "session_id status type total_records new_records started_at elapsed_seconds",
+              "session_id status type total_records new_records started_at elapsed_seconds date_range",
             )
             .lean()
         : Promise.resolve([]),
+      // Coverage: earliest date_start & latest date_end from completed sessions
+      safeAggregate(ScraperSession, [
+        { $match: { status: "completed" } },
+        {
+          $group: {
+            _id: null,
+            earliestStart: { $min: "$date_range.start" },
+            latestEnd: { $max: "$date_range.end" },
+            totalPungutan: { $sum: "$total_pungutan" },
+            totalFobUsd: { $sum: "$total_fob_usd" },
+          },
+        },
+      ]),
+      // ImeiDetail BILLING stats
+      safeAggregate(ImeiDetail, [
+        {
+          $group: {
+            _id: "$cara_pembayaran",
+            count: { $sum: 1 },
+            total_pungutan: { $sum: "$total_pungutan" },
+          },
+        },
+      ]),
 
       // ===== NEW: Suspect Intelligence =====
       safeCount(Suspect),
@@ -618,6 +643,9 @@ router.get("/summary", async (req, res) => {
       completedSessions: 0,
       avgElapsed: 0,
     };
+    const scraperCoverageData = scraperCoverage[0] || { earliestStart: null, latestEnd: null, totalPungutan: 0, totalFobUsd: 0 };
+    const billingRow = (imeiDetailBillingStats || []).find(r => r._id === "BILLING") || { count: 0, total_pungutan: 0 };
+    const pembebasanRow = (imeiDetailBillingStats || []).find(r => r._id === "PEMBEBASAN") || { count: 0, total_pungutan: 0 };
 
     res.json({
       status: "ok",
@@ -648,6 +676,15 @@ router.get("/summary", async (req, res) => {
           scraperRecordsTotal: scraperTotals.totalRecordsScraped,
           scraperNewRecords: scraperTotals.totalNewRecords,
           scraperCompleted: scraperTotals.completedSessions,
+          scraperDataCoverage: {
+            earliestStart: scraperCoverageData.earliestStart,
+            latestEnd: scraperCoverageData.latestEnd,
+            totalPungutan: scraperCoverageData.totalPungutan,
+            totalFobUsd: scraperCoverageData.totalFobUsd,
+          },
+          imeiDetailBilling: billingRow.count,
+          imeiDetailPembebasan: pembebasanRow.count,
+          imeiDetailBillingPungutan: billingRow.total_pungutan,
         },
         trends: {
           cargoThisMonth,

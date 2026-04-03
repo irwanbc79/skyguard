@@ -664,6 +664,9 @@ router.get("/passport/:no", async (req, res) => {
 
     // CEISA summary
     const ceisaTotalPungutan = ceisaRecords.reduce((s, r) => s + (r.jumlah_pungutan || 0), 0);
+    // Fallback: gunakan total_pungutan dari ImeiDetail (scraper) jika CSV tidak punya data pungutan
+    const imeiDetailPungutan = deviceRecords.reduce((s, r) => s + (parseFloat(r.total_pungutan) || 0), 0);
+    const effectivePungutan = ceisaTotalPungutan > 0 ? ceisaTotalPungutan : imeiDetailPungutan;
     const ceisaSummary = {
       total_records: ceisaRecords.length,
       devices: [
@@ -680,8 +683,8 @@ router.get("/passport/:no", async (req, res) => {
       pembebasan_count: ceisaRecords.filter(
         (r) => r.status_penelitian === "PEMBEBASAN",
       ).length,
-      total_pungutan: ceisaTotalPungutan,
-      pungutan_available: ceisaTotalPungutan > 0,
+      total_pungutan: effectivePungutan,
+      pungutan_available: effectivePungutan > 0,
     };
 
     // Anomaly detection

@@ -153,10 +153,8 @@ async function syncManifestPassengers(req, res) {
       (parsed.no_shows || []).forEach((p) =>
         docs.push(buildPassengerDoc(manifest, p, "no_show", 0)),
       );
-    }
-
-    if (hasSegments) {
-      // Format segment-based (AirAsia PAX, etc.)
+    } else if (hasSegments) {
+      // Format segment-based (AirAsia PAX, etc.) — hanya jika tidak ada flat passengers
       (parsed.segments || []).forEach((segment, index) => {
         (segment.passengers || []).forEach((p) =>
           docs.push(buildPassengerDoc(manifest, p, "checked_in", index)),

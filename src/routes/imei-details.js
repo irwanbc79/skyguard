@@ -987,4 +987,49 @@ router.get("/penetapan-sejenis", async (req, res) => {
   }
 });
 
+// ============================================================
+// 10. GET /distinct-merks — Daftar merk HP yang ada di database
+//     Digunakan frontend untuk membangun dropdown merk secara dinamis
+//     sehingga merk apapun yang masuk data CEISA langsung tersedia.
+// ============================================================
+router.get("/distinct-merks", async (req, res) => {
+  try {
+    const merks = await ImeiDetail.aggregate([
+      { $match: { merk: { $exists: true, $ne: null, $ne: "" } } },
+      { $group: { _id: { $toUpper: "$merk" }, count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $project: { _id: 0, merk: "$_id", count: 1 } },
+    ]);
+    res.json({ status: "ok", data: merks });
+  } catch (err) {
+    console.error("[DISTINCT MERKS]", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// ============================================================
+// 11. GET /distinct-tipes — Daftar tipe/model untuk merk tertentu
+//     Digunakan untuk autocomplete kolom tipe di Penetapan Sejenis.
+//     Query: merk (wajib)
+// ============================================================
+router.get("/distinct-tipes", async (req, res) => {
+  try {
+    const { merk } = req.query;
+    if (!merk) {
+      return res.status(400).json({ status: "error", message: "Parameter merk wajib" });
+    }
+    const tipes = await ImeiDetail.aggregate([
+      { $match: { merk: new RegExp(escapeRegex(merk.trim()), "i"), tipe: { $exists: true, $ne: null, $ne: "" } } },
+      { $group: { _id: { $toUpper: "$tipe" }, count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 300 },
+      { $project: { _id: 0, tipe: "$_id", count: 1 } },
+    ]);
+    res.json({ status: "ok", data: tipes });
+  } catch (err) {
+    console.error("[DISTINCT TIPES]", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 module.exports = router;

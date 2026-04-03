@@ -2401,39 +2401,33 @@
                 <i class="fas fa-spider text-violet-400"></i> Auto Scraper
                 Activity
               </h3>
-              <div class="grid grid-cols-3 gap-3 mb-4">
-                <div
-                  class="text-center p-3 rounded-xl bg-violet-500/10 border border-violet-500/20"
-                >
-                  <p
-                    class="text-xl font-bold text-violet-400"
-                    id="kpiScraperTotal"
-                  >
-                    0
-                  </p>
+              <!-- Coverage badge -->
+              <div id="dashScraperCoverage" class="mb-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 text-center hidden">
+                <i class="fas fa-calendar-alt mr-1"></i> <span id="dashScraperCoverageText">-</span>
+              </div>
+              <div class="grid grid-cols-3 gap-3 mb-3">
+                <div class="text-center p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                  <p class="text-xl font-bold text-violet-400" id="kpiScraperTotal">0</p>
                   <p class="text-[10px] text-gray-400">Sesi</p>
                 </div>
-                <div
-                  class="text-center p-3 rounded-xl bg-green-500/10 border border-green-500/20"
-                >
-                  <p
-                    class="text-xl font-bold text-green-400"
-                    id="kpiScraperCompleted"
-                  >
-                    0
-                  </p>
+                <div class="text-center p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <p class="text-xl font-bold text-green-400" id="kpiScraperCompleted">0</p>
                   <p class="text-[10px] text-gray-400">Sukses</p>
                 </div>
-                <div
-                  class="text-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20"
-                >
-                  <p
-                    class="text-xl font-bold text-cyan-400"
-                    id="kpiScraperRecords"
-                  >
-                    0
-                  </p>
-                  <p class="text-[10px] text-gray-400">Records</p>
+                <div class="text-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                  <p class="text-xl font-bold text-cyan-400" id="kpiScraperRecords">0</p>
+                  <p class="text-[10px] text-gray-400">Records Baru</p>
+                </div>
+              </div>
+              <!-- BILLING summary -->
+              <div class="grid grid-cols-2 gap-2 mb-3">
+                <div class="text-center p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                  <p class="text-base font-bold text-yellow-400" id="kpiImeiDetailBilling">-</p>
+                  <p class="text-[10px] text-gray-400">BILLING</p>
+                </div>
+                <div class="text-center p-2 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                  <p class="text-base font-bold text-orange-400" id="kpiImeiDetailPungutan">-</p>
+                  <p class="text-[10px] text-gray-400">Total Pungutan</p>
                 </div>
               </div>
               <div id="dashRecentScraper" class="space-y-2">
@@ -3242,6 +3236,7 @@
       function setMainMenu(menu) {
         if (!menuConfig[menu]) return;
         currentMainMenu = menu;
+        location.hash = menu;
 
         // Update main menu UI
         document.querySelectorAll(".main-menu-item").forEach((item) => {
@@ -3331,6 +3326,7 @@
       function setSubMenu(subId) {
         if (!subId) return;
         currentSubMenu = subId;
+        location.hash = currentMainMenu + '/' + subId;
 
         // Update sub menu UI
         document.querySelectorAll(".sub-menu-item").forEach((item) => {
@@ -3385,6 +3381,7 @@
             loadIntegritasDashboard();
           } else if (subId === "penetapan") {
             container.innerHTML = getPenetapanSejenisContent();
+            psLoadMerks();
           }
         } else if (menu === "penumpang") {
           loadPenumpangSubContent(subId);
@@ -5961,8 +5958,8 @@
             if (!ceisa.pungutan_available && ceisa.billing_count > 0) {
               html += `<div style="font-size:0.75rem;color:#94a3b8;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:0.5rem;padding:0.5rem 0.75rem;margin-bottom:0.5rem;">
                 <i class="fas fa-info-circle text-yellow-400 mr-1"></i>
-                <strong style="color:#fbbf24;">${ceisa.billing_count} Billing</strong> tercatat, namun nominal pungutan belum tersedia di data CEISA yang diimport.
-                Untuk menampilkan nominal, tambahkan kolom <code style="color:#c084fc;">jumlah_pungutan</code> pada file CSV/Excel upload.
+                <strong style="color:#fbbf24;">${ceisa.billing_count} Billing</strong> tercatat, namun nominal pungutan belum tersedia di data yang diimport.
+                <br><span style="color:#94a3b8;">Solusi: Jalankan <a href="#" onclick="setSubMenu('scraper');return false;" style="color:#34d399;text-decoration:underline;font-weight:bold;"><i class="fas fa-robot"></i> Auto Scraper</a> untuk range tanggal yang sama agar data pungutan otomatis masuk dari CEISA.</span>
               </div>`;
             }
             if (ceisa.devices && ceisa.devices.length > 0) {
@@ -13580,8 +13577,20 @@
         }
       }
 
-      // Load home charts on first page load
-      loadHomeCharts();
+      // Restore menu from URL hash on page load
+      (function restoreFromHash() {
+        const hash = location.hash.replace('#', '');
+        if (!hash) { loadHomeCharts(); return; }
+        const parts = hash.split('/');
+        const menu = parts[0];
+        const sub = parts[1] || '';
+        if (menuConfig[menu]) {
+          setMainMenu(menu);
+          if (sub) setSubMenu(sub);
+        } else {
+          loadHomeCharts();
+        }
+      })();
 
       // ==================== QSVM ====================
       async function parseQsvmJson(res) {
@@ -14454,6 +14463,18 @@
             setText("kpiScraperTotal", num(kpi.totalScraperSessions || 0));
             setText("kpiScraperCompleted", num(kpi.scraperCompleted || 0));
             setText("kpiScraperRecords", num(kpi.scraperNewRecords || 0));
+            setText("kpiImeiDetailBilling", num(kpi.imeiDetailBilling || 0));
+            setText("kpiImeiDetailPungutan", fmtRpShort(kpi.imeiDetailBillingPungutan || 0));
+
+            // Coverage badge
+            const cov = kpi.scraperDataCoverage || {};
+            const covEl = document.getElementById("dashScraperCoverage");
+            const covTxtEl = document.getElementById("dashScraperCoverageText");
+            if (cov.earliestStart && cov.latestEnd && covEl && covTxtEl) {
+              covEl.classList.remove("hidden");
+              covTxtEl.textContent = "Cakupan data: " + cov.earliestStart + " s/d " + cov.latestEnd;
+            }
+
             const scraperEl = document.getElementById("dashRecentScraper");
             if (
               tables.recentScraperSessions &&
@@ -14472,25 +14493,32 @@
                     : "-";
                   const statusBg = {
                     completed: "bg-green-500/20 text-green-400",
-                    running: "bg-blue-500/20 text-blue-400",
+                    running: "bg-blue-500/20 text-blue-400 animate-pulse",
                     error: "bg-red-500/20 text-red-400",
                     cancelled: "bg-gray-500/20 text-gray-400",
                   };
                   const elapsed = s.elapsed_seconds
-                    ? Math.round(s.elapsed_seconds) + "s"
+                    ? (s.elapsed_seconds >= 3600
+                        ? Math.floor(s.elapsed_seconds / 3600) + "j " + Math.floor((s.elapsed_seconds % 3600) / 60) + "m"
+                        : Math.round(s.elapsed_seconds / 60) + "m")
                     : "-";
-                  return `<div class="flex items-center justify-between py-2 border-b border-white/5">
-                  <div class="flex items-center gap-2">
-                    <i class="fas fa-spider text-violet-400 text-xs"></i>
-                    <div>
-                      <span class="text-xs font-mono">${(s.session_id || "").substring(0, 8)}...</span>
-                      <p class="text-[10px] text-gray-500">${dt} • ${elapsed}</p>
+                  const dr = s.date_range || {};
+                  const dateRange = (dr.start && dr.end) ? dr.start + " ~ " + dr.end : "";
+                  return `<div class="py-2 border-b border-white/5">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <i class="fas fa-spider text-violet-400 text-xs"></i>
+                      <div>
+                        <span class="text-xs font-mono">${(s.session_id || "").substring(0, 12)}...</span>
+                        <p class="text-[10px] text-gray-500">${dt} • ${elapsed}</p>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-[10px] px-1.5 py-0.5 rounded ${statusBg[s.status] || "bg-gray-500/20 text-gray-400"}">${s.status}</span>
+                      <p class="text-[10px] text-gray-500 mt-0.5">${num(s.new_records || 0)} baru / ${num(s.total_records || 0)}</p>
                     </div>
                   </div>
-                  <div class="text-right">
-                    <span class="text-[10px] px-1.5 py-0.5 rounded ${statusBg[s.status] || "bg-gray-500/20 text-gray-400"}">${s.status}</span>
-                    <p class="text-[10px] text-gray-500 mt-0.5">${num(s.new_records || 0)} baru / ${num(s.total_records || 0)}</p>
-                  </div>
+                  ${dateRange ? `<p class="text-[10px] text-cyan-500/70 mt-0.5 pl-5"><i class="fas fa-calendar-alt mr-1"></i>${dateRange}</p>` : ""}
                 </div>`;
                 })
                 .join("");
@@ -19287,6 +19315,90 @@
               <p class="text-xs text-gray-400" id="scraperProgressText">Waiting...</p>
             </div>
 
+            <!-- Panduan Lengkap -->
+            <div class="glass-card-solid rounded-2xl p-6">
+              <button onclick="(function(b){var c=document.getElementById('scraperGuideContent');if(c.style.display==='none'){c.style.display='block';b.querySelector('i.fa-chevron-down').style.transform='rotate(180deg)'}else{c.style.display='none';b.querySelector('i.fa-chevron-down').style.transform='rotate(0deg)'}})(this)" class="w-full flex justify-between items-center text-left">
+                <h4 class="text-lg font-bold flex items-center gap-2">
+                  <i class="fas fa-book-open text-yellow-400"></i> Panduan Lengkap Penggunaan Scraper
+                </h4>
+                <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+              </button>
+              <div id="scraperGuideContent" style="display:none" class="mt-4 space-y-4">
+
+                <!-- Step 1 -->
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-300 font-bold text-sm">1</div>
+                  <div>
+                    <p class="font-bold text-white text-sm">Login ke Aplikasi CEISA</p>
+                    <p class="text-xs text-gray-400 mt-1">Buka browser, masuk ke <strong class="text-blue-300">ceisa.customs.go.id</strong> menggunakan akun SSO Bea Cukai. Jangan buka langsung ke <code class="text-yellow-300">regimei.customs.go.id</code> — harus lewat SSO agar sesi/cookie aktif.</p>
+                  </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-300 font-bold text-sm">2</div>
+                  <div>
+                    <p class="font-bold text-white text-sm">Buka Halaman CD IMEI</p>
+                    <p class="text-xs text-gray-400 mt-1">Di menu CEISA, klik <strong class="text-white">Regim IMEI → CD IMEI</strong>. Halaman akan terbuka di tab baru dengan URL yang mengandung <code class="text-yellow-300">regimei.customs.go.id/ImeiInhouse/</code>. Pastikan Anda berada di tab ini saat menjalankan script.</p>
+                    <div class="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-300">
+                      <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Penting:</strong> Script HARUS dijalankan dari tab <code>regimei.customs.go.id/ImeiInhouse/</code>, bukan dari tab CEISA utama.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-300 font-bold text-sm">3</div>
+                  <div>
+                    <p class="font-bold text-white text-sm">Isi Konfigurasi di Bawah</p>
+                    <p class="text-xs text-gray-400 mt-1">Isi <strong class="text-white">Tanggal Mulai</strong> dan <strong class="text-white">Tanggal Akhir</strong> sesuai rentang data yang ingin di-scrape. Token JWT sudah ter-isi otomatis dari sesi login SkyGuard Anda.</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock text-yellow-400"></i> Token berlaku <strong class="text-yellow-300">10 jam</strong> sejak login. Jika scraping berjalan lebih lama, token akan kadaluarsa dan scraper berhenti otomatis — perlu login ulang dan generate script baru.</p>
+                  </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-green-300 font-bold text-sm">4</div>
+                  <div>
+                    <p class="font-bold text-white text-sm">Generate & Copy Script</p>
+                    <p class="text-xs text-gray-400 mt-1">Klik tombol <strong class="text-green-300">Generate Script</strong>, lalu klik <strong class="text-green-300">Copy Script</strong>. Script siap di-paste ke console browser.</p>
+                  </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 font-bold text-sm">5</div>
+                  <div>
+                    <p class="font-bold text-white text-sm">Jalankan Script di Console Browser</p>
+                    <p class="text-xs text-gray-400 mt-1">Di tab <code class="text-yellow-300">regimei.customs.go.id/ImeiInhouse/</code>, tekan <kbd class="bg-gray-700 text-white px-1 py-0.5 rounded text-xs">F12</kbd> untuk buka DevTools. Pilih tab <strong class="text-white">Console</strong>. Paste script dan tekan <kbd class="bg-gray-700 text-white px-1 py-0.5 rounded text-xs">Enter</kbd>.</p>
+                    <p class="text-xs text-gray-500 mt-1">Status bar hijau akan muncul di bagian atas halaman CEISA menandakan scraper aktif.</p>
+                  </div>
+                </div>
+
+                <!-- Step 6 -->
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 font-bold text-sm">6</div>
+                  <div>
+                    <p class="font-bold text-white text-sm">Monitor Progress</p>
+                    <p class="text-xs text-gray-400 mt-1">Kembali ke SkyGuard, halaman ini akan auto-refresh dan menampilkan progress scraping secara real-time. Jangan tutup tab CEISA selama proses berlangsung.</p>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-info-circle text-cyan-400"></i> Estimasi: ~5.000 halaman = 7-8 jam. Bisa di-resume jika terputus dengan mengisi <strong>Start Page</strong> sesuai halaman terakhir.</p>
+                  </div>
+                </div>
+
+                <!-- Info Token -->
+                <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs">
+                  <p class="font-bold text-blue-300 mb-1"><i class="fas fa-key mr-1"></i> Cara mendapatkan Token JWT manual (jika tidak ter-isi otomatis)</p>
+                  <ol class="text-gray-400 space-y-1 list-decimal list-inside">
+                    <li>Di SkyGuard, buka DevTools (F12) → tab <strong class="text-white">Application</strong></li>
+                    <li>Klik <strong class="text-white">Local Storage</strong> → pilih URL SkyGuard</li>
+                    <li>Cari key <code class="text-yellow-300">sg_token</code>, copy nilainya</li>
+                    <li>Paste ke field <strong class="text-white">SkyGuard Token</strong> di bawah</li>
+                  </ol>
+                </div>
+
+              </div>
+            </div>
+
             <!-- Configuration -->
             <div class="glass-card-solid rounded-2xl p-6">
               <h4 class="text-lg font-bold flex items-center gap-2 mb-4">
@@ -19344,12 +19456,12 @@
                   <label class="text-xs text-gray-400 block mb-1">
                     CEISA URL (cdIMEI.html) <span class="text-yellow-400">— Wajib diisi</span>
                   </label>
-                  <input type="text" id="scrCeisaUrl" value="https://regimei.customs.go.id/cdIMEI.html"
-                    placeholder="https://regimei.customs.go.id/cdIMEI.html"
+                  <input type="text" id="scrCeisaUrl" value="https://regimei.customs.go.id/ImeiInhouse/cdIMEI.html"
+                    placeholder="https://regimei.customs.go.id/ImeiInhouse/cdIMEI.html"
                     class="input-modern w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none border border-yellow-500/30">
                   <p class="text-xs text-gray-500 mt-1">
                     <i class="fas fa-info-circle text-yellow-400"></i>
-                    Buka CEISA, lihat URL bar — jika ada <code class="text-yellow-300">regimei.customs.go.id</code> gunakan URL default ini.
+                    URL ini sudah benar. Jangan diubah kecuali diminta.
                   </p>
                 </div>
                 <div>
@@ -19383,15 +19495,18 @@
                 <pre class="text-xs text-green-300 whitespace-pre-wrap" id="scraperScriptCode"></pre>
               </div>
               <div class="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                <h5 class="font-bold text-yellow-300 flex items-center gap-2 mb-2"><i class="fas fa-info-circle"></i> Cara Penggunaan</h5>
-                <ol class="text-sm text-gray-300 space-y-1 list-decimal list-inside">
-                  <li>Login ke <strong>CEISA</strong> dan buka halaman <strong>CD IMEI</strong></li>
-                  <li>Buka <strong>Developer Tools</strong> (F12) → tab <strong>Console</strong></li>
-                  <li>Paste script di atas dan tekan <strong>Enter</strong></li>
-                  <li>Script akan menampilkan status bar hijau di atas halaman</li>
-                  <li>Data langsung masuk ke database SkyGuard secara real-time</li>
-                  <li>Monitor progress di halaman ini (auto-refresh tiap 5 detik)</li>
+                <h5 class="font-bold text-yellow-300 flex items-center gap-2 mb-2"><i class="fas fa-terminal"></i> Langkah Menjalankan Script</h5>
+                <ol class="text-sm text-gray-300 space-y-2 list-decimal list-inside">
+                  <li>Pastikan Anda sudah login ke <strong class="text-white">CEISA via SSO</strong> dan tab <code class="text-yellow-300">regimei.customs.go.id/ImeiInhouse/</code> terbuka</li>
+                  <li>Di tab tersebut, tekan <kbd class="bg-gray-700 text-white px-1.5 py-0.5 rounded text-xs font-mono">F12</kbd> → pilih tab <strong class="text-white">Console</strong></li>
+                  <li>Klik tombol <strong class="text-green-300"><i class="fas fa-copy"></i> Copy Script</strong> di atas, lalu klik di area console dan tekan <kbd class="bg-gray-700 text-white px-1.5 py-0.5 rounded text-xs font-mono">Ctrl+V</kbd> (atau Cmd+V)</li>
+                  <li>Tekan <kbd class="bg-gray-700 text-white px-1.5 py-0.5 rounded text-xs font-mono">Enter</kbd> — status bar <span class="text-green-400 font-bold">● hijau</span> akan muncul di atas halaman CEISA</li>
+                  <li>Biarkan browser tetap terbuka. Jangan refresh halaman CEISA selama scraping berlangsung</li>
+                  <li>Pantau progress di tab <strong class="text-white">Riwayat Scraping</strong> atau lihat Live Monitor di atas</li>
                 </ol>
+                <div class="mt-3 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs text-orange-300">
+                  <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Jika scraper berhenti di tengah jalan</strong> (token expired/browser ditutup): catat nomor halaman terakhir di Riwayat Scraping, isi ke field <strong>Start Page</strong>, generate script baru, dan jalankan ulang.
+                </div>
               </div>
             </div>
           </div>`;
@@ -19621,22 +19736,31 @@
 
       function copyScraperScript() {
         const code = document.getElementById("scraperScriptCode")?.textContent;
-        if (!code) return;
-        navigator.clipboard
-          .writeText(code)
-          .then(() => {
-            showToast("Script copied! Paste ke console CEISA (F12)", "success");
-          })
-          .catch(() => {
-            // Fallback
-            const ta = document.createElement("textarea");
-            ta.value = code;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand("copy");
-            document.body.removeChild(ta);
-            showToast("Script copied!", "success");
-          });
+        if (!code) { showToast("Script belum di-generate", "error"); return; }
+
+        function fallbackCopy() {
+          const ta = document.createElement("textarea");
+          ta.value = code;
+          ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          try {
+            const ok = document.execCommand("copy");
+            showToast(ok ? "Script copied! Paste ke console CEISA (F12)" : "Gagal copy — select manual di atas", ok ? "success" : "error");
+          } catch(e) {
+            showToast("Gagal copy otomatis — select manual teks di atas", "error");
+          }
+          document.body.removeChild(ta);
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code)
+            .then(() => showToast("Script copied! Paste ke console CEISA (F12)", "success"))
+            .catch(fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
       }
 
       function startScraperLiveMonitor(sessionId) {
@@ -20812,19 +20936,9 @@
               <div>
                 <label class="block text-xs text-gray-400 mb-1">Merk <span class="text-red-400">*</span></label>
                 <select id="ps-merk" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" onchange="psOnMerkChange()">
-                  <option value="">-- Pilih Merk --</option>
-                  <option value="APPLE">Apple</option>
-                  <option value="SAMSUNG">Samsung</option>
-                  <option value="XIAOMI">Xiaomi</option>
-                  <option value="OPPO">Oppo</option>
-                  <option value="VIVO">Vivo</option>
-                  <option value="HUAWEI">Huawei</option>
-                  <option value="REALME">Realme</option>
-                  <option value="SONY">Sony</option>
-                  <option value="GOOGLE">Google</option>
-                  <option value="ONEPLUS">OnePlus</option>
-                  <option value="MOTOROLA">Motorola</option>
+                  <option value="">-- Memuat merk... --</option>
                 </select>
+                <p id="ps-merk-info" class="text-xs text-gray-500 mt-1 hidden"></p>
               </div>
               <div>
                 <label class="block text-xs text-gray-400 mb-1">Tipe / Model <span class="text-red-400">*</span></label>
@@ -20869,15 +20983,53 @@
         `;
       }
 
+      async function psLoadMerks() {
+        const sel = document.getElementById("ps-merk");
+        const info = document.getElementById("ps-merk-info");
+        if (!sel) return;
+        // Fallback statis jika API gagal
+        const fallback = [
+          "APPLE","SAMSUNG","XIAOMI","OPPO","VIVO","HUAWEI","REALME","SONY",
+          "GOOGLE","ONEPLUS","MOTOROLA","NOKIA","HONOR","ASUS","LENOVO","ZTE",
+          "TECNO","INFINIX","ITEL","SHARP","HTC","BLACKBERRY","WIKO","ALCATEL",
+          "POCO","REDMI","NOTHING","NUBIA","MEIZU","COOLPAD","GIONEE","IQOO",
+          "LAVA","MICROMAX","PANASONIC","TCL","UMIDIGI","DOOGEE","CUBOT"
+        ];
+        try {
+          const r = await fetch("/api/imei-details/distinct-merks");
+          const d = await r.json();
+          if (d.status === "ok" && d.data && d.data.length > 0) {
+            sel.innerHTML = '<option value="">-- Pilih Merk --</option>' +
+              d.data.map(m => `<option value="${m.merk}">${m.merk.charAt(0)+m.merk.slice(1).toLowerCase()} (${m.count})</option>`).join("");
+            if (info) {
+              info.textContent = `${d.data.length} merk tersedia di database`;
+              info.classList.remove("hidden");
+            }
+            return;
+          }
+        } catch(e) {}
+        // Fallback ke daftar statis
+        sel.innerHTML = '<option value="">-- Pilih Merk --</option>' +
+          fallback.map(m => `<option value="${m}">${m.charAt(0)+m.slice(1).toLowerCase()}</option>`).join("");
+        if (info) {
+          info.textContent = "Menggunakan daftar merk statis";
+          info.classList.remove("hidden");
+        }
+      }
+
       async function psOnMerkChange() {
         const merk = document.getElementById("ps-merk")?.value;
         const dl = document.getElementById("ps-tipe-list");
+        const tipeInput = document.getElementById("ps-tipe");
         if (!merk || !dl) return;
+        if (tipeInput) tipeInput.value = "";
+        dl.innerHTML = "";
         try {
-          const r = await fetch(`/api/imei-details?merk=${encodeURIComponent(merk)}&limit=200`);
+          const r = await fetch(`/api/imei-details/distinct-tipes?merk=${encodeURIComponent(merk)}`);
           const d = await r.json();
-          const types = [...new Set((d.data || []).map(x => x.tipe).filter(Boolean))].sort();
-          dl.innerHTML = types.map(t => `<option value="${t}">`).join("");
+          if (d.status === "ok" && d.data) {
+            dl.innerHTML = d.data.map(t => `<option value="${t.tipe}">`).join("");
+          }
         } catch(e) {}
       }
 
