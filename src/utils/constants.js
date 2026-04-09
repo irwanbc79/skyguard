@@ -240,6 +240,29 @@ const SUSPECT_CATEGORIES = [
   "LAINNYA",
 ];
 
+// ─── PMI HUBS (Pekerja Migran Indonesia — koridor indikasi) ───────────────────
+// Satu sumber kebenaran; digunakan di passengers.js, dashboard.js, dsb.
+const PMI_HUBS = [
+  // ASEAN
+  "KUL",
+  "SIN",
+  // Timur Tengah
+  "JED",
+  "RUH",
+  "DMM",
+  "DOH",
+  "DXB",
+  "AUH",
+  "KWI",
+  "MCT",
+  "BAH",
+  // Asia Timur
+  "HKG",
+  "TPE",
+  "ICN",
+  "PUS",
+];
+
 // ─── NOTIFICATION TYPES ───────────────────────────────────────────────────────
 const NOTIFICATION_TYPES = [
   "SUSPECT_DETECTED",
@@ -261,4 +284,5 @@ module.exports = {
   SUSPECT_CATEGORIES,
   NOTIFICATION_TYPES,
   NOTIFICATION_PRIORITIES,
+  PMI_HUBS,
 };

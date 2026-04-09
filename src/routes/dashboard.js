@@ -6,25 +6,7 @@ const Device = require("../models/Device");
 const Manifest = require("../models/Manifest");
 const UploadLog = require("../models/UploadLog");
 const ManifestPassenger = require("../models/ManifestPassenger");
-
-// PMI hubs (indikasi) — keep in sync with passengers PMI logic
-const PMI_HUBS = [
-  "KUL",
-  "SIN",
-  "JED",
-  "RUH",
-  "DMM",
-  "DOH",
-  "DXB",
-  "AUH",
-  "KWI",
-  "MCT",
-  "BAH",
-  "HKG",
-  "TPE",
-  "ICN",
-  "PUS",
-];
+const { PMI_HUBS } = require("../utils/constants");
 
 // New models for enhanced dashboard (graceful fallback)
 let ImeiDetail, ImeiRegistration, ScraperSession, Suspect, Notification;

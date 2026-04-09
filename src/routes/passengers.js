@@ -7,36 +7,15 @@ const Manifest = require("../models/Manifest");
 const Passenger = require("../models/Passenger");
 const ImeiRegistration = require("../models/ImeiRegistration");
 const ImeiDetail = require("../models/ImeiDetail");
-const { getKantorName } = require("../utils/constants");
+const { getKantorName, PMI_HUBS } = require("../utils/constants");
+
+const PMI_HUBS_SET = new Set(PMI_HUBS);
 
 function normalizeAirportCode(v) {
   if (!v) return null;
   const s = String(v).trim().toUpperCase();
   return /^[A-Z]{3}$/.test(s) ? s : null;
 }
-
-// Common PMI corridors/hubs (configurable list)
-const PMI_HUBS = [
-  // ASEAN hubs
-  "KUL",
-  "SIN",
-  // Middle East hubs / common corridors
-  "JED",
-  "RUH",
-  "DMM",
-  "DOH",
-  "DXB",
-  "AUH",
-  "KWI",
-  "MCT",
-  "BAH",
-  // East Asia
-  "HKG",
-  "TPE",
-  "ICN",
-  "PUS",
-];
-const PMI_HUBS_SET = new Set(PMI_HUBS);
 
 function classifyPmi({ nationality, destinationCodes = [], flightCount = 0 }) {
   // Heuristic-only classification (non-authoritative).
@@ -73,7 +52,8 @@ function classifyPmi({ nationality, destinationCodes = [], flightCount = 0 }) {
     reasons.push(`${flightCount} penerbangan tercatat`);
   }
 
-  const isPmi = score >= 3; // calibrated to require WNI + at least one hub hit (or strong pattern)
+  // score >= 3: butuh WNI(+1) + ≥2 hub, atau WNI + 1 hub + ≥3 penerbangan
+  const isPmi = score >= 3;
   const confidence =
     score >= 5 ? "HIGH" : score >= 3 ? "MEDIUM" : score >= 1 ? "LOW" : "NONE";
 
@@ -163,19 +143,39 @@ router.get("/pmi/check/:passport", async (req, res) => {
 router.get("/pmi/stats", async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
+
+    // Validasi tanggal sebelum digunakan di query
+    const df = req.query.date_from ? new Date(req.query.date_from) : null;
+    const dt = req.query.date_to   ? new Date(req.query.date_to)   : null;
+    if (df && isNaN(df.getTime()))
+      return res.status(400).json({ status: "error", message: "date_from tidak valid" });
+    if (dt && isNaN(dt.getTime()))
+      return res.status(400).json({ status: "error", message: "date_to tidak valid" });
+
     const match = {
       passport_number: { $nin: ["", null] },
       nationality: { $in: ["ID", "IDN"] },
       destination_code: { $in: PMI_HUBS },
     };
 
-    if (req.query.date_from || req.query.date_to) {
+    if (df || dt) {
       match.flight_date = {};
-      if (req.query.date_from) match.flight_date.$gte = new Date(req.query.date_from);
-      if (req.query.date_to) match.flight_date.$lte = new Date(req.query.date_to);
+      if (df) match.flight_date.$gte = df;
+      if (dt) match.flight_date.$lte = dt;
     }
 
-    const [byPassport, byHub, monthlyTrend] = await Promise.all([
+    // monthly trend harus merge filter tanggal, bukan overwrite
+    const trendMatch = {
+      ...match,
+      flight_date: match.flight_date
+        ? { ...match.flight_date }
+        : { $ne: null },
+    };
+    if (!match.flight_date) {
+      trendMatch.flight_date = { $ne: null };
+    }
+
+    const [byPassport, totalCount, byHub, monthlyTrend] = await Promise.all([
       ManifestPassenger.aggregate([
         { $match: match },
         {
@@ -194,6 +194,12 @@ router.get("/pmi/stats", async (req, res) => {
         { $sort: { total_flights: -1, last_seen: -1 } },
         { $limit: limit },
       ]),
+      // Total unik sebelum limit — agar UI tahu kalau data terpotong
+      ManifestPassenger.aggregate([
+        { $match: match },
+        { $group: { _id: { $toLower: "$passport_number" } } },
+        { $count: "total" },
+      ]),
       ManifestPassenger.aggregate([
         { $match: match },
         { $group: { _id: "$destination_code", count: { $sum: 1 } } },
@@ -201,7 +207,7 @@ router.get("/pmi/stats", async (req, res) => {
         { $limit: 12 },
       ]),
       ManifestPassenger.aggregate([
-        { $match: { ...match, flight_date: { $ne: null } } },
+        { $match: trendMatch },
         {
           $group: {
             _id: { y: { $year: "$flight_date" }, m: { $month: "$flight_date" } },
@@ -222,11 +228,15 @@ router.get("/pmi/stats", async (req, res) => {
       }),
     }));
 
+    const total = totalCount?.[0]?.total || 0;
+
     res.json({
       status: "ok",
       data: {
         summary: {
-          total_candidates: candidates.length,
+          total_candidates: total,
+          returned: candidates.length,
+          is_truncated: candidates.length >= limit,
           top_hubs: byHub || [],
         },
         monthly_trend: monthlyTrend || [],
