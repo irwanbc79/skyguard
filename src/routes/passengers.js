@@ -17,7 +17,7 @@ function normalizeAirportCode(v) {
   return /^[A-Z]{3}$/.test(s) ? s : null;
 }
 
-function classifyPmi({ nationality, destinationCodes = [], flightCount = 0 }) {
+function classifyPmi({ nationality, destinationCodes = [], flightCount = 0, imeiHubArrivals = 0 }) {
   // Heuristic-only classification (non-authoritative).
   // Goal: give officers a quick visual cue, not a legal determination.
   const nat = (nationality || "").toUpperCase();
@@ -26,43 +26,56 @@ function classifyPmi({ nationality, destinationCodes = [], flightCount = 0 }) {
   const reasons = [];
   let score = 0;
 
-  // PMI context is primarily Indonesian nationals
+  // 1. Nationality: harus WNI
   if (nat === "ID" || nat === "IDN") {
     score += 1;
     reasons.push("WNI (nat: ID)");
   } else if (nat) {
-    // Non-ID nationality reduces confidence sharply
     score -= 2;
     reasons.push(`Non-WNI (nat: ${nat})`);
   } else {
     reasons.push("Nationality tidak tersedia");
   }
 
+  // 2. Rute/hub PMI dari data manifest (outbound)
   const hit = dests.filter((c) => PMI_HUBS_SET.has(c));
   if (hit.length) {
     score += Math.min(3, hit.length);
-    reasons.push(`Rute/hub PMI: ${hit.join(", ")}`);
-  } else {
+    reasons.push(`Rute/hub PMI (manifest): ${hit.join(", ")}`);
+  }
+
+  // 3. Kedatangan dari hub PMI (cross-ref IMEI + Manifest.origin)
+  // WNI + 1 kedatangan dari hub = score 1+2=3 → terindikasi PMI
+  if (imeiHubArrivals > 0) {
+    score += 2;
+    reasons.push(`${imeiHubArrivals}x kedatangan dari hub PMI (data IMEI/CEISA)`);
+    if (imeiHubArrivals >= 3) {
+      score += 1;
+      reasons.push("Frequent traveler koridor PMI");
+    }
+  }
+
+  // 4. Frequent travel (manifest)
+  if (flightCount >= 3) {
+    score += 1;
+    reasons.push(`${flightCount} penerbangan tercatat di manifest`);
+  }
+
+  if (hit.length === 0 && imeiHubArrivals === 0) {
     reasons.push("Tidak ada hub PMI terdeteksi dari data rute");
   }
 
-  // Frequent travel slightly increases confidence (PMI tends to be repeat corridor)
-  if (flightCount >= 3) {
-    score += 1;
-    reasons.push(`${flightCount} penerbangan tercatat`);
-  }
-
-  // score >= 3: butuh WNI(+1) + ≥2 hub, atau WNI + 1 hub + ≥3 penerbangan
+  // score >= 3: WNI + kedatangan hub (IMEI) ATAU WNI + ≥2 hub manifest
   const isPmi = score >= 3;
   const confidence =
-    score >= 5 ? "HIGH" : score >= 3 ? "MEDIUM" : score >= 1 ? "LOW" : "NONE";
+    score >= 6 ? "HIGH" : score >= 4 ? "MEDIUM" : score >= 3 ? "LOW" : "NONE";
 
   return {
     is_pmi: isPmi,
     confidence,
     score,
     reasons,
-    signals: { destination_codes: dests },
+    signals: { destination_codes: dests, imei_hub_arrivals: imeiHubArrivals },
   };
 }
 
@@ -77,7 +90,7 @@ router.post("/match-device", ctrl.matchDevice);
 // ============================================================
 
 // GET /api/passengers/pmi/check/:passport
-// Return status PMI (indikasi) untuk 1 paspor
+// Return status PMI (indikasi) untuk 1 paspor — dual source: ManifestPassenger + ImeiDetail
 router.get("/pmi/check/:passport", async (req, res) => {
   try {
     const passport = String(req.params.passport || "").trim();
@@ -85,15 +98,37 @@ router.get("/pmi/check/:passport", async (req, res) => {
       return res.status(400).json({ status: "error", message: "Nomor paspor tidak valid" });
     }
 
-    const pax = await ManifestPassenger.find({
-      passport_number: { $regex: new RegExp("^" + passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "i") },
-    })
-      .select("passport_number nationality destination_code flight_date flight_number name")
-      .sort({ flight_date: -1 })
-      .limit(300)
-      .lean();
+    const passportRegex = new RegExp("^" + passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "i");
 
-    if (!pax.length) {
+    const [pax, imeiRecords] = await Promise.all([
+      ManifestPassenger.find({ passport_number: passportRegex })
+        .select("passport_number nationality destination_code flight_date flight_number name")
+        .sort({ flight_date: -1 })
+        .limit(300)
+        .lean(),
+      ImeiDetail.find({ no_identitas: passportRegex })
+        .select("no_identitas nama kebangsaan flight_normalized waktu_kedatangan")
+        .sort({ waktu_kedatangan: -1 })
+        .limit(100)
+        .lean(),
+    ]);
+
+    // Cross-ref flight IMEI dengan Manifest.origin untuk tahu asal dari hub PMI
+    let imeiHubArrivals = 0;
+    if (imeiRecords.length) {
+      const flightNums = [...new Set(imeiRecords.map((r) => r.flight_normalized).filter(Boolean))];
+      if (flightNums.length) {
+        const hubFlightSet = new Set(
+          await Manifest.distinct("flight_number", {
+            flight_number: { $in: flightNums },
+            origin: { $in: PMI_HUBS },
+          })
+        );
+        imeiHubArrivals = imeiRecords.filter((r) => hubFlightSet.has(r.flight_normalized)).length;
+      }
+    }
+
+    if (!pax.length && !imeiRecords.length) {
       return res.json({
         status: "ok",
         data: {
@@ -102,33 +137,34 @@ router.get("/pmi/check/:passport", async (req, res) => {
             is_pmi: false,
             confidence: "NONE",
             score: 0,
-            reasons: ["Tidak ada data manifest untuk paspor ini"],
-            signals: { destination_codes: [] },
+            reasons: ["Tidak ada data manifest atau IMEI untuk paspor ini"],
+            signals: { destination_codes: [], imei_hub_arrivals: 0 },
           },
-          stats: { total_flights: 0, last_seen: null },
+          stats: { total_flights: 0, imei_records: 0, last_seen: null },
         },
       });
     }
 
-    const nationality =
-      (pax.find((p) => p.nationality)?.nationality || "").toUpperCase() || null;
+    const nationality = (
+      pax.find((p) => p.nationality)?.nationality ||
+      (imeiRecords.length ? "ID" : "")
+    ).toUpperCase() || null;
+
     const destinationCodes = pax.map((p) => p.destination_code).filter(Boolean);
-    const pmi = classifyPmi({
-      nationality,
-      destinationCodes,
-      flightCount: pax.length,
-    });
+    const pmi = classifyPmi({ nationality, destinationCodes, flightCount: pax.length, imeiHubArrivals });
 
     res.json({
       status: "ok",
       data: {
-        name: pax.find((p) => p.name)?.name || null,
+        name: pax.find((p) => p.name)?.name || imeiRecords.find((r) => r.nama)?.nama || null,
         passport_number: (pax.find((p) => p.passport_number)?.passport_number || passport).toUpperCase(),
         nationality,
         pmi,
         stats: {
           total_flights: pax.length,
-          last_seen: pax[0]?.flight_date || null,
+          imei_records: imeiRecords.length,
+          imei_hub_arrivals: imeiHubArrivals,
+          last_seen: pax[0]?.flight_date || imeiRecords[0]?.waktu_kedatangan || null,
           hubs_hit: (pmi.signals?.destination_codes || []).filter((c) => PMI_HUBS_SET.has(c)),
         },
       },
@@ -139,12 +175,11 @@ router.get("/pmi/check/:passport", async (req, res) => {
 });
 
 // GET /api/passengers/pmi/stats?date_from=&date_to=&limit=
-// Statistik agregat PMI (indikasi) + daftar kandidat (top)
+// Statistik agregat PMI — dual source: ManifestPassenger (outbound) + ImeiDetail (inbound via Manifest.origin)
 router.get("/pmi/stats", async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 50, 200);
 
-    // Validasi tanggal sebelum digunakan di query
     const df = req.query.date_from ? new Date(req.query.date_from) : null;
     const dt = req.query.date_to   ? new Date(req.query.date_to)   : null;
     if (df && isNaN(df.getTime()))
@@ -152,94 +187,205 @@ router.get("/pmi/stats", async (req, res) => {
     if (dt && isNaN(dt.getTime()))
       return res.status(400).json({ status: "error", message: "date_to tidak valid" });
 
-    const match = {
+    // ── Step 1: Ambil daftar nomor penerbangan dari hub PMI ───────────────────
+    // Manifest.origin = bandara asal → WNI yang tiba dari sini = kandidat PMI
+    const hubFlights = await Manifest.distinct("flight_number", {
+      origin: { $in: PMI_HUBS },
+    });
+
+    // ── Step 2: Build filter ManifestPassenger (outbound + inbound via hub) ───
+    const mpMatch = {
       passport_number: { $nin: ["", null] },
       nationality: { $in: ["ID", "IDN"] },
-      destination_code: { $in: PMI_HUBS },
+      $or: [
+        { destination_code: { $in: PMI_HUBS } },                         // WNI pergi ke hub
+        ...(hubFlights.length ? [{ flight_number: { $in: hubFlights } }] : []), // WNI tiba dari hub
+      ],
+    };
+    if (df || dt) {
+      mpMatch.flight_date = {};
+      if (df) mpMatch.flight_date.$gte = df;
+      if (dt) mpMatch.flight_date.$lte = dt;
+    }
+    const mpTrendMatch = {
+      ...mpMatch,
+      flight_date: mpMatch.flight_date ? { ...mpMatch.flight_date } : { $ne: null },
     };
 
+    // ── Step 3: Build filter ImeiDetail (WNI tiba dari hub PMI) ──────────────
+    const imeiMatch = {
+      no_identitas: { $nin: ["", null] },
+      kebangsaan: { $regex: /^indonesia$/i },
+    };
+    if (hubFlights.length) imeiMatch.flight_normalized = { $in: hubFlights };
     if (df || dt) {
-      match.flight_date = {};
-      if (df) match.flight_date.$gte = df;
-      if (dt) match.flight_date.$lte = dt;
+      imeiMatch.waktu_kedatangan = {};
+      if (df) imeiMatch.waktu_kedatangan.$gte = df;
+      if (dt) imeiMatch.waktu_kedatangan.$lte = dt;
     }
-
-    // monthly trend harus merge filter tanggal, bukan overwrite
-    const trendMatch = {
-      ...match,
-      flight_date: match.flight_date
-        ? { ...match.flight_date }
+    const imeiTrendMatch = {
+      ...imeiMatch,
+      waktu_kedatangan: imeiMatch.waktu_kedatangan
+        ? { ...imeiMatch.waktu_kedatangan }
         : { $ne: null },
     };
-    if (!match.flight_date) {
-      trendMatch.flight_date = { $ne: null };
-    }
 
-    const [byPassport, totalCount, byHub, monthlyTrend] = await Promise.all([
+    // ── Step 4: Jalankan semua query paralel ─────────────────────────────────
+    const [
+      byPassportMP, totalMP, byHubMP, monthlyTrendMP,
+      byPassportImei, totalImei, monthlyTrendImei,
+    ] = await Promise.all([
+      // ManifestPassenger
       ManifestPassenger.aggregate([
-        { $match: match },
-        {
-          $group: {
-            _id: { $toLower: "$passport_number" },
-            passport_number: { $first: "$passport_number" },
-            name: { $first: "$name" },
-            nationality: { $first: "$nationality" },
-            total_flights: { $sum: 1 },
-            first_seen: { $min: "$flight_date" },
-            last_seen: { $max: "$flight_date" },
-            hubs: { $addToSet: "$destination_code" },
-            flights: { $addToSet: "$flight_number" },
-          },
-        },
+        { $match: mpMatch },
+        { $group: {
+          _id: { $toLower: "$passport_number" },
+          passport_number: { $first: "$passport_number" },
+          name: { $first: "$name" },
+          nationality: { $first: "$nationality" },
+          total_flights: { $sum: 1 },
+          first_seen: { $min: "$flight_date" },
+          last_seen: { $max: "$flight_date" },
+          hubs: { $addToSet: "$destination_code" },
+          flights: { $addToSet: "$flight_number" },
+        }},
         { $sort: { total_flights: -1, last_seen: -1 } },
         { $limit: limit },
       ]),
-      // Total unik sebelum limit — agar UI tahu kalau data terpotong
       ManifestPassenger.aggregate([
-        { $match: match },
+        { $match: mpMatch },
         { $group: { _id: { $toLower: "$passport_number" } } },
         { $count: "total" },
       ]),
       ManifestPassenger.aggregate([
-        { $match: match },
+        { $match: mpMatch },
         { $group: { _id: "$destination_code", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 12 },
       ]),
       ManifestPassenger.aggregate([
-        { $match: trendMatch },
-        {
-          $group: {
-            _id: { y: { $year: "$flight_date" }, m: { $month: "$flight_date" } },
-            count: { $sum: 1 },
-          },
-        },
+        { $match: mpTrendMatch },
+        { $group: {
+          _id: { y: { $year: "$flight_date" }, m: { $month: "$flight_date" } },
+          count: { $sum: 1 },
+        }},
         { $sort: { "_id.y": 1, "_id.m": 1 } },
         { $limit: 24 },
       ]),
+
+      // ImeiDetail — hanya jika ada hubFlights
+      hubFlights.length
+        ? ImeiDetail.aggregate([
+            { $match: imeiMatch },
+            { $group: {
+              _id: { $toLower: "$no_identitas" },
+              passport_number: { $first: "$no_identitas" },
+              nama: { $first: "$nama" },
+              total_arrivals: { $sum: 1 },
+              first_seen: { $min: "$waktu_kedatangan" },
+              last_seen: { $max: "$waktu_kedatangan" },
+            }},
+            { $sort: { total_arrivals: -1, last_seen: -1 } },
+            { $limit: limit },
+          ])
+        : Promise.resolve([]),
+      hubFlights.length
+        ? ImeiDetail.aggregate([
+            { $match: imeiMatch },
+            { $group: { _id: { $toLower: "$no_identitas" } } },
+            { $count: "total" },
+          ])
+        : Promise.resolve([]),
+      hubFlights.length
+        ? ImeiDetail.aggregate([
+            { $match: imeiTrendMatch },
+            { $group: {
+              _id: { y: { $year: "$waktu_kedatangan" }, m: { $month: "$waktu_kedatangan" } },
+              count: { $sum: 1 },
+            }},
+            { $sort: { "_id.y": 1, "_id.m": 1 } },
+            { $limit: 24 },
+          ])
+        : Promise.resolve([]),
     ]);
 
-    const candidates = (byPassport || []).map((p) => ({
-      ...p,
-      pmi: classifyPmi({
-        nationality: p.nationality,
-        destinationCodes: p.hubs || [],
-        flightCount: p.total_flights || 0,
-      }),
-    }));
+    // ── Step 5: Merge kandidat dari dua sumber (dedup by passport) ────────────
+    const passportMap = new Map();
 
-    const total = totalCount?.[0]?.total || 0;
+    for (const p of (byPassportMP || [])) {
+      passportMap.set(p._id, { ...p, imei_hub_arrivals: 0, sources: ["manifest"] });
+    }
+    for (const p of (byPassportImei || [])) {
+      const key = p._id;
+      if (passportMap.has(key)) {
+        const ex = passportMap.get(key);
+        ex.imei_hub_arrivals = p.total_arrivals;
+        ex.sources.push("imei");
+        if (!ex.name && p.nama) ex.name = p.nama;
+        if (p.last_seen && (!ex.last_seen || p.last_seen > ex.last_seen)) ex.last_seen = p.last_seen;
+      } else {
+        passportMap.set(key, {
+          _id: key,
+          passport_number: p.passport_number || p._id,
+          name: p.nama || null,
+          nationality: "ID",
+          total_flights: 0,
+          imei_hub_arrivals: p.total_arrivals,
+          first_seen: p.first_seen,
+          last_seen: p.last_seen,
+          hubs: [],
+          flights: [],
+          sources: ["imei"],
+        });
+      }
+    }
+
+    // Classify PMI setiap kandidat
+    const candidates = [...passportMap.values()]
+      .map((p) => ({
+        ...p,
+        pmi: classifyPmi({
+          nationality: p.nationality,
+          destinationCodes: p.hubs || [],
+          flightCount: p.total_flights || 0,
+          imeiHubArrivals: p.imei_hub_arrivals || 0,
+        }),
+      }))
+      .filter((p) => p.pmi.is_pmi)
+      .sort((a, b) => b.pmi.score - a.pmi.score || (b.last_seen > a.last_seen ? 1 : -1))
+      .slice(0, limit);
+
+    // Merge hub distribution
+    const hubMap = new Map();
+    for (const h of (byHubMP || [])) hubMap.set(h._id, (hubMap.get(h._id) || 0) + h.count);
+    const topHubs = [...hubMap.entries()]
+      .map(([_id, count]) => ({ _id, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12);
+
+    // Merge monthly trend
+    const trendMap = new Map();
+    for (const t of [...(monthlyTrendMP || []), ...(monthlyTrendImei || [])]) {
+      const k = `${t._id.y}-${t._id.m}`;
+      trendMap.set(k, { _id: t._id, count: (trendMap.get(k)?.count || 0) + t.count });
+    }
+    const monthlyTrend = [...trendMap.values()]
+      .sort((a, b) => a._id.y - b._id.y || a._id.m - b._id.m)
+      .slice(0, 24);
 
     res.json({
       status: "ok",
       data: {
         summary: {
-          total_candidates: total,
-          returned: candidates.length,
+          total_candidates: candidates.length,
           is_truncated: candidates.length >= limit,
-          top_hubs: byHub || [],
+          top_hubs: topHubs,
+          sources: {
+            manifest: totalMP?.[0]?.total || 0,
+            imei: totalImei?.[0]?.total || 0,
+          },
         },
-        monthly_trend: monthlyTrend || [],
+        monthly_trend: monthlyTrend,
         candidates,
       },
     });

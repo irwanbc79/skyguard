@@ -54,6 +54,11 @@ router.get("/summary", async (req, res) => {
     const startOfPrevMonth = new Date(currentYear, currentMonth - 1, 1);
     const endOfPrevMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59);
 
+    // Pre-fetch hub PMI flights untuk query PMI di bawah
+    const pmiHubFlights = await Manifest.distinct("flight_number", {
+      origin: { $in: PMI_HUBS },
+    });
+
     const [
       // ===== EXISTING QUERIES =====
       totalDevices,
@@ -610,30 +615,51 @@ router.get("/summary", async (req, res) => {
         is_read: false,
       }),
 
-      // ===== NEW: PMI (indikasi) =====
-      ManifestPassenger.aggregate([
-        {
-          $match: {
-            passport_number: { $nin: ["", null] },
-            nationality: { $in: ["ID", "IDN"] },
-            destination_code: { $in: PMI_HUBS },
-            flight_date: { $ne: null },
-          },
-        },
-        { $group: { _id: { $toLower: "$passport_number" } } },
-        { $count: "total" },
-      ]),
-      ManifestPassenger.aggregate([
-        {
-          $match: {
-            nationality: { $in: ["ID", "IDN"] },
-            destination_code: { $in: PMI_HUBS },
-          },
-        },
-        { $group: { _id: "$destination_code", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 1 },
-      ]),
+      // ===== NEW: PMI (indikasi) — dual source: ManifestPassenger + ImeiDetail =====
+      // Kandidat: WNI di manifest menuju/dari hub PMI + WNI di IMEI tiba dari hub PMI
+      (async () => {
+        const mpFilter = {
+          passport_number: { $nin: ["", null] },
+          nationality: { $in: ["ID", "IDN"] },
+          $or: [
+            { destination_code: { $in: PMI_HUBS } },
+            ...(pmiHubFlights.length ? [{ flight_number: { $in: pmiHubFlights } }] : []),
+          ],
+        };
+        const imeiFilter = pmiHubFlights.length
+          ? { no_identitas: { $nin: ["", null] }, kebangsaan: { $regex: /^indonesia$/i }, flight_normalized: { $in: pmiHubFlights } }
+          : null;
+
+        const [mpResult, imeiResult] = await Promise.all([
+          ManifestPassenger.aggregate([
+            { $match: mpFilter },
+            { $group: { _id: { $toLower: "$passport_number" } } },
+            { $count: "total" },
+          ]),
+          imeiFilter && ImeiDetail
+            ? ImeiDetail.aggregate([
+                { $match: imeiFilter },
+                { $group: { _id: { $toLower: "$no_identitas" } } },
+                { $count: "total" },
+              ])
+            : Promise.resolve([]),
+        ]);
+        return [{ total: (mpResult?.[0]?.total || 0) + (imeiResult?.[0]?.total || 0) }];
+      })(),
+      // Top hub: dari Manifest.origin yang paling banyak (inbound dari hub)
+      pmiHubFlights.length
+        ? Manifest.aggregate([
+            { $match: { origin: { $in: PMI_HUBS }, flight_number: { $in: pmiHubFlights } } },
+            { $group: { _id: "$origin", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 1 },
+          ])
+        : ManifestPassenger.aggregate([
+            { $match: { nationality: { $in: ["ID", "IDN"] }, destination_code: { $in: PMI_HUBS } } },
+            { $group: { _id: "$destination_code", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 1 },
+          ]),
     ]);
 
     // Calculate trends
