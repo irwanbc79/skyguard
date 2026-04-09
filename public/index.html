@@ -1204,6 +1204,7 @@
         <div id="penumpang-upload" class="penumpang-sub"></div>
         <div id="penumpang-stats" class="penumpang-sub"></div>
         <div id="penumpang-watchlist" class="penumpang-sub"></div>
+        <div id="penumpang-pmi" class="penumpang-sub"></div>
       </div>
 
       <!-- BARANG Content (Coming Soon) -->
@@ -1808,6 +1809,8 @@
         <div id="manifest-crosscheck" style="display: none"></div>
         <!-- Sub-container: Cari Paspor -->
         <div id="manifest-paxsearch" style="display: none"></div>
+        <!-- Sub-container: CEISA Pengangkut -->
+        <div id="manifest-ceisa" style="display: none"></div>
       </div>
       <div id="content-dashboard" class="content-section fade-in">
         <!-- Dashboard Loading Indicator -->
@@ -1977,6 +1980,39 @@
                 -
               </p>
               <p class="text-[10px] text-gray-500 mt-0.5">3+ kunjungan</p>
+            </div>
+          </div>
+
+          <!-- PMI Overview (indikasi) -->
+          <div class="glass-card-solid rounded-2xl p-5 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <h3 class="text-base font-bold flex items-center gap-2">
+                <i class="fas fa-id-badge text-green-400"></i> PMI (indikasi) — Executive Snapshot
+              </h3>
+              <button
+                onclick="setMainMenu('penumpang');setTimeout(()=>setSubMenu('pmi'),120)"
+                class="px-3 py-2 rounded-lg bg-green-500/15 hover:bg-green-500/25 text-green-300 border border-green-500/20 transition text-xs font-bold"
+              >
+                Buka PMI Intel
+              </button>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div class="text-xs text-gray-400 mb-1">Kandidat PMI (unik)</div>
+                <div class="text-2xl font-extrabold text-green-300" id="kpiPmiCandidates">-</div>
+                <div class="text-[10px] text-gray-500 mt-1">WNI + hub tertentu</div>
+              </div>
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div class="text-xs text-gray-400 mb-1">Top hub</div>
+                <div class="text-sm font-bold text-gray-200" id="kpiPmiTopHub">-</div>
+                <div class="text-[10px] text-gray-500 mt-1" id="kpiPmiTopHubCount">-</div>
+              </div>
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10 col-span-2">
+                <div class="text-xs text-gray-400 mb-2">Catatan</div>
+                <div class="text-xs text-gray-500 leading-relaxed">
+                  Label PMI ini bersifat <strong class="text-gray-300">indikasi</strong> untuk mempercepat screening berbasis pola rute/hub pada data manifest. Bukan penetapan status resmi.
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3084,6 +3120,7 @@
               label: "Alert Profiling",
               icon: "fa-exclamation-triangle",
             },
+            { id: "pmi", label: "PMI Intel", icon: "fa-id-badge" },
             { id: "upload", label: "Upload Data", icon: "fa-upload" },
             { id: "lookup", label: "Cari Penumpang", icon: "fa-search" },
             { id: "watchlist", label: "Watchlist", icon: "fa-user-secret" },
@@ -3132,6 +3169,7 @@
             { id: "analitik", label: "Analitik", icon: "fa-chart-bar" },
             { id: "crosscheck", label: "Crosscheck", icon: "fa-search-plus" },
             { id: "paxsearch", label: "Cari Paspor", icon: "fa-passport" },
+            { id: "ceisa", label: "CEISA Pengangkut", icon: "fa-ship" },
           ],
           color: "#f97316",
         },
@@ -8963,7 +9001,7 @@
             '<div class="glass-card-solid rounded-xl p-6 mb-4">' +
             '<div class="flex justify-between items-start mb-4"><div><h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fas fa-passport text-yellow-400"></i> ' +
             p.passport +
-            '</h3><div class="flex gap-2 mt-2">' +
+            '</h3><div class="flex gap-2 mt-2 flex-wrap" id="passportFlags">' +
             flagsHtml +
             '</div></div><div class="text-right"><p class="text-2xl font-bold text-blue-400">' +
             p.total_arrivals +
@@ -8988,6 +9026,30 @@
             "</div></div>";
 
           container.classList.remove("hidden");
+
+          // PMI check (indikasi) — enrich UI badge after rendering
+          try {
+            const pmiRes = await fetch(
+              "/api/passengers/pmi/check/" + encodeURIComponent(passport),
+            );
+            const pmiJson = await pmiRes.json();
+            const pmi = pmiJson?.data?.pmi;
+            const flagsEl = document.getElementById("passportFlags");
+            if (flagsEl && pmi && pmi.confidence) {
+              const isPmi = !!pmi.is_pmi;
+              const conf = pmi.confidence || "LOW";
+              const reasons = (pmi.reasons || []).join(" • ").replace(/"/g, "'");
+              const cls = isPmi
+                ? "bg-green-500/25 text-green-200 border-green-500/30"
+                : "bg-slate-500/20 text-slate-300 border-slate-500/25";
+              flagsEl.insertAdjacentHTML(
+                "beforeend",
+                `<span title="${reasons}" class="px-2 py-1 rounded text-xs border ${cls}">
+                  <i class="fas fa-id-badge mr-1"></i> PMI: <strong>${isPmi ? "YA" : "TIDAK"}</strong> • ${conf}
+                </span>`,
+              );
+            }
+          } catch (_) {}
         } catch (err) {
           showToast("Error: " + err.message, "error");
         }
@@ -9288,16 +9350,41 @@
           }
 
           const data = json.data;
+          const pmiCount = (data || []).filter((x) => x && x.pmi && x.pmi.is_pmi).length;
           let html = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-              <h3 style="font-size:1.1rem;font-weight:700;color:#e2e8f0;">
-                <i class="fas fa-users" style="color:#6366f1;"></i> ${data.length} Hasil Ditemukan
-              </h3>
-              <span style="color:#64748b;font-size:0.8rem;">${q} • ${thSearchType.toUpperCase()}</span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+              <div>
+                <h3 style="font-size:1.1rem;font-weight:700;color:#e2e8f0;margin-bottom:0.25rem;">
+                  <i class="fas fa-users" style="color:#6366f1;"></i> ${data.length} Hasil Ditemukan
+                </h3>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                  <span style="color:#64748b;font-size:0.8rem;">${q} • ${thSearchType.toUpperCase()}</span>
+                  <span style="font-size:0.7rem;background:rgba(34,197,94,0.12);color:#86efac;padding:0.15rem 0.55rem;border-radius:1rem;border:1px solid rgba(34,197,94,0.25);">
+                    <i class="fas fa-id-badge"></i> PMI terindikasi: <strong style="color:#bbf7d0;">${pmiCount}</strong>
+                  </span>
+                </div>
+              </div>
+              <label style="display:flex;align-items:center;gap:0.55rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:0.55rem 0.75rem;border-radius:0.9rem;color:#cbd5e1;font-size:0.8rem;cursor:pointer;user-select:none;">
+                <input id="thFilterPMI" type="checkbox" style="accent-color:#22c55e;" />
+                <span><strong style="color:#86efac;">PMI saja</strong> (filter cepat)</span>
+              </label>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;">`;
 
-          data.forEach((p) => {
+          // Filter toggle state (persist per session)
+          window.__thPmiOnly = window.__thPmiOnly || false;
+          const filterCb = document.getElementById("thFilterPMI");
+          if (filterCb) {
+            filterCb.checked = !!window.__thPmiOnly;
+            filterCb.onchange = () => {
+              window.__thPmiOnly = !!filterCb.checked;
+              executeThSearch();
+            };
+          }
+
+          data
+            .filter((p) => (!window.__thPmiOnly ? true : !!p?.pmi?.is_pmi))
+            .forEach((p) => {
             const risk = p.risk_level || "NORMAL";
             const riskIcons = {
               HIGH: "fa-exclamation-triangle",
@@ -9363,6 +9450,14 @@
               ? '<span style="font-size:0.6rem;background:rgba(168,85,247,0.2);color:#c084fc;padding:0.15rem 0.5rem;border-radius:1rem;border:1px solid rgba(168,85,247,0.3);"><i class="fas fa-landmark"></i> CEISA</span>'
               : '<span style="font-size:0.6rem;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:0.15rem 0.5rem;border-radius:1rem;border:1px solid rgba(99,102,241,0.3);"><i class="fas fa-plane"></i> Manifest</span>';
 
+            const pmi = p.pmi || null;
+            const pmiBadge =
+              pmi && pmi.is_pmi
+                ? `<span title="${(pmi.reasons || []).join(" • ").replace(/"/g, "'")}" style="font-size:0.6rem;background:rgba(34,197,94,0.16);color:#86efac;padding:0.15rem 0.5rem;border-radius:1rem;border:1px solid rgba(34,197,94,0.28);">
+                    <i class="fas fa-id-badge"></i> PMI • ${pmi.confidence || "LOW"}
+                  </span>`
+                : "";
+
             html += `
               <div class="th-result-card risk-${risk}" onclick="loadTravelDossier('${encodeURIComponent(identifier)}', '${byType}')">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.85rem;">
@@ -9377,7 +9472,10 @@
                     <span class="th-risk-badge th-risk-${risk}">
                       <i class="fas ${riskIcons[risk] || "fa-circle"}"></i> ${risk}
                     </span>
-                    ${sourceBadge}
+                    <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0.35rem;">
+                      ${sourceBadge}
+                      ${pmiBadge}
+                    </div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
@@ -11419,7 +11517,7 @@
       }
 
       function loadPenumpangSubContent(subId) {
-        ["travel", "lookup", "alerts", "upload", "stats", "watchlist"].forEach(
+        ["travel", "lookup", "alerts", "upload", "stats", "watchlist", "pmi"].forEach(
           (c) => {
             const el = document.getElementById("penumpang-" + c);
             if (el) el.style.display = c === subId ? "block" : "none";
@@ -11443,6 +11541,163 @@
         } else if (subId === "watchlist") {
           container.innerHTML = getWatchlistContent();
           loadWatchlist();
+        } else if (subId === "pmi") {
+          container.innerHTML = getPenumpangPMIContent();
+          loadPMIIntel();
+        }
+      }
+
+      function getPenumpangPMIContent() {
+        return `
+          <div class="glass-card-solid rounded-2xl p-6 mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+              <div>
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                  <i class="fas fa-id-badge text-green-400"></i> PMI Intel
+                </h2>
+                <p class="text-sm text-gray-400 mt-1">
+                  Indikasi PMI berbasis <strong>manifest</strong> (WNI + pola rute/hub). Untuk screening cepat petugas.
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2 items-center">
+                <input id="pmiDateFrom" type="date" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
+                <input id="pmiDateTo" type="date" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
+                <button onclick="loadPMIIntel()" class="bg-green-500/20 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/30 text-sm font-bold transition">
+                  <i class="fas fa-sync-alt mr-2"></i>Refresh
+                </button>
+              </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div class="text-xs text-gray-400 mb-1">Kandidat PMI (indikasi)</div>
+                <div class="text-3xl font-extrabold text-green-300" id="pmiTotal">-</div>
+                <div class="text-xs text-gray-500 mt-1" id="pmiTotalHint">berdasarkan filter tanggal</div>
+              </div>
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div class="text-xs text-gray-400 mb-1">Top Hub</div>
+                <div class="text-sm text-gray-300" id="pmiTopHub">-</div>
+                <div class="text-xs text-gray-500 mt-1">rute/hub yang paling sering muncul</div>
+              </div>
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div class="text-xs text-gray-400 mb-1">Trend bulanan</div>
+                <div class="text-xs text-gray-500">12–24 bulan terakhir (indikasi)</div>
+                <div class="mt-3" id="pmiMiniTrend"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card-solid rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-bold flex items-center gap-2">
+                <i class="fas fa-users text-green-400"></i> Daftar Kandidat PMI (Top)
+              </h3>
+              <div class="text-xs text-gray-500">Klik baris untuk buka dossier</div>
+            </div>
+            <div id="pmiTable" class="text-sm text-gray-400">
+              <div class="text-center py-10">
+                <i class="fas fa-spinner fa-spin text-2xl"></i>
+                <p class="mt-2">Memuat data PMI...</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      async function loadPMIIntel() {
+        const totalEl = document.getElementById("pmiTotal");
+        const topHubEl = document.getElementById("pmiTopHub");
+        const trendEl = document.getElementById("pmiMiniTrend");
+        const tableEl = document.getElementById("pmiTable");
+        if (!totalEl || !tableEl) return;
+
+        const df = document.getElementById("pmiDateFrom")?.value || "";
+        const dt = document.getElementById("pmiDateTo")?.value || "";
+        const params = new URLSearchParams();
+        if (df) params.set("date_from", df);
+        if (dt) params.set("date_to", dt);
+        params.set("limit", "60");
+
+        try {
+          const res = await fetch("/api/passengers/pmi/stats?" + params.toString());
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message || "Gagal memuat PMI");
+
+          const data = json.data || {};
+          const candidates = data.candidates || [];
+          const topHubs = (data.summary && data.summary.top_hubs) || [];
+          const monthly = data.monthly_trend || [];
+
+          totalEl.textContent = (data.summary?.total_candidates || candidates.length || 0).toLocaleString("id-ID");
+          topHubEl.textContent = topHubs.length ? `${topHubs[0]._id} (${topHubs[0].count})` : "-";
+
+          // Mini trend bars
+          const max = Math.max(...monthly.map((x) => x.count || 0), 1);
+          trendEl.innerHTML = monthly
+            .slice(-18)
+            .map((x) => {
+              const h = Math.max(6, Math.round(((x.count || 0) / max) * 46));
+              const label = String(x._id?.m || "").padStart(2, "0") + "/" + String(x._id?.y || "").slice(-2);
+              return `<div class="inline-flex flex-col items-center mr-1">
+                <div style="width:10px;height:${h}px;background:rgba(34,197,94,0.65);border-radius:3px;"></div>
+                <div class="text-[10px] text-gray-500 mt-1">${label}</div>
+              </div>`;
+            })
+            .join("");
+
+          if (!candidates.length) {
+            tableEl.innerHTML = `<div class="text-center py-10 text-gray-400">
+              <i class="fas fa-folder-open text-3xl text-gray-600"></i>
+              <p class="mt-3">Belum ada kandidat PMI pada rentang ini.</p>
+            </div>`;
+            return;
+          }
+
+          tableEl.innerHTML = `
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-xs text-gray-500 border-b border-white/10">
+                    <th class="py-2 pr-3">Nama</th>
+                    <th class="py-2 pr-3">Paspor</th>
+                    <th class="py-2 pr-3">Flights</th>
+                    <th class="py-2 pr-3">Hub</th>
+                    <th class="py-2 pr-3">Confidence</th>
+                    <th class="py-2 pr-3">Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${candidates.slice(0, 60).map((p) => {
+                    const hubs = (p.hubs || []).filter(Boolean).slice(0, 4).join(", ") || "-";
+                    const conf = p.pmi?.confidence || "LOW";
+                    const badge =
+                      conf === "HIGH" ? "bg-green-500/20 text-green-300 border-green-500/30" :
+                      conf === "MEDIUM" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" :
+                      "bg-slate-500/15 text-slate-300 border-slate-500/25";
+                    const last = p.last_seen ? new Date(p.last_seen).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) : "-";
+                    const reasons = (p.pmi?.reasons || []).join(" • ").replace(/"/g, "'");
+                    const passport = (p.passport_number || "").toString();
+                    return `
+                      <tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer"
+                          title="${reasons}"
+                          onclick="loadTravelDossier('${encodeURIComponent(passport)}','passport')">
+                        <td class="py-2 pr-3 text-gray-200 font-semibold">${p.name || "-"}</td>
+                        <td class="py-2 pr-3 text-gray-300"><i class="fas fa-passport text-gray-500 mr-1"></i>${passport || "-"}</td>
+                        <td class="py-2 pr-3 text-gray-300">${(p.total_flights || 0).toLocaleString("id-ID")}</td>
+                        <td class="py-2 pr-3 text-gray-400">${hubs}</td>
+                        <td class="py-2 pr-3"><span class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border ${badge} text-xs font-bold"><i class="fas fa-id-badge"></i>${conf}</span></td>
+                        <td class="py-2 pr-3 text-gray-400">${last}</td>
+                      </tr>`;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>`;
+        } catch (e) {
+          console.error("PMI Intel error:", e);
+          tableEl.innerHTML = `<div class="text-center py-10 text-red-300">
+            <i class="fas fa-exclamation-triangle text-2xl"></i>
+            <p class="mt-2">${e.message || "Gagal memuat PMI Intel"}</p>
+          </div>`;
         }
       }
 
@@ -13777,6 +14032,18 @@
             setText("kpiHighValue", num(kpi.cargoHighValue));
             setText("kpiFreqTravelers", num(kpi.frequentTravelers));
 
+            // PMI (indikasi) snapshot
+            if (document.getElementById("kpiPmiCandidates")) {
+              setText("kpiPmiCandidates", num(kpi.pmiCandidates || 0));
+              if (kpi.pmiTopHub && kpi.pmiTopHub.code) {
+                setText("kpiPmiTopHub", kpi.pmiTopHub.code);
+                setText("kpiPmiTopHubCount", num(kpi.pmiTopHub.count || 0) + " records");
+              } else {
+                setText("kpiPmiTopHub", "-");
+                setText("kpiPmiTopHubCount", "-");
+              }
+            }
+
             // Total CIF
             setText("dashTotalCIF", "$" + num(Math.round(kpi.totalCIF)));
 
@@ -14805,6 +15072,7 @@
           "analitik",
           "crosscheck",
           "paxsearch",
+          "ceisa",
         ].forEach((c) => {
           const el = document.getElementById("manifest-" + c);
           if (el) el.style.display = c === subId ? "block" : "none";
@@ -14828,6 +15096,9 @@
           loadManifestCrosscheckCenter();
         } else if (subId === "paxsearch") {
           container.innerHTML = getManifestPaxSearchContent();
+        } else if (subId === "ceisa") {
+          container.innerHTML = getCeisaContent();
+          loadCeisaStats();
         }
       }
 
@@ -16586,6 +16857,601 @@
         } catch (err) {
           console.error("Manifest Analitik error:", err);
           showToast("Gagal memuat Analitik", "error");
+        }
+      }
+
+      // ===================================================================
+      //  CEISA PENGANGKUT — Dashboard, Data, Upload
+      // ===================================================================
+
+      let ceisaCharts = {};
+      let ceisaActiveTab = "dashboard";
+      let ceisaRecordsPage = 1;
+
+      function destroyCeisaChart(id) {
+        if (ceisaCharts[id]) { ceisaCharts[id].destroy(); delete ceisaCharts[id]; }
+      }
+
+      function getCeisaContent() {
+        return `
+        <div class="space-y-4">
+          <!-- Header -->
+          <div class="glass-card-solid rounded-2xl p-5 border-l-4 border-orange-500">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                  <i class="fas fa-ship text-orange-400"></i> CEISA Pengangkut
+                </h2>
+                <p class="text-gray-400 text-sm mt-0.5">Data manifest resmi dari sistem CEISA Bea Cukai — List Pengangkut (BC 1.1)</p>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <select id="ceisaBatchFilter" onchange="ceisaApplyFilter()" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm outline-none">
+                  <option value="">Semua Periode</option>
+                </select>
+                <select id="ceisaDirFilter" onchange="ceisaApplyFilter()" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm outline-none">
+                  <option value="">Inward + Outward</option>
+                  <option value="inward">Inward saja</option>
+                  <option value="outward">Outward saja</option>
+                </select>
+                <button onclick="loadCeisaStats()" class="btn-primary px-4 py-2 rounded-xl text-sm">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="ceisaKpiRow">
+            <div class="glass-card-solid rounded-xl p-4 text-center">
+              <p class="text-2xl font-bold text-orange-400" id="ceisaKpiTotal">-</p>
+              <p class="text-xs text-gray-400 mt-1">Total Penerbangan</p>
+            </div>
+            <div class="glass-card-solid rounded-xl p-4 text-center">
+              <p class="text-2xl font-bold text-blue-400" id="ceisaKpiInward">-</p>
+              <p class="text-xs text-gray-400 mt-1">Inward (Kedatangan)</p>
+            </div>
+            <div class="glass-card-solid rounded-xl p-4 text-center">
+              <p class="text-2xl font-bold text-emerald-400" id="ceisaKpiOutward">-</p>
+              <p class="text-xs text-gray-400 mt-1">Outward (Keberangkatan)</p>
+            </div>
+            <div class="glass-card-solid rounded-xl p-4 text-center">
+              <p class="text-2xl font-bold text-yellow-400" id="ceisaKpiBerat">-</p>
+              <p class="text-xs text-gray-400 mt-1">Total Berat Cargo (kg)</p>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 bg-white/5 rounded-xl p-1 w-fit">
+            <button id="ceisaTabBtn-dashboard" onclick="ceisaSwitchTab('dashboard')"
+              class="ceisa-tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all bg-orange-500 text-white">
+              <i class="fas fa-chart-bar mr-1"></i> Dashboard
+            </button>
+            <button id="ceisaTabBtn-data" onclick="ceisaSwitchTab('data')"
+              class="ceisa-tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+              <i class="fas fa-table mr-1"></i> Data Penerbangan
+            </button>
+            <button id="ceisaTabBtn-upload" onclick="ceisaSwitchTab('upload')"
+              class="ceisa-tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+              <i class="fas fa-upload mr-1"></i> Upload & Riwayat
+            </button>
+          </div>
+
+          <!-- TAB: Dashboard -->
+          <div id="ceisaTab-dashboard">
+            <div class="grid lg:grid-cols-2 gap-4">
+              <!-- Chart: Trend Harian -->
+              <div class="glass-card-solid rounded-2xl p-5 lg:col-span-2">
+                <h3 class="font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-chart-line text-orange-400"></i> Trend Harian Penerbangan
+                </h3>
+                <div style="height:180px;position:relative;">
+                  <canvas id="ceisaTrendChart"></canvas>
+                </div>
+              </div>
+              <!-- Chart: Top Maskapai -->
+              <div class="glass-card-solid rounded-2xl p-5">
+                <h3 class="font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-plane text-blue-400"></i> Top Maskapai
+                </h3>
+                <div id="ceisaAirlineList" class="space-y-2 text-sm"></div>
+              </div>
+              <!-- Chart: Pelabuhan Asal -->
+              <div class="glass-card-solid rounded-2xl p-5">
+                <h3 class="font-semibold mb-3 flex items-center gap-2">
+                  <i class="fas fa-anchor text-purple-400"></i> Pelabuhan Asal
+                  <span class="text-xs text-gray-500">(Top 8)</span>
+                </h3>
+                <div style="height:180px;position:relative;">
+                  <canvas id="ceisaPortChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Flag: Persetujuan Perbaikan -->
+            <div class="glass-card-solid rounded-2xl p-5 mt-4 border border-red-500/30">
+              <h3 class="font-semibold mb-3 flex items-center gap-2 text-red-400">
+                <i class="fas fa-exclamation-triangle"></i> Flagged — Persetujuan Perbaikan
+                <span id="ceisaFlagCount" class="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full">0</span>
+              </h3>
+              <div id="ceisaFlagList" class="text-sm text-gray-400">Memuat...</div>
+            </div>
+          </div>
+
+          <!-- TAB: Data Penerbangan -->
+          <div id="ceisaTab-data" class="hidden">
+            <div class="glass-card-solid rounded-2xl p-4">
+              <!-- Filter Bar -->
+              <div class="flex flex-wrap gap-2 mb-4">
+                <input type="text" id="ceisaSearchInput" placeholder="Cari nomor penerbangan, maskapai..."
+                  class="flex-1 min-w-48 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm outline-none focus:border-orange-500"
+                  oninput="ceisaSearchDebounce()">
+                <select id="ceisaAirlineFilter" onchange="ceisaLoadRecords(1)" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm outline-none">
+                  <option value="">Semua Maskapai</option>
+                </select>
+                <select id="ceisaStatusFilter" onchange="ceisaLoadRecords(1)" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm outline-none">
+                  <option value="">Semua Status</option>
+                  <option value="BC 1.1">BC 1.1</option>
+                  <option value="PERSETUJUAN PERBAIKAN">Persetujuan Perbaikan</option>
+                  <option value="READY">Ready</option>
+                </select>
+                <button onclick="ceisaLoadRecords(1)" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm transition">
+                  <i class="fas fa-search"></i>
+                </button>
+              </div>
+              <!-- Table -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-gray-400 text-xs border-b border-white/10">
+                      <th class="text-left pb-2 pr-3">No. Penerbangan</th>
+                      <th class="text-left pb-2 pr-3">Maskapai</th>
+                      <th class="text-left pb-2 pr-3">Arah</th>
+                      <th class="text-left pb-2 pr-3">Tgl Tiba</th>
+                      <th class="text-left pb-2 pr-3">Asal</th>
+                      <th class="text-right pb-2 pr-3">Berat (kg)</th>
+                      <th class="text-left pb-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceisaRecordsBody" class="divide-y divide-white/5"></tbody>
+                </table>
+              </div>
+              <!-- Pagination -->
+              <div id="ceisaPagination" class="flex items-center justify-between mt-4 text-sm text-gray-400"></div>
+            </div>
+          </div>
+
+          <!-- TAB: Upload & Riwayat -->
+          <div id="ceisaTab-upload" class="hidden">
+            <div class="grid lg:grid-cols-2 gap-4">
+              <!-- Upload Form -->
+              <div class="glass-card-solid rounded-2xl p-5">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                  <i class="fas fa-file-upload text-orange-400"></i> Upload File CEISA Baru
+                </h3>
+                <p class="text-xs text-gray-400 mb-4">Upload file Excel (.xlsx) hasil export dari portal CEISA — format "List Pengangkut".<br>File akan dikonversi ke CSV.gz (hemat ~77% storage) dan data dimasukkan ke database.</p>
+                <div id="ceisaDropZone"
+                  class="border-2 border-dashed border-orange-500/40 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 transition-all"
+                  onclick="document.getElementById('ceisaFileInput').click()"
+                  ondragover="event.preventDefault();this.classList.add('border-orange-400')"
+                  ondragleave="this.classList.remove('border-orange-400')"
+                  ondrop="ceisaHandleDrop(event)">
+                  <i class="fas fa-cloud-upload-alt text-3xl text-orange-400/60 mb-3"></i>
+                  <p class="text-gray-300 font-medium">Klik atau drag & drop file XLSX</p>
+                  <p class="text-xs text-gray-500 mt-1">Maks. 50MB · Format: List Pengangkut CEISA</p>
+                </div>
+                <input type="file" id="ceisaFileInput" accept=".xlsx,.xls" class="hidden" onchange="ceisaUploadFile(this)">
+                <div id="ceisaUploadProgress" class="mt-3 hidden">
+                  <div class="flex items-center gap-2 text-orange-400 text-sm">
+                    <i class="fas fa-spinner fa-spin"></i> Mengupload dan memproses...
+                  </div>
+                </div>
+                <div id="ceisaUploadResult" class="mt-3"></div>
+              </div>
+
+              <!-- Riwayat Batch -->
+              <div class="glass-card-solid rounded-2xl p-5">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                  <i class="fas fa-history text-emerald-400"></i> Riwayat Upload
+                </h3>
+                <div id="ceisaBatchList" class="space-y-3">
+                  <div class="text-center text-gray-500 text-sm py-4">
+                    <i class="fas fa-spinner fa-spin"></i> Memuat...
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // ── Tab switching ────────────────────────────────────────────────────────
+      function ceisaSwitchTab(tab) {
+        ceisaActiveTab = tab;
+        ["dashboard", "data", "upload"].forEach((t) => {
+          const el = document.getElementById("ceisaTab-" + t);
+          const btn = document.getElementById("ceisaTabBtn-" + t);
+          if (!el || !btn) return;
+          if (t === tab) {
+            el.classList.remove("hidden");
+            btn.classList.add("bg-orange-500", "text-white");
+            btn.classList.remove("text-gray-400");
+          } else {
+            el.classList.add("hidden");
+            btn.classList.remove("bg-orange-500", "text-white");
+            btn.classList.add("text-gray-400");
+          }
+        });
+        if (tab === "data") ceisaLoadRecords(1);
+        if (tab === "upload") ceisaLoadBatches();
+      }
+
+      // ── Apply filter (batch + direction) → reload stats ─────────────────────
+      function ceisaApplyFilter() {
+        loadCeisaStats();
+        if (ceisaActiveTab === "data") ceisaLoadRecords(1);
+      }
+
+      // ── Build query string dari filter aktif ─────────────────────────────────
+      function ceisaBuildQuery(extra = {}) {
+        const params = new URLSearchParams();
+        const batchId = document.getElementById("ceisaBatchFilter")?.value;
+        const dir = document.getElementById("ceisaDirFilter")?.value;
+        if (batchId) params.set("batch_id", batchId);
+        if (dir) params.set("direction", dir);
+        Object.entries(extra).forEach(([k, v]) => { if (v) params.set(k, v); });
+        return params.toString();
+      }
+
+      // ── Load Stats & Charts ──────────────────────────────────────────────────
+      async function loadCeisaStats() {
+        try {
+          const qs = ceisaBuildQuery();
+          const res = await fetch(`/api/ceisa/stats${qs ? "?" + qs : ""}`);
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          const d = json.data;
+
+          // KPI
+          const total = d.summary.total || 0;
+          const inward = d.by_direction.find(x => x._id === "inward")?.count || 0;
+          const outward = d.by_direction.find(x => x._id === "outward")?.count || 0;
+          const berat = d.summary.total_berat || 0;
+          document.getElementById("ceisaKpiTotal").textContent = total.toLocaleString("id-ID");
+          document.getElementById("ceisaKpiInward").textContent = inward.toLocaleString("id-ID");
+          document.getElementById("ceisaKpiOutward").textContent = outward.toLocaleString("id-ID");
+          document.getElementById("ceisaKpiBerat").textContent = berat >= 1000
+            ? (berat / 1000).toFixed(1) + " t" : berat.toLocaleString("id-ID");
+
+          // Populate batch filter dropdown (first load only)
+          const batchSel = document.getElementById("ceisaBatchFilter");
+          if (batchSel && batchSel.options.length <= 1) {
+            const bRes = await fetch("/api/ceisa/batches");
+            const bJson = await bRes.json();
+            if (bJson.status === "ok") {
+              bJson.data.forEach(b => {
+                if (b.status === "imported") {
+                  const opt = document.createElement("option");
+                  opt.value = b._id;
+                  opt.textContent = b.periode_label + " (" + (b.total_records || 0).toLocaleString("id-ID") + " data)";
+                  batchSel.appendChild(opt);
+                }
+              });
+            }
+          }
+
+          // Chart: Trend harian
+          destroyCeisaChart("trend");
+          const trendEl = document.getElementById("ceisaTrendChart");
+          if (trendEl && d.daily_trend?.length) {
+            const labels = d.daily_trend.map(x => {
+              const dt = new Date(x._id);
+              return (dt.getDate()) + "/" + (dt.getMonth() + 1);
+            });
+            ceisaCharts["trend"] = new Chart(trendEl.getContext("2d"), {
+              type: "bar",
+              data: {
+                labels,
+                datasets: [
+                  {
+                    label: "Inward",
+                    data: d.daily_trend.map(x => x.inward),
+                    backgroundColor: "rgba(59,130,246,0.7)",
+                    borderRadius: 3,
+                    stack: "s",
+                  },
+                  {
+                    label: "Outward",
+                    data: d.daily_trend.map(x => x.outward),
+                    backgroundColor: "rgba(16,185,129,0.7)",
+                    borderRadius: 3,
+                    stack: "s",
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { labels: { color: "#94a3b8", font: { size: 10 } } },
+                  tooltip: { mode: "index" },
+                },
+                scales: {
+                  x: { ticks: { color: "#64748b", font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
+                  y: { ticks: { color: "#64748b", font: { size: 10 } }, grid: { color: "rgba(100,116,139,0.1)" }, beginAtZero: true },
+                },
+              },
+            });
+          }
+
+          // List: Maskapai
+          const maxAirline = d.by_airline[0]?.count || 1;
+          document.getElementById("ceisaAirlineList").innerHTML = (d.by_airline || []).slice(0, 10).map((a, i) => {
+            const pct = Math.round((a.count / maxAirline) * 100);
+            return `<div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="flex gap-2 items-center">
+                  <span class="text-gray-500 w-4">#${i + 1}</span>
+                  <span class="text-gray-200">${a._id || "Unknown"}</span>
+                </span>
+                <span class="font-bold text-blue-400">${a.count.toLocaleString("id-ID")}</span>
+              </div>
+              <div class="w-full bg-white/5 rounded-full h-1.5">
+                <div class="bg-blue-500 h-1.5 rounded-full" style="width:${pct}%"></div>
+              </div>
+            </div>`;
+          }).join("") || "<p class='text-gray-500 text-xs'>Tidak ada data</p>";
+
+          // Populate airline dropdown
+          const airlineSel = document.getElementById("ceisaAirlineFilter");
+          if (airlineSel && airlineSel.options.length <= 1 && d.by_airline?.length) {
+            d.by_airline.forEach(a => {
+              if (a._id) {
+                const opt = document.createElement("option");
+                opt.value = a._id;
+                opt.textContent = a._id;
+                airlineSel.appendChild(opt);
+              }
+            });
+          }
+
+          // Chart: Pelabuhan asal
+          destroyCeisaChart("port");
+          const portEl = document.getElementById("ceisaPortChart");
+          if (portEl && d.by_port?.length) {
+            const portData = d.by_port.slice(0, 8);
+            ceisaCharts["port"] = new Chart(portEl.getContext("2d"), {
+              type: "doughnut",
+              data: {
+                labels: portData.map(x => x._id || "?"),
+                datasets: [{
+                  data: portData.map(x => x.count),
+                  backgroundColor: [
+                    "#f97316","#3b82f6","#10b981","#8b5cf6",
+                    "#f59e0b","#ef4444","#06b6d4","#84cc16"
+                  ],
+                  borderWidth: 0,
+                }],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: "right", labels: { color: "#94a3b8", font: { size: 9 }, boxWidth: 12 } },
+                },
+              },
+            });
+          }
+
+          // Flagged: Persetujuan Perbaikan
+          const flags = d.flagged_perbaikan || [];
+          document.getElementById("ceisaFlagCount").textContent = flags.length;
+          document.getElementById("ceisaFlagList").innerHTML = flags.length === 0
+            ? `<p class="text-gray-500 text-xs">Tidak ada manifest bermasalah <i class="fas fa-check-circle text-green-400 ml-1"></i></p>`
+            : `<div class="overflow-x-auto"><table class="w-full text-xs">
+                <thead><tr class="text-gray-500 border-b border-white/10">
+                  <th class="text-left pb-2 pr-3">No. AJU</th>
+                  <th class="text-left pb-2 pr-3">Penerbangan</th>
+                  <th class="text-left pb-2 pr-3">Maskapai</th>
+                  <th class="text-left pb-2 pr-3">Tgl Tiba</th>
+                  <th class="text-left pb-2">Arah</th>
+                </tr></thead>
+                <tbody class="divide-y divide-white/5">
+                ${flags.map(f => `<tr class="hover:bg-white/5">
+                  <td class="py-1.5 pr-3 font-mono text-red-300">${(f.nomor_aju || "-").slice(-10)}</td>
+                  <td class="py-1.5 pr-3 font-bold">${f.nomor_voyage || "-"}</td>
+                  <td class="py-1.5 pr-3 text-gray-300">${f.sarana_angkut || "-"}</td>
+                  <td class="py-1.5 pr-3 text-gray-400">${f.tanggal_tiba ? new Date(f.tanggal_tiba).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "-"}</td>
+                  <td class="py-1.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${f.direction === "inward" ? "bg-blue-500/20 text-blue-400" : "bg-emerald-500/20 text-emerald-400"}">${f.direction}</span></td>
+                </tr>`).join("")}
+                </tbody></table></div>`;
+
+        } catch (err) {
+          console.error("CEISA Stats error:", err);
+          showToast("Gagal memuat data CEISA: " + err.message, "error");
+        }
+      }
+
+      // ── Load Records (tabel data penerbangan) ────────────────────────────────
+      let _ceisaSearchTimer;
+      function ceisaSearchDebounce() {
+        clearTimeout(_ceisaSearchTimer);
+        _ceisaSearchTimer = setTimeout(() => ceisaLoadRecords(1), 350);
+      }
+
+      async function ceisaLoadRecords(page = 1) {
+        ceisaRecordsPage = page;
+        const tbody = document.getElementById("ceisaRecordsBody");
+        const pager = document.getElementById("ceisaPagination");
+        if (!tbody) return;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Memuat...</td></tr>`;
+
+        try {
+          const extra = {
+            page,
+            limit: 50,
+            search: document.getElementById("ceisaSearchInput")?.value || "",
+            sarana_angkut: document.getElementById("ceisaAirlineFilter")?.value || "",
+            status_ceisa: document.getElementById("ceisaStatusFilter")?.value || "",
+          };
+          const qs = ceisaBuildQuery(extra);
+          const res = await fetch(`/api/ceisa/records?${qs}`);
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+
+          const rows = json.data;
+          const { total, pages } = json.pagination;
+
+          if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-gray-500">Tidak ada data</td></tr>`;
+            pager.innerHTML = "";
+            return;
+          }
+
+          const STATUS_COLOR = {
+            "BC 1.1": "bg-green-500/20 text-green-400",
+            "PERSETUJUAN PERBAIKAN": "bg-red-500/20 text-red-400",
+            "READY": "bg-blue-500/20 text-blue-400",
+          };
+
+          tbody.innerHTML = rows.map(r => {
+            const tiba = r.tanggal_tiba ? new Date(r.tanggal_tiba).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+            const statusCls = STATUS_COLOR[r.status_ceisa] || "bg-gray-500/20 text-gray-400";
+            const dirCls = r.direction === "inward" ? "bg-blue-500/20 text-blue-400" : "bg-emerald-500/20 text-emerald-400";
+            return `<tr class="hover:bg-white/5 transition-colors">
+              <td class="py-2 pr-3 font-mono font-bold text-white text-xs">${r.nomor_voyage || "-"}</td>
+              <td class="py-2 pr-3 text-gray-300 text-xs max-w-32 truncate">${r.sarana_angkut || "-"}</td>
+              <td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${dirCls}">${r.direction}</span></td>
+              <td class="py-2 pr-3 text-gray-400 text-xs whitespace-nowrap">${tiba}</td>
+              <td class="py-2 pr-3 text-xs font-mono text-purple-300">${r.pelabuhan_asal || "-"}</td>
+              <td class="py-2 pr-3 text-right text-xs font-medium ${r.berat > 0 ? "text-yellow-400" : "text-gray-600"}">${r.berat > 0 ? r.berat.toLocaleString("id-ID") : "-"}</td>
+              <td class="py-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusCls}">${r.status_ceisa || "-"}</span></td>
+            </tr>`;
+          }).join("");
+
+          // Pagination
+          pager.innerHTML = `
+            <span class="text-xs">${((page-1)*50+1).toLocaleString("id-ID")}–${Math.min(page*50,total).toLocaleString("id-ID")} dari ${total.toLocaleString("id-ID")} data</span>
+            <div class="flex gap-1">
+              ${page > 1 ? `<button onclick="ceisaLoadRecords(${page-1})" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs transition">‹ Prev</button>` : ""}
+              <span class="px-3 py-1 text-xs text-gray-400">Hal ${page}/${pages}</span>
+              ${page < pages ? `<button onclick="ceisaLoadRecords(${page+1})" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs transition">Next ›</button>` : ""}
+            </div>`;
+
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-red-400">Error: ${err.message}</td></tr>`;
+        }
+      }
+
+      // ── Load Batch History ───────────────────────────────────────────────────
+      async function ceisaLoadBatches() {
+        const el = document.getElementById("ceisaBatchList");
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin"></i></div>`;
+        try {
+          const res = await fetch("/api/ceisa/batches");
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          const batches = json.data;
+          if (!batches.length) {
+            el.innerHTML = `<p class="text-gray-500 text-sm text-center py-4">Belum ada upload</p>`;
+            return;
+          }
+          el.innerHTML = batches.map(b => {
+            const statusCls = b.status === "imported" ? "text-green-400" : b.status === "failed" ? "text-red-400" : "text-yellow-400";
+            const statusIcon = b.status === "imported" ? "fa-check-circle" : b.status === "failed" ? "fa-times-circle" : "fa-spinner fa-spin";
+            const uploadedAt = new Date(b.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+            return `<div class="flex items-start justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <i class="fas ${statusIcon} ${statusCls} text-xs"></i>
+                  <span class="font-semibold text-sm text-white">${b.periode_label || "—"}</span>
+                </div>
+                <p class="text-xs text-gray-400 truncate">${b.original_filename}</p>
+                <div class="flex gap-3 mt-1 text-xs text-gray-500">
+                  <span><i class="fas fa-plane text-gray-600 mr-1"></i>${(b.total_records || 0).toLocaleString("id-ID")} penerbangan</span>
+                  <span><i class="fas fa-arrow-down text-blue-400/60 mr-1"></i>${b.inward_count || 0}</span>
+                  <span><i class="fas fa-arrow-up text-emerald-400/60 mr-1"></i>${b.outward_count || 0}</span>
+                </div>
+                <p class="text-[10px] text-gray-600 mt-1">${uploadedAt}</p>
+              </div>
+              ${b.status === "imported" ? `<button onclick="ceisaDeleteBatch('${b._id}','${b.periode_label}')"
+                class="px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs transition shrink-0" title="Hapus batch ini">
+                <i class="fas fa-trash"></i>
+              </button>` : ""}
+            </div>`;
+          }).join("");
+        } catch (err) {
+          el.innerHTML = `<p class="text-red-400 text-sm">Error: ${err.message}</p>`;
+        }
+      }
+
+      // ── Delete Batch ─────────────────────────────────────────────────────────
+      async function ceisaDeleteBatch(batchId, label) {
+        if (!confirm(`Hapus data periode "${label}"?\nSemua ${label} records akan dihapus permanen.`)) return;
+        try {
+          const res = await fetch(`/api/ceisa/batches/${batchId}`, { method: "DELETE" });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          showToast(json.message, "success");
+          ceisaLoadBatches();
+          loadCeisaStats();
+        } catch (err) {
+          showToast("Gagal hapus: " + err.message, "error");
+        }
+      }
+
+      // ── Upload File ──────────────────────────────────────────────────────────
+      function ceisaHandleDrop(event) {
+        event.preventDefault();
+        document.getElementById("ceisaDropZone").classList.remove("border-orange-400");
+        const file = event.dataTransfer.files[0];
+        if (file) ceisaDoUpload(file);
+      }
+
+      function ceisaUploadFile(input) {
+        const file = input.files[0];
+        if (file) ceisaDoUpload(file);
+        input.value = "";
+      }
+
+      async function ceisaDoUpload(file) {
+        const allowed = file.name.toLowerCase().endsWith(".xlsx") || file.name.toLowerCase().endsWith(".xls");
+        if (!allowed) { showToast("Hanya file XLSX/XLS yang didukung", "error"); return; }
+
+        const progress = document.getElementById("ceisaUploadProgress");
+        const resultEl = document.getElementById("ceisaUploadResult");
+        progress.classList.remove("hidden");
+        resultEl.innerHTML = "";
+
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/ceisa/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          const d = json.data;
+          resultEl.innerHTML = `
+            <div class="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-sm space-y-1">
+              <p class="font-semibold text-green-400"><i class="fas fa-check-circle mr-1"></i> Import Berhasil!</p>
+              <p class="text-gray-300">Periode: <strong>${d.periode}</strong></p>
+              <p class="text-gray-300">Records: <strong>${(d.total_records||0).toLocaleString("id-ID")}</strong> (Inward: ${d.inward}, Outward: ${d.outward})</p>
+              <p class="text-gray-300">Storage: <strong>${d.csv_gz_size_kb} KB</strong> CSV.gz</p>
+              ${d.skipped > 0 ? `<p class="text-yellow-400 text-xs">⚠ ${d.skipped} baris diskip</p>` : ""}
+            </div>`;
+          showToast(`Import berhasil: ${(d.total_records||0).toLocaleString("id-ID")} penerbangan`, "success");
+          ceisaLoadBatches();
+          loadCeisaStats();
+          // Reset batch filter dropdown agar batch baru muncul
+          const sel = document.getElementById("ceisaBatchFilter");
+          if (sel) sel.innerHTML = '<option value="">Semua Periode</option>';
+        } catch (err) {
+          resultEl.innerHTML = `<div class="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400"><i class="fas fa-times-circle mr-1"></i> ${err.message}</div>`;
+          showToast("Upload gagal: " + err.message, "error");
+        } finally {
+          progress.classList.add("hidden");
         }
       }
 

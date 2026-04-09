@@ -5,6 +5,26 @@ const Passenger = require("../models/Passenger");
 const Device = require("../models/Device");
 const Manifest = require("../models/Manifest");
 const UploadLog = require("../models/UploadLog");
+const ManifestPassenger = require("../models/ManifestPassenger");
+
+// PMI hubs (indikasi) — keep in sync with passengers PMI logic
+const PMI_HUBS = [
+  "KUL",
+  "SIN",
+  "JED",
+  "RUH",
+  "DMM",
+  "DOH",
+  "DXB",
+  "AUH",
+  "KWI",
+  "MCT",
+  "BAH",
+  "HKG",
+  "TPE",
+  "ICN",
+  "PUS",
+];
 
 // New models for enhanced dashboard (graceful fallback)
 let ImeiDetail, ImeiRegistration, ScraperSession, Suspect, Notification;
@@ -114,6 +134,9 @@ router.get("/summary", async (req, res) => {
       // ===== NEW: Notifications =====
       unreadNotifications,
       criticalNotifications,
+      // ===== NEW: PMI (indikasi) =====
+      pmiCandidates,
+      pmiTopHub,
     ] = await Promise.all([
       // Counts
       Device.countDocuments(),
@@ -604,6 +627,31 @@ router.get("/summary", async (req, res) => {
         priority: { $in: ["CRITICAL", "HIGH"] },
         is_read: false,
       }),
+
+      // ===== NEW: PMI (indikasi) =====
+      ManifestPassenger.aggregate([
+        {
+          $match: {
+            passport_number: { $nin: ["", null] },
+            nationality: { $in: ["ID", "IDN"] },
+            destination_code: { $in: PMI_HUBS },
+            flight_date: { $ne: null },
+          },
+        },
+        { $group: { _id: { $toLower: "$passport_number" } } },
+        { $count: "total" },
+      ]),
+      ManifestPassenger.aggregate([
+        {
+          $match: {
+            nationality: { $in: ["ID", "IDN"] },
+            destination_code: { $in: PMI_HUBS },
+          },
+        },
+        { $group: { _id: "$destination_code", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 1 },
+      ]),
     ]);
 
     // Calculate trends
@@ -646,6 +694,8 @@ router.get("/summary", async (req, res) => {
     const scraperCoverageData = scraperCoverage[0] || { earliestStart: null, latestEnd: null, totalPungutan: 0, totalFobUsd: 0 };
     const billingRow = (imeiDetailBillingStats || []).find(r => r._id === "BILLING") || { count: 0, total_pungutan: 0 };
     const pembebasanRow = (imeiDetailBillingStats || []).find(r => r._id === "PEMBEBASAN") || { count: 0, total_pungutan: 0 };
+    const pmiTotal = pmiCandidates?.[0]?.total || 0;
+    const pmiHub = pmiTopHub?.[0] || null;
 
     res.json({
       status: "ok",
@@ -685,6 +735,9 @@ router.get("/summary", async (req, res) => {
           imeiDetailBilling: billingRow.count,
           imeiDetailPembebasan: pembebasanRow.count,
           imeiDetailBillingPungutan: billingRow.total_pungutan,
+          // PMI (indikasi)
+          pmiCandidates: pmiTotal,
+          pmiTopHub: pmiHub ? { code: pmiHub._id, count: pmiHub.count } : null,
         },
         trends: {
           cargoThisMonth,

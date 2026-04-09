@@ -161,6 +161,9 @@ app.use("/api/price-intel", require("./routes/price-intel"));
 // Scraper Bridge routes (browser-to-server CEISA data import)
 app.use("/api/scraper", require("./routes/scraper"));
 
+// CEISA Manifest Import (List Pengangkut)
+app.use("/api/ceisa", require("./routes/ceisa"));
+
 // Unified Passport Search (Pencarian Terpadu)
 app.use("/api/unified", require("./routes/unified"));
 

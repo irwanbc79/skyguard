@@ -9,11 +9,234 @@ const ImeiRegistration = require("../models/ImeiRegistration");
 const ImeiDetail = require("../models/ImeiDetail");
 const { getKantorName } = require("../utils/constants");
 
+function normalizeAirportCode(v) {
+  if (!v) return null;
+  const s = String(v).trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(s) ? s : null;
+}
+
+// Common PMI corridors/hubs (configurable list)
+const PMI_HUBS = [
+  // ASEAN hubs
+  "KUL",
+  "SIN",
+  // Middle East hubs / common corridors
+  "JED",
+  "RUH",
+  "DMM",
+  "DOH",
+  "DXB",
+  "AUH",
+  "KWI",
+  "MCT",
+  "BAH",
+  // East Asia
+  "HKG",
+  "TPE",
+  "ICN",
+  "PUS",
+];
+const PMI_HUBS_SET = new Set(PMI_HUBS);
+
+function classifyPmi({ nationality, destinationCodes = [], flightCount = 0 }) {
+  // Heuristic-only classification (non-authoritative).
+  // Goal: give officers a quick visual cue, not a legal determination.
+  const nat = (nationality || "").toUpperCase();
+  const dests = [...new Set(destinationCodes.map(normalizeAirportCode).filter(Boolean))];
+
+  const reasons = [];
+  let score = 0;
+
+  // PMI context is primarily Indonesian nationals
+  if (nat === "ID" || nat === "IDN") {
+    score += 1;
+    reasons.push("WNI (nat: ID)");
+  } else if (nat) {
+    // Non-ID nationality reduces confidence sharply
+    score -= 2;
+    reasons.push(`Non-WNI (nat: ${nat})`);
+  } else {
+    reasons.push("Nationality tidak tersedia");
+  }
+
+  const hit = dests.filter((c) => PMI_HUBS_SET.has(c));
+  if (hit.length) {
+    score += Math.min(3, hit.length);
+    reasons.push(`Rute/hub PMI: ${hit.join(", ")}`);
+  } else {
+    reasons.push("Tidak ada hub PMI terdeteksi dari data rute");
+  }
+
+  // Frequent travel slightly increases confidence (PMI tends to be repeat corridor)
+  if (flightCount >= 3) {
+    score += 1;
+    reasons.push(`${flightCount} penerbangan tercatat`);
+  }
+
+  const isPmi = score >= 3; // calibrated to require WNI + at least one hub hit (or strong pattern)
+  const confidence =
+    score >= 5 ? "HIGH" : score >= 3 ? "MEDIUM" : score >= 1 ? "LOW" : "NONE";
+
+  return {
+    is_pmi: isPmi,
+    confidence,
+    score,
+    reasons,
+    signals: { destination_codes: dests },
+  };
+}
+
 router.get("/lookup/:passport", ctrl.lookup);
 router.get("/alerts", ctrl.getAlerts);
 router.get("/stats", ctrl.getStats);
 router.get("/transactions", ctrl.searchTransactions);
 router.post("/match-device", ctrl.matchDevice);
+
+// ============================================================
+// PMI (Pekerja Migran Indonesia) — Indikasi berbasis data manifest
+// ============================================================
+
+// GET /api/passengers/pmi/check/:passport
+// Return status PMI (indikasi) untuk 1 paspor
+router.get("/pmi/check/:passport", async (req, res) => {
+  try {
+    const passport = String(req.params.passport || "").trim();
+    if (!passport || passport.length < 3) {
+      return res.status(400).json({ status: "error", message: "Nomor paspor tidak valid" });
+    }
+
+    const pax = await ManifestPassenger.find({
+      passport_number: { $regex: new RegExp("^" + passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "i") },
+    })
+      .select("passport_number nationality destination_code flight_date flight_number name")
+      .sort({ flight_date: -1 })
+      .limit(300)
+      .lean();
+
+    if (!pax.length) {
+      return res.json({
+        status: "ok",
+        data: {
+          passport_number: passport.toUpperCase(),
+          pmi: {
+            is_pmi: false,
+            confidence: "NONE",
+            score: 0,
+            reasons: ["Tidak ada data manifest untuk paspor ini"],
+            signals: { destination_codes: [] },
+          },
+          stats: { total_flights: 0, last_seen: null },
+        },
+      });
+    }
+
+    const nationality =
+      (pax.find((p) => p.nationality)?.nationality || "").toUpperCase() || null;
+    const destinationCodes = pax.map((p) => p.destination_code).filter(Boolean);
+    const pmi = classifyPmi({
+      nationality,
+      destinationCodes,
+      flightCount: pax.length,
+    });
+
+    res.json({
+      status: "ok",
+      data: {
+        name: pax.find((p) => p.name)?.name || null,
+        passport_number: (pax.find((p) => p.passport_number)?.passport_number || passport).toUpperCase(),
+        nationality,
+        pmi,
+        stats: {
+          total_flights: pax.length,
+          last_seen: pax[0]?.flight_date || null,
+          hubs_hit: (pmi.signals?.destination_codes || []).filter((c) => PMI_HUBS_SET.has(c)),
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// GET /api/passengers/pmi/stats?date_from=&date_to=&limit=
+// Statistik agregat PMI (indikasi) + daftar kandidat (top)
+router.get("/pmi/stats", async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const match = {
+      passport_number: { $nin: ["", null] },
+      nationality: { $in: ["ID", "IDN"] },
+      destination_code: { $in: PMI_HUBS },
+    };
+
+    if (req.query.date_from || req.query.date_to) {
+      match.flight_date = {};
+      if (req.query.date_from) match.flight_date.$gte = new Date(req.query.date_from);
+      if (req.query.date_to) match.flight_date.$lte = new Date(req.query.date_to);
+    }
+
+    const [byPassport, byHub, monthlyTrend] = await Promise.all([
+      ManifestPassenger.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: { $toLower: "$passport_number" },
+            passport_number: { $first: "$passport_number" },
+            name: { $first: "$name" },
+            nationality: { $first: "$nationality" },
+            total_flights: { $sum: 1 },
+            first_seen: { $min: "$flight_date" },
+            last_seen: { $max: "$flight_date" },
+            hubs: { $addToSet: "$destination_code" },
+            flights: { $addToSet: "$flight_number" },
+          },
+        },
+        { $sort: { total_flights: -1, last_seen: -1 } },
+        { $limit: limit },
+      ]),
+      ManifestPassenger.aggregate([
+        { $match: match },
+        { $group: { _id: "$destination_code", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 12 },
+      ]),
+      ManifestPassenger.aggregate([
+        { $match: { ...match, flight_date: { $ne: null } } },
+        {
+          $group: {
+            _id: { y: { $year: "$flight_date" }, m: { $month: "$flight_date" } },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.y": 1, "_id.m": 1 } },
+        { $limit: 24 },
+      ]),
+    ]);
+
+    const candidates = (byPassport || []).map((p) => ({
+      ...p,
+      pmi: classifyPmi({
+        nationality: p.nationality,
+        destinationCodes: p.hubs || [],
+        flightCount: p.total_flights || 0,
+      }),
+    }));
+
+    res.json({
+      status: "ok",
+      data: {
+        summary: {
+          total_candidates: candidates.length,
+          top_hubs: byHub || [],
+        },
+        monthly_trend: monthlyTrend || [],
+        candidates,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
 
 // Passenger 360° Intelligence Profile
 router.get("/profile/:passport", async (req, res) => {
@@ -77,6 +300,7 @@ router.get("/travel-history/search", async (req, res) => {
           first_seen: { $min: "$flight_date" },
           last_seen: { $max: "$flight_date" },
           flight_numbers: { $addToSet: "$flight_number" },
+          destination_codes: { $addToSet: "$destination_code" },
           pnrs: { $addToSet: "$pnr" },
           seats: { $addToSet: "$seat_no" },
         },
@@ -103,11 +327,17 @@ router.get("/travel-history/search", async (req, res) => {
           else if (ceisaCount >= 2) riskLevel = "MEDIUM";
         }
         if (r.name) foundNames.add(r.name.toUpperCase());
+        const pmi = classifyPmi({
+          nationality: r.nationality,
+          destinationCodes: r.destination_codes || [],
+          flightCount: r.total_flights || 0,
+        });
         return {
           ...r,
           source: "manifest",
           ceisa_records: ceisaCount,
           risk_level: riskLevel,
+          pmi,
           airlines: [
             ...new Set(
               (r.flight_numbers || []).map((f) =>
@@ -190,11 +420,19 @@ router.get("/travel-history/search", async (req, res) => {
           first_seen: c.first_seen,
           last_seen: c.last_seen,
           flight_numbers: [],
+          destination_codes: [],
           pnrs: [],
           seats: [],
           source: "ceisa",
           ceisa_records: c.total_records,
           risk_level: riskLevel,
+          pmi: {
+            is_pmi: false,
+            confidence: "NONE",
+            score: 0,
+            reasons: ["Sumber CEISA saja (tanpa data rute manifest)"],
+            signals: { destination_codes: [] },
+          },
           airlines: [],
           billing_count: c.billing_count,
           pembebasan_count: c.pembebasan_count,
@@ -884,6 +1122,12 @@ router.get("/travel-history/:identifier", async (req, res) => {
       });
     }
 
+    const pmi = classifyPmi({
+      nationality: primaryNationality,
+      destinationCodes: Object.keys(destinationMap || {}),
+      flightCount: flightCount || 0,
+    });
+
     const dossier = {
       identity: {
         name: primaryName,
@@ -939,6 +1183,7 @@ router.get("/travel-history/:identifier", async (req, res) => {
       imei: imeiData,
       deviceDetails: deviceData,
       watchlist: watchlistStatus,
+      pmi,
     };
 
     res.json({ status: "ok", data: dossier });
