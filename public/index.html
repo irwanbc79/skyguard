@@ -2989,6 +2989,109 @@
       </div>
     </div>
 
+    <!-- Modal: Konfirmasi PMI -->
+    <div id="pmiModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);"
+         onclick="if(event.target===this)closePmiModal()">
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(580px,95vw);max-height:90vh;overflow-y:auto;"
+           class="glass-card-solid rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-lg font-bold flex items-center gap-2">
+            <i class="fas fa-shield-alt text-green-400"></i>
+            <span id="pmiModalTitle">Konfirmasi Status PMI</span>
+          </h3>
+          <button onclick="closePmiModal()" class="text-gray-400 hover:text-white text-xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <form id="pmiForm" onsubmit="submitPmiRecord(event)">
+          <!-- Paspor & Nama -->
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">No. Paspor <span class="text-red-400">*</span></label>
+              <input id="pmiPassport" name="passport_number" type="text" required
+                class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white uppercase"
+                placeholder="A1234567" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Nama Lengkap</label>
+              <input id="pmiNama" name="nama" type="text"
+                class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white uppercase"
+                placeholder="Nama sesuai paspor" />
+            </div>
+          </div>
+
+          <!-- Catatan Petugas — wajib -->
+          <div class="mb-3">
+            <label class="text-xs text-gray-400 mb-1 block">Catatan Petugas <span class="text-red-400">*</span></label>
+            <textarea id="pmiCatatan" name="catatan" required rows="3"
+              class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white resize-none"
+              placeholder="Contoh: Penumpang menunjukkan kartu BP2MI no. xxx yang masih berlaku. Dinyatakan sebagai PMI yang baru kembali dari Malaysia."></textarea>
+          </div>
+
+          <!-- No Kartu PMI + Lembaga -->
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">No. Kartu PMI / KTKLN</label>
+              <input name="no_kartu_pmi" type="text"
+                class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white"
+                placeholder="Opsional" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Lembaga Penerbit</label>
+              <select name="lembaga" class="w-full bg-slate-800 border border-white/15 rounded-lg px-3 py-2 text-sm text-white">
+                <option value="BP2MI">BP2MI</option>
+                <option value="Kemenaker">Kemenaker</option>
+                <option value="BNPTKI">BNPTKI</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Negara Tujuan + Tgl Berlaku -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Negara Tujuan Kerja</label>
+              <input name="negara_tujuan" type="text"
+                class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white"
+                placeholder="Contoh: Malaysia" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Berlaku s.d.</label>
+              <input name="tgl_berlaku" type="date"
+                class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white" />
+            </div>
+          </div>
+
+          <!-- Upload Dokumen -->
+          <div class="mb-5">
+            <label class="text-xs text-gray-400 mb-1 block">
+              Bukti Dokumen <span class="text-gray-500">(foto/PDF, maks 5 file × 10MB)</span>
+            </label>
+            <div class="border border-dashed border-white/20 rounded-lg p-3 bg-white/3 text-center cursor-pointer hover:border-green-500/40 transition"
+                 onclick="document.getElementById('pmiFileInput').click()">
+              <i class="fas fa-cloud-upload-alt text-gray-400 text-xl mb-1 block"></i>
+              <div class="text-xs text-gray-400" id="pmiFileLabel">Klik untuk pilih file (JPG, PNG, PDF)</div>
+            </div>
+            <input id="pmiFileInput" name="dokumen" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf"
+              class="hidden" onchange="updatePmiFileLabel(this)" />
+          </div>
+
+          <!-- Tombol -->
+          <div class="flex gap-3 justify-end">
+            <button type="button" onclick="closePmiModal()"
+              class="px-4 py-2 rounded-lg text-sm text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 transition">
+              Batal
+            </button>
+            <button type="submit" id="pmiSubmitBtn"
+              class="px-5 py-2 rounded-lg text-sm font-bold bg-green-600 hover:bg-green-500 text-white transition flex items-center gap-2">
+              <i class="fas fa-shield-alt"></i> Konfirmasi PMI
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Modul portal (refactor aman); fallback di bawah jika file gagal dimuat -->
     <script src="/js/skyguard-ui.js?v=1"></script>
     <script src="/js/skyguard-api.js?v=1"></script>
@@ -9027,27 +9130,44 @@
 
           container.classList.remove("hidden");
 
-          // PMI check (indikasi) — enrich UI badge after rendering
+          // PMI check — prioritas PmiRecord (VERIFIED) → heuristic (indikasi)
           try {
             const pmiRes = await fetch(
               "/api/passengers/pmi/check/" + encodeURIComponent(passport),
             );
             const pmiJson = await pmiRes.json();
             const pmi = pmiJson?.data?.pmi;
+            const pmiRecord = pmiJson?.data?.pmi_record;
             const flagsEl = document.getElementById("passportFlags");
-            if (flagsEl && pmi && pmi.confidence) {
+            if (flagsEl && pmi) {
               const isPmi = !!pmi.is_pmi;
-              const conf = pmi.confidence || "LOW";
+              const conf = pmi.confidence || "NONE";
+              const isVerified = pmi.source === "pmi_record";
               const reasons = (pmi.reasons || []).join(" • ").replace(/"/g, "'");
-              const cls = isPmi
-                ? "bg-green-500/25 text-green-200 border-green-500/30"
-                : "bg-slate-500/20 text-slate-300 border-slate-500/25";
-              flagsEl.insertAdjacentHTML(
-                "beforeend",
-                `<span title="${reasons}" class="px-2 py-1 rounded text-xs border ${cls}">
-                  <i class="fas fa-id-badge mr-1"></i> PMI: <strong>${isPmi ? "YA" : "TIDAK"}</strong> • ${conf}
-                </span>`,
-              );
+
+              let badge = "";
+              if (isVerified) {
+                badge = `<span title="${reasons}" class="px-2 py-1 rounded text-xs border bg-green-500/30 text-green-200 border-green-500/40 font-bold">
+                  <i class="fas fa-shield-alt mr-1"></i> PMI TERVERIFIKASI
+                  <span class="ml-1 text-green-400 text-[10px]">oleh ${pmiRecord?.tagged_by_nama || "Petugas"}</span>
+                </span>`;
+              } else if (isPmi) {
+                badge = `<span title="${reasons}" class="px-2 py-1 rounded text-xs border bg-emerald-500/20 text-emerald-300 border-emerald-500/25">
+                  <i class="fas fa-id-badge mr-1"></i> PMI (indikasi) • ${conf}
+                </span>`;
+              } else {
+                badge = `<span title="${reasons}" class="px-2 py-1 rounded text-xs border bg-slate-500/20 text-slate-300 border-slate-500/25">
+                  <i class="fas fa-id-badge mr-1"></i> Bukan PMI
+                </span>`;
+              }
+
+              // Tombol tandai PMI — selalu tampil di lookup
+              const btnTandai = `<button onclick="openPmiModal('${passport.replace(/'/g,"\\'")}', '${((pmiJson?.data?.name)||'').replace(/'/g,"\\'")}' )"
+                class="px-2 py-1 rounded text-xs border bg-blue-500/20 text-blue-300 border-blue-500/25 hover:bg-blue-500/30 transition ml-1">
+                <i class="fas fa-plus mr-1"></i>${isVerified ? "Tambah Konfirmasi" : "Tandai PMI"}
+              </button>`;
+
+              flagsEl.insertAdjacentHTML("beforeend", badge + btnTandai);
             }
           } catch (_) {}
         } catch (err) {
@@ -11553,10 +11673,10 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
               <div>
                 <h2 class="text-xl font-bold flex items-center gap-2">
-                  <i class="fas fa-id-badge text-green-400"></i> PMI Intel
+                  <i class="fas fa-shield-alt text-green-400"></i> PMI Intel
                 </h2>
                 <p class="text-sm text-gray-400 mt-1">
-                  Indikasi PMI berbasis <strong>manifest</strong> (WNI + pola rute/hub). Untuk screening cepat petugas.
+                  Data PMI <strong>terverifikasi petugas</strong> — dikonfirmasi langsung saat pemeriksaan.
                 </p>
               </div>
               <div class="flex flex-wrap gap-2 items-center">
@@ -11565,24 +11685,31 @@
                 <button onclick="loadPMIIntel()" class="bg-green-500/20 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/30 text-sm font-bold transition">
                   <i class="fas fa-sync-alt mr-2"></i>Refresh
                 </button>
+                <button onclick="openPmiModal('','') " class="bg-green-600/30 text-green-200 px-4 py-2 rounded-lg hover:bg-green-600/40 text-sm font-bold transition border border-green-500/30">
+                  <i class="fas fa-plus mr-2"></i>Tambah PMI
+                </button>
               </div>
             </div>
 
-            <div class="grid md:grid-cols-3 gap-4">
+            <div class="grid md:grid-cols-4 gap-4">
               <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
-                <div class="text-xs text-gray-400 mb-1">Kandidat PMI (indikasi)</div>
+                <div class="text-xs text-gray-400 mb-1">PMI Terverifikasi</div>
                 <div class="text-3xl font-extrabold text-green-300" id="pmiTotal">-</div>
-                <div class="text-xs text-gray-500 mt-1" id="pmiTotalHint">berdasarkan filter tanggal</div>
+                <div class="text-xs text-gray-500 mt-1">paspor unik</div>
               </div>
               <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
-                <div class="text-xs text-gray-400 mb-1">Top Hub</div>
-                <div class="text-sm text-gray-300" id="pmiTopHub">-</div>
-                <div class="text-xs text-gray-500 mt-1">rute/hub yang paling sering muncul</div>
+                <div class="text-xs text-gray-400 mb-1">Lembaga Terbanyak</div>
+                <div class="text-sm font-bold text-gray-200" id="pmiTopHub">-</div>
+                <div class="text-xs text-gray-500 mt-1">berdasarkan konfirmasi</div>
               </div>
               <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
-                <div class="text-xs text-gray-400 mb-1">Trend bulanan</div>
-                <div class="text-xs text-gray-500">12–24 bulan terakhir (indikasi)</div>
-                <div class="mt-3" id="pmiMiniTrend"></div>
+                <div class="text-xs text-gray-400 mb-1">Petugas Aktif</div>
+                <div class="text-sm font-bold text-gray-200" id="pmiTopPetugas">-</div>
+                <div class="text-xs text-gray-500 mt-1" id="pmiTopPetugasCount"></div>
+              </div>
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div class="text-xs text-gray-400 mb-1">Trend Konfirmasi</div>
+                <div class="mt-2" id="pmiMiniTrend"></div>
               </div>
             </div>
           </div>
@@ -11590,7 +11717,7 @@
           <div class="glass-card-solid rounded-2xl p-6">
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-base font-bold flex items-center gap-2">
-                <i class="fas fa-users text-green-400"></i> Daftar Kandidat PMI (Top)
+                <i class="fas fa-id-card text-green-400"></i> Daftar PMI Terverifikasi
               </h3>
               <div class="text-xs text-gray-500">Klik baris untuk buka dossier</div>
             </div>
@@ -11605,89 +11732,92 @@
       }
 
       async function loadPMIIntel() {
-        const totalEl = document.getElementById("pmiTotal");
-        const topHubEl = document.getElementById("pmiTopHub");
-        const trendEl = document.getElementById("pmiMiniTrend");
-        const tableEl = document.getElementById("pmiTable");
+        const totalEl   = document.getElementById("pmiTotal");
+        const topHubEl  = document.getElementById("pmiTopHub");
+        const petugasEl = document.getElementById("pmiTopPetugas");
+        const petugasCntEl = document.getElementById("pmiTopPetugasCount");
+        const trendEl   = document.getElementById("pmiMiniTrend");
+        const tableEl   = document.getElementById("pmiTable");
         if (!totalEl || !tableEl) return;
 
         const df = document.getElementById("pmiDateFrom")?.value || "";
         const dt = document.getElementById("pmiDateTo")?.value || "";
-        const params = new URLSearchParams();
+        const params = new URLSearchParams({ limit: "100" });
         if (df) params.set("date_from", df);
         if (dt) params.set("date_to", dt);
-        params.set("limit", "60");
 
         try {
-          const res = await fetch("/api/passengers/pmi/stats?" + params.toString());
+          const res = await fetch("/api/pmi/stats?" + params.toString());
           const json = await res.json();
           if (json.status !== "ok") throw new Error(json.message || "Gagal memuat PMI");
 
-          const data = json.data || {};
+          const data       = json.data || {};
           const candidates = data.candidates || [];
-          const topHubs = (data.summary && data.summary.top_hubs) || [];
-          const monthly = data.monthly_trend || [];
+          const byLembaga  = data.by_lembaga || [];
+          const byPetugas  = data.by_petugas || [];
+          const monthly    = data.monthly_trend || [];
 
-          totalEl.textContent = (data.summary?.total_candidates || candidates.length || 0).toLocaleString("id-ID");
-          topHubEl.textContent = topHubs.length ? `${topHubs[0]._id} (${topHubs[0].count})` : "-";
+          totalEl.textContent = (data.summary?.total_candidates || 0).toLocaleString("id-ID");
+          topHubEl.textContent = byLembaga.length ? `${byLembaga[0]._id} (${byLembaga[0].count})` : "-";
+          if (petugasEl) petugasEl.textContent = byPetugas.length ? byPetugas[0]._id : "-";
+          if (petugasCntEl) petugasCntEl.textContent = byPetugas.length ? `${byPetugas[0].count} konfirmasi` : "";
 
           // Mini trend bars
           const max = Math.max(...monthly.map((x) => x.count || 0), 1);
-          trendEl.innerHTML = monthly
-            .slice(-18)
-            .map((x) => {
-              const h = Math.max(6, Math.round(((x.count || 0) / max) * 46));
-              const label = String(x._id?.m || "").padStart(2, "0") + "/" + String(x._id?.y || "").slice(-2);
-              return `<div class="inline-flex flex-col items-center mr-1">
-                <div style="width:10px;height:${h}px;background:rgba(34,197,94,0.65);border-radius:3px;"></div>
-                <div class="text-[10px] text-gray-500 mt-1">${label}</div>
-              </div>`;
-            })
-            .join("");
+          trendEl.innerHTML = monthly.slice(-12).map((x) => {
+            const h = Math.max(6, Math.round(((x.count || 0) / max) * 36));
+            const label = String(x._id?.m || "").padStart(2,"0") + "/" + String(x._id?.y || "").slice(-2);
+            return `<div class="inline-flex flex-col items-center mr-1">
+              <div style="width:10px;height:${h}px;background:rgba(34,197,94,0.7);border-radius:3px;"></div>
+              <div class="text-[9px] text-gray-500 mt-1">${label}</div>
+            </div>`;
+          }).join("");
 
           if (!candidates.length) {
-            tableEl.innerHTML = `<div class="text-center py-10 text-gray-400">
-              <i class="fas fa-folder-open text-3xl text-gray-600"></i>
-              <p class="mt-3">Belum ada kandidat PMI pada rentang ini.</p>
+            tableEl.innerHTML = `<div class="text-center py-12 text-gray-400">
+              <i class="fas fa-id-card text-4xl text-gray-600 mb-3 block"></i>
+              <p class="font-semibold">Belum ada data PMI terverifikasi.</p>
+              <p class="text-xs mt-1 text-gray-500">Gunakan tombol <strong>"Tandai PMI"</strong> saat memeriksa penumpang di menu Cari Penumpang.</p>
             </div>`;
             return;
           }
 
           tableEl.innerHTML = `
             <div class="overflow-x-auto">
-              <table class="w-full text-left">
+              <table class="w-full text-left text-sm">
                 <thead>
                   <tr class="text-xs text-gray-500 border-b border-white/10">
                     <th class="py-2 pr-3">Nama</th>
                     <th class="py-2 pr-3">Paspor</th>
-                    <th class="py-2 pr-3">Flights</th>
-                    <th class="py-2 pr-3">Hub</th>
-                    <th class="py-2 pr-3">Confidence</th>
-                    <th class="py-2 pr-3">Last Seen</th>
+                    <th class="py-2 pr-3">No. Kartu PMI</th>
+                    <th class="py-2 pr-3">Lembaga</th>
+                    <th class="py-2 pr-3">Dikonfirmasi oleh</th>
+                    <th class="py-2 pr-3">Tanggal</th>
+                    <th class="py-2 pr-3">Bukti</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${candidates.slice(0, 60).map((p) => {
-                    const hubs = (p.hubs || []).filter(Boolean).slice(0, 4).join(", ") || "-";
-                    const conf = p.pmi?.confidence || "LOW";
-                    const badge =
-                      conf === "HIGH" ? "bg-green-500/20 text-green-300 border-green-500/30" :
-                      conf === "MEDIUM" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" :
-                      "bg-slate-500/15 text-slate-300 border-slate-500/25";
-                    const last = p.last_seen ? new Date(p.last_seen).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) : "-";
-                    const reasons = (p.pmi?.reasons || []).join(" • ").replace(/"/g, "'");
+                  ${candidates.map((p) => {
+                    const tgl = p.tagged_at ? new Date(p.tagged_at).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) : "-";
                     const passport = (p.passport_number || "").toString();
-                    return `
-                      <tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer"
-                          title="${reasons}"
-                          onclick="loadTravelDossier('${encodeURIComponent(passport)}','passport')">
-                        <td class="py-2 pr-3 text-gray-200 font-semibold">${p.name || "-"}</td>
-                        <td class="py-2 pr-3 text-gray-300"><i class="fas fa-passport text-gray-500 mr-1"></i>${passport || "-"}</td>
-                        <td class="py-2 pr-3 text-gray-300">${(p.total_flights || 0).toLocaleString("id-ID")}</td>
-                        <td class="py-2 pr-3 text-gray-400">${hubs}</td>
-                        <td class="py-2 pr-3"><span class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border ${badge} text-xs font-bold"><i class="fas fa-id-badge"></i>${conf}</span></td>
-                        <td class="py-2 pr-3 text-gray-400">${last}</td>
-                      </tr>`;
+                    const hasDok = !!p.has_dokumen;
+                    return `<tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer"
+                        onclick="loadTravelDossier('${encodeURIComponent(passport)}','passport')">
+                      <td class="py-2 pr-3 text-gray-200 font-semibold">${p.nama || "-"}</td>
+                      <td class="py-2 pr-3 text-green-300 font-mono"><i class="fas fa-passport text-gray-500 mr-1"></i>${passport}</td>
+                      <td class="py-2 pr-3 text-gray-300">${p.no_kartu_pmi || '<span class="text-gray-600">-</span>'}</td>
+                      <td class="py-2 pr-3"><span class="px-2 py-0.5 rounded text-xs bg-green-500/15 text-green-300 border border-green-500/20">${p.lembaga || "BP2MI"}</span></td>
+                      <td class="py-2 pr-3 text-gray-400 text-xs">
+                        <div class="font-semibold text-gray-300">${p.tagged_by_nama || "-"}</div>
+                        <div class="text-gray-500">${p.tagged_by_nip || ""}</div>
+                      </td>
+                      <td class="py-2 pr-3 text-gray-400 text-xs">${tgl}</td>
+                      <td class="py-2 pr-3">
+                        ${hasDok
+                          ? '<span class="px-2 py-0.5 rounded text-xs bg-blue-500/15 text-blue-300 border border-blue-500/20"><i class="fas fa-paperclip mr-1"></i>Ada</span>'
+                          : '<span class="text-gray-600 text-xs">-</span>'}
+                      </td>
+                    </tr>`;
                   }).join("")}
                 </tbody>
               </table>
@@ -11698,6 +11828,100 @@
             <i class="fas fa-exclamation-triangle text-2xl"></i>
             <p class="mt-2">${e.message || "Gagal memuat PMI Intel"}</p>
           </div>`;
+        }
+      }
+
+      // ==================== PMI MODAL ====================
+
+      function openPmiModal(passport, nama) {
+        document.getElementById("pmiPassport").value = (passport || "").toUpperCase();
+        document.getElementById("pmiNama").value = (nama || "").toUpperCase();
+        document.getElementById("pmiCatatan").value = "";
+        document.getElementById("pmiFileLabel").textContent = "Klik untuk pilih file (JPG, PNG, PDF)";
+        document.getElementById("pmiFileInput").value = "";
+        document.getElementById("pmiForm").reset();
+        // Re-set passport/nama karena form.reset() menghapus value
+        document.getElementById("pmiPassport").value = (passport || "").toUpperCase();
+        document.getElementById("pmiNama").value = (nama || "").toUpperCase();
+        document.getElementById("pmiModal").style.display = "block";
+        setTimeout(() => document.getElementById("pmiCatatan").focus(), 100);
+      }
+
+      function closePmiModal() {
+        document.getElementById("pmiModal").style.display = "none";
+      }
+
+      function updatePmiFileLabel(input) {
+        const files = input.files;
+        if (!files || files.length === 0) {
+          document.getElementById("pmiFileLabel").textContent = "Klik untuk pilih file (JPG, PNG, PDF)";
+          return;
+        }
+        const names = Array.from(files).map(f => f.name).join(", ");
+        document.getElementById("pmiFileLabel").textContent = `${files.length} file dipilih: ${names}`;
+      }
+
+      async function submitPmiRecord(e) {
+        e.preventDefault();
+        const btn = document.getElementById("pmiSubmitBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+
+        try {
+          const form = document.getElementById("pmiForm");
+          const fd   = new FormData(form);
+
+          // passport wajib ada
+          const passport = fd.get("passport_number");
+          if (!passport || passport.trim().length < 3) {
+            showToast("Nomor paspor tidak valid", "error");
+            return;
+          }
+
+          const res  = await fetch("/api/pmi/records", { method: "POST", body: fd });
+          const json = await res.json();
+
+          if (json.status !== "ok") throw new Error(json.message || "Gagal menyimpan");
+
+          showToast("PMI berhasil dikonfirmasi ✓", "success");
+          closePmiModal();
+
+          // Refresh badge di lookup kalau sedang di halaman itu
+          const passportInput = document.getElementById("passportInput");
+          if (passportInput && passportInput.value.trim().toUpperCase() === passport.trim().toUpperCase()) {
+            const flagsEl = document.getElementById("passportFlags");
+            if (flagsEl) {
+              // Hapus badge lama, reload
+              const oldBadges = flagsEl.querySelectorAll("span, button");
+              oldBadges.forEach(el => el.remove());
+              // Re-trigger PMI check
+              setTimeout(async () => {
+                try {
+                  const pr = await fetch("/api/passengers/pmi/check/" + encodeURIComponent(passport));
+                  const pj = await pr.json();
+                  const pmi = pj?.data?.pmi;
+                  const rec = pj?.data?.pmi_record;
+                  if (pmi?.source === "pmi_record") {
+                    flagsEl.insertAdjacentHTML("beforeend",
+                      `<span class="px-2 py-1 rounded text-xs border bg-green-500/30 text-green-200 border-green-500/40 font-bold">
+                        <i class="fas fa-shield-alt mr-1"></i> PMI TERVERIFIKASI
+                        <span class="ml-1 text-green-400 text-[10px]">oleh ${rec?.tagged_by_nama || "Petugas"}</span>
+                      </span>`
+                    );
+                  }
+                } catch(_) {}
+              }, 300);
+            }
+          }
+
+          // Refresh tabel PMI Intel jika sedang terbuka
+          if (document.getElementById("pmiTable")) loadPMIIntel();
+
+        } catch (err) {
+          showToast("Error: " + err.message, "error");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-shield-alt"></i> Konfirmasi PMI';
         }
       }
 
