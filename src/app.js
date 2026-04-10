@@ -173,6 +173,9 @@ app.use("/api/intel", require("./routes/intel"));
 // Quantum SVM Under-Invoicing Detection
 app.use("/api/qsvm", require("./routes/qsvm"));
 
+// PMI Record — manajemen data PMI terverifikasi
+app.use("/api/pmi", require("./routes/pmi"));
+
 // Admin: User Management
 app.use("/api/admin", require("./routes/admin-users"));
 

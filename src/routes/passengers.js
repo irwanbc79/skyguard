@@ -8,6 +8,7 @@ const Passenger = require("../models/Passenger");
 const ImeiRegistration = require("../models/ImeiRegistration");
 const ImeiDetail = require("../models/ImeiDetail");
 const { getKantorName, PMI_HUBS } = require("../utils/constants");
+const PmiRecord = require("../models/PmiRecord");
 
 const PMI_HUBS_SET = new Set(PMI_HUBS);
 
@@ -90,7 +91,7 @@ router.post("/match-device", ctrl.matchDevice);
 // ============================================================
 
 // GET /api/passengers/pmi/check/:passport
-// Return status PMI (indikasi) untuk 1 paspor — dual source: ManifestPassenger + ImeiDetail
+// Return status PMI — prioritas: PmiRecord (terverifikasi) → heuristic (indikasi)
 router.get("/pmi/check/:passport", async (req, res) => {
   try {
     const passport = String(req.params.passport || "").trim();
@@ -98,8 +99,52 @@ router.get("/pmi/check/:passport", async (req, res) => {
       return res.status(400).json({ status: "error", message: "Nomor paspor tidak valid" });
     }
 
+    const passportUpper = passport.toUpperCase();
     const passportRegex = new RegExp("^" + passport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "i");
 
+    // Cek PmiRecord dulu — kalau ada, ini data faktual (bukan heuristic)
+    const pmiRecords = await PmiRecord.find({ passport_number: passportUpper, status: "CONFIRMED" })
+      .sort({ tagged_at: -1 }).lean();
+
+    if (pmiRecords.length > 0) {
+      const latest = pmiRecords[0];
+      return res.json({
+        status: "ok",
+        data: {
+          name: latest.nama || null,
+          passport_number: passportUpper,
+          nationality: "ID",
+          pmi: {
+            is_pmi: true,
+            confidence: "VERIFIED",   // bukan indikasi, tapi terverifikasi petugas
+            score: 10,
+            source: "pmi_record",
+            reasons: [
+              `Terverifikasi oleh ${latest.tagged_by_nama} (${latest.tagged_by_nip})`,
+              `pada ${new Date(latest.tagged_at).toLocaleDateString("id-ID")}`,
+              latest.no_kartu_pmi ? `No. Kartu PMI: ${latest.no_kartu_pmi}` : null,
+              latest.lembaga ? `Lembaga: ${latest.lembaga}` : null,
+              `Catatan: ${latest.catatan}`,
+            ].filter(Boolean),
+            signals: { destination_codes: [], imei_hub_arrivals: 0 },
+          },
+          pmi_record: {
+            id: latest._id,
+            no_kartu_pmi: latest.no_kartu_pmi,
+            lembaga: latest.lembaga,
+            negara_tujuan: latest.negara_tujuan,
+            tagged_by_nama: latest.tagged_by_nama,
+            tagged_by_nip: latest.tagged_by_nip,
+            tagged_at: latest.tagged_at,
+            has_dokumen: latest.dokumen?.length > 0,
+            total_confirmations: pmiRecords.length,
+          },
+          stats: { total_flights: 0, imei_records: 0, last_seen: latest.tagged_at },
+        },
+      });
+    }
+
+    // Tidak ada PmiRecord → fallback ke heuristic
     const [pax, imeiRecords] = await Promise.all([
       ManifestPassenger.find({ passport_number: passportRegex })
         .select("passport_number nationality destination_code flight_date flight_number name")
@@ -132,12 +177,13 @@ router.get("/pmi/check/:passport", async (req, res) => {
       return res.json({
         status: "ok",
         data: {
-          passport_number: passport.toUpperCase(),
+          passport_number: passportUpper,
           pmi: {
             is_pmi: false,
             confidence: "NONE",
             score: 0,
-            reasons: ["Tidak ada data manifest atau IMEI untuk paspor ini"],
+            source: "heuristic",
+            reasons: ["Tidak ada data manifest, IMEI, atau konfirmasi petugas"],
             signals: { destination_codes: [], imei_hub_arrivals: 0 },
           },
           stats: { total_flights: 0, imei_records: 0, last_seen: null },
@@ -151,7 +197,7 @@ router.get("/pmi/check/:passport", async (req, res) => {
     ).toUpperCase() || null;
 
     const destinationCodes = pax.map((p) => p.destination_code).filter(Boolean);
-    const pmi = classifyPmi({ nationality, destinationCodes, flightCount: pax.length, imeiHubArrivals });
+    const pmi = { ...classifyPmi({ nationality, destinationCodes, flightCount: pax.length, imeiHubArrivals }), source: "heuristic" };
 
     res.json({
       status: "ok",

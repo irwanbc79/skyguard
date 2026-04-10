@@ -35,6 +35,12 @@ try {
 } catch (e) {
   /* optional */
 }
+let PmiRecord;
+try {
+  PmiRecord = require("../models/PmiRecord");
+} catch (e) {
+  /* optional */
+}
 
 // Safe query helpers — returns defaults if model not loaded
 const safeAggregate = (Model, pipeline) =>
@@ -615,51 +621,18 @@ router.get("/summary", async (req, res) => {
         is_read: false,
       }),
 
-      // ===== NEW: PMI (indikasi) — dual source: ManifestPassenger + ImeiDetail =====
-      // Kandidat: WNI di manifest menuju/dari hub PMI + WNI di IMEI tiba dari hub PMI
-      (async () => {
-        const mpFilter = {
-          passport_number: { $nin: ["", null] },
-          nationality: { $in: ["ID", "IDN"] },
-          $or: [
-            { destination_code: { $in: PMI_HUBS } },
-            ...(pmiHubFlights.length ? [{ flight_number: { $in: pmiHubFlights } }] : []),
-          ],
-        };
-        const imeiFilter = pmiHubFlights.length
-          ? { no_identitas: { $nin: ["", null] }, kebangsaan: { $regex: /^indonesia$/i }, flight_normalized: { $in: pmiHubFlights } }
-          : null;
-
-        const [mpResult, imeiResult] = await Promise.all([
-          ManifestPassenger.aggregate([
-            { $match: mpFilter },
-            { $group: { _id: { $toLower: "$passport_number" } } },
-            { $count: "total" },
-          ]),
-          imeiFilter && ImeiDetail
-            ? ImeiDetail.aggregate([
-                { $match: imeiFilter },
-                { $group: { _id: { $toLower: "$no_identitas" } } },
-                { $count: "total" },
-              ])
-            : Promise.resolve([]),
-        ]);
-        return [{ total: (mpResult?.[0]?.total || 0) + (imeiResult?.[0]?.total || 0) }];
-      })(),
-      // Top hub: dari Manifest.origin yang paling banyak (inbound dari hub)
-      pmiHubFlights.length
-        ? Manifest.aggregate([
-            { $match: { origin: { $in: PMI_HUBS }, flight_number: { $in: pmiHubFlights } } },
-            { $group: { _id: "$origin", count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 1 },
-          ])
-        : ManifestPassenger.aggregate([
-            { $match: { nationality: { $in: ["ID", "IDN"] }, destination_code: { $in: PMI_HUBS } } },
-            { $group: { _id: "$destination_code", count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 1 },
-          ]),
+      // ===== PMI — dari PmiRecord (data terverifikasi petugas) =====
+      safeAggregate(PmiRecord, [
+        { $match: { status: "CONFIRMED" } },
+        { $group: { _id: "$passport_number" } },
+        { $count: "total" },
+      ]),
+      safeAggregate(PmiRecord, [
+        { $match: { status: "CONFIRMED" } },
+        { $group: { _id: "$lembaga", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 1 },
+      ]),
     ]);
 
     // Calculate trends
@@ -703,7 +676,7 @@ router.get("/summary", async (req, res) => {
     const billingRow = (imeiDetailBillingStats || []).find(r => r._id === "BILLING") || { count: 0, total_pungutan: 0 };
     const pembebasanRow = (imeiDetailBillingStats || []).find(r => r._id === "PEMBEBASAN") || { count: 0, total_pungutan: 0 };
     const pmiTotal = pmiCandidates?.[0]?.total || 0;
-    const pmiHub = pmiTopHub?.[0] || null;
+    const pmiHub = pmiTopHub?.[0] || null;  // { _id: "BP2MI", count: N }
 
     res.json({
       status: "ok",
@@ -743,7 +716,7 @@ router.get("/summary", async (req, res) => {
           imeiDetailBilling: billingRow.count,
           imeiDetailPembebasan: pembebasanRow.count,
           imeiDetailBillingPungutan: billingRow.total_pungutan,
-          // PMI (indikasi)
+          // PMI terverifikasi (dari PmiRecord)
           pmiCandidates: pmiTotal,
           pmiTopHub: pmiHub ? { code: pmiHub._id, count: pmiHub.count } : null,
         },
