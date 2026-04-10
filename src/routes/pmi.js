@@ -4,6 +4,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const PmiRecord = require("../models/PmiRecord");
+const { extractPmiFromImage } = require("../services/ocrService");
 
 // ── Upload setup ──────────────────────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, "../../uploads/pmi");
@@ -266,6 +267,33 @@ router.get("/stats", async (req, res) => {
       },
     });
   } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// ── POST /api/pmi/ocr — scan dokumen PMI, kembalikan field hasil OCR ──────────
+// Frontend upload 1 gambar → pre-fill form modal, petugas koreksi → submit manual
+router.post("/ocr", upload.single("dokumen"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ status: "error", message: "Tidak ada file yang diupload" });
+  }
+  try {
+    const result = await extractPmiFromImage(req.file.path);
+    // Hapus file tmp OCR setelah selesai (file asli tetap untuk disimpan saat konfirmasi)
+    // Biarkan file tetap di uploads/pmi — bisa dipakai ulang saat submit form
+    res.json({
+      status: "ok",
+      data: {
+        fields: result.fields,
+        confidence: result.fields?._confidence || "LOW",
+        preview: result.fields?._raw_text_preview || "",
+        filename: req.file.filename,  // dikirim balik ke frontend untuk disertakan saat submit
+        ok: result.ok,
+        error: result.error || null,
+      },
+    });
+  } catch (err) {
+    fs.unlink(req.file.path, () => {});
     res.status(500).json({ status: "error", message: err.message });
   }
 });

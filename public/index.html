@@ -3033,13 +3033,13 @@
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label class="text-xs text-gray-400 mb-1 block">No. Kartu PMI / KTKLN</label>
-              <input name="no_kartu_pmi" type="text"
+              <input id="pmiNoKartu" name="no_kartu_pmi" type="text"
                 class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white"
                 placeholder="Opsional" />
             </div>
             <div>
               <label class="text-xs text-gray-400 mb-1 block">Lembaga Penerbit</label>
-              <select name="lembaga" class="w-full bg-slate-800 border border-white/15 rounded-lg px-3 py-2 text-sm text-white">
+              <select id="pmiLembaga" name="lembaga" class="w-full bg-slate-800 border border-white/15 rounded-lg px-3 py-2 text-sm text-white">
                 <option value="BP2MI">BP2MI</option>
                 <option value="Kemenaker">Kemenaker</option>
                 <option value="BNPTKI">BNPTKI</option>
@@ -3052,29 +3052,44 @@
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label class="text-xs text-gray-400 mb-1 block">Negara Tujuan Kerja</label>
-              <input name="negara_tujuan" type="text"
+              <input id="pmiNegara" name="negara_tujuan" type="text"
                 class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white"
                 placeholder="Contoh: Malaysia" />
             </div>
             <div>
               <label class="text-xs text-gray-400 mb-1 block">Berlaku s.d.</label>
-              <input name="tgl_berlaku" type="date"
+              <input id="pmiTglBerlaku" name="tgl_berlaku" type="date"
                 class="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white" />
             </div>
           </div>
 
-          <!-- Upload Dokumen -->
+          <!-- Upload Dokumen + OCR scan -->
           <div class="mb-5">
             <label class="text-xs text-gray-400 mb-1 block">
               Bukti Dokumen <span class="text-gray-500">(foto/PDF, maks 5 file × 10MB)</span>
             </label>
-            <div class="border border-dashed border-white/20 rounded-lg p-3 bg-white/3 text-center cursor-pointer hover:border-green-500/40 transition"
-                 onclick="document.getElementById('pmiFileInput').click()">
-              <i class="fas fa-cloud-upload-alt text-gray-400 text-xl mb-1 block"></i>
-              <div class="text-xs text-gray-400" id="pmiFileLabel">Klik untuk pilih file (JPG, PNG, PDF)</div>
+            <div class="border border-dashed border-white/20 rounded-lg p-3 bg-white/3 hover:border-green-500/40 transition">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 text-center cursor-pointer" onclick="document.getElementById('pmiFileInput').click()">
+                  <i class="fas fa-cloud-upload-alt text-gray-400 text-xl mb-1 block"></i>
+                  <div class="text-xs text-gray-400" id="pmiFileLabel">Klik untuk pilih file (JPG, PNG, PDF)</div>
+                </div>
+                <div class="border-l border-white/10 pl-2">
+                  <button type="button" id="pmiScanBtn"
+                    onclick="triggerPmiOcr()"
+                    class="px-3 py-2 rounded-lg text-xs bg-blue-500/20 text-blue-300 border border-blue-500/25 hover:bg-blue-500/30 transition flex items-center gap-1 whitespace-nowrap">
+                    <i class="fas fa-magic"></i> Scan &amp; Isi Otomatis
+                  </button>
+                  <div class="text-[10px] text-gray-500 mt-1 text-center">Scan 1 gambar dulu</div>
+                </div>
+              </div>
+              <!-- OCR result hint -->
+              <div id="pmiOcrResult" class="hidden mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200"></div>
             </div>
             <input id="pmiFileInput" name="dokumen" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf"
               class="hidden" onchange="updatePmiFileLabel(this)" />
+            <!-- Hidden field untuk file yang sudah di-OCR -->
+            <input id="pmiOcrFilename" name="ocr_filename" type="hidden" />
           </div>
 
           <!-- Tombol -->
@@ -9147,10 +9162,28 @@
 
               let badge = "";
               if (isVerified) {
-                badge = `<span title="${reasons}" class="px-2 py-1 rounded text-xs border bg-green-500/30 text-green-200 border-green-500/40 font-bold">
+                const catatan = (pmiRecord?.catatan || "").replace(/"/g, "'").slice(0, 120);
+                const oleh = pmiRecord?.tagged_by_nama || "Petugas";
+                const tgl = pmiRecord?.tagged_at
+                  ? new Date(pmiRecord.tagged_at).toLocaleDateString("id-ID", {day:"2-digit",month:"short",year:"numeric"})
+                  : "";
+                badge = `<span class="px-2 py-1 rounded text-xs border bg-green-500/30 text-green-200 border-green-500/40 font-bold cursor-help"
+                  title="Dikonfirmasi oleh ${oleh} (${tgl})&#10;${catatan}">
                   <i class="fas fa-shield-alt mr-1"></i> PMI TERVERIFIKASI
-                  <span class="ml-1 text-green-400 text-[10px]">oleh ${pmiRecord?.tagged_by_nama || "Petugas"}</span>
+                  <span class="ml-1 text-green-300 text-[10px] font-normal">oleh ${oleh} · ${tgl}</span>
                 </span>`;
+                // Tampilkan catatan di bawah badge sebagai block info
+                flagsEl.insertAdjacentHTML("afterend",
+                  `<div id="pmiCatatanBox" class="mt-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-xs text-green-200 flex gap-2">
+                    <i class="fas fa-comment-alt text-green-400 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                      <span class="font-semibold text-green-300">${oleh}:</span>
+                      <span class="ml-1 text-green-100">${catatan || "-"}</span>
+                      ${pmiRecord?.no_kartu_pmi ? `<span class="ml-2 text-gray-400">· Kartu: <strong class="text-green-300">${pmiRecord.no_kartu_pmi}</strong></span>` : ""}
+                      ${pmiRecord?.lembaga ? `<span class="ml-2 text-gray-400">· <strong class="text-green-300">${pmiRecord.lembaga}</strong></span>` : ""}
+                    </div>
+                  </div>`
+                );
               } else if (isPmi) {
                 badge = `<span title="${reasons}" class="px-2 py-1 rounded text-xs border bg-emerald-500/20 text-emerald-300 border-emerald-500/25">
                   <i class="fas fa-id-badge mr-1"></i> PMI (indikasi) • ${conf}
@@ -9161,7 +9194,7 @@
                 </span>`;
               }
 
-              // Tombol tandai PMI — selalu tampil di lookup
+              // Tombol tandai PMI — selalu tampil
               const btnTandai = `<button onclick="openPmiModal('${passport.replace(/'/g,"\\'")}', '${((pmiJson?.data?.name)||'').replace(/'/g,"\\'")}' )"
                 class="px-2 py-1 rounded text-xs border bg-blue-500/20 text-blue-300 border-blue-500/25 hover:bg-blue-500/30 transition ml-1">
                 <i class="fas fa-plus mr-1"></i>${isVerified ? "Tambah Konfirmasi" : "Tandai PMI"}
@@ -11859,6 +11892,70 @@
         }
         const names = Array.from(files).map(f => f.name).join(", ");
         document.getElementById("pmiFileLabel").textContent = `${files.length} file dipilih: ${names}`;
+      }
+
+      async function triggerPmiOcr() {
+        const fileInput = document.getElementById("pmiFileInput");
+        const resultDiv = document.getElementById("pmiOcrResult");
+        const scanBtn   = document.getElementById("pmiScanBtn");
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+          showToast("Pilih file gambar/PDF terlebih dahulu", "error");
+          return;
+        }
+
+        const file = fileInput.files[0];
+        const fd = new FormData();
+        fd.append("dokumen", file);
+
+        scanBtn.disabled = true;
+        scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membaca...';
+        resultDiv.className = "mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200";
+        resultDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Memproses OCR...';
+
+        try {
+          const res  = await fetch("/api/pmi/ocr", { method: "POST", body: fd });
+          const json = await res.json();
+
+          if (json.status !== "ok") throw new Error(json.message || "OCR gagal");
+
+          const f = json.data.fields || {};
+          const conf = json.data.confidence || "LOW";
+
+          // Pre-fill form fields
+          if (f.nama)         document.getElementById("pmiNama").value         = f.nama;
+          if (f.no_kartu_pmi) document.getElementById("pmiNoKartu").value      = f.no_kartu_pmi;
+          if (f.lembaga)      document.getElementById("pmiLembaga").value       = f.lembaga;
+          if (f.negara_tujuan) document.getElementById("pmiNegara").value       = f.negara_tujuan;
+          if (f.tgl_berlaku)  document.getElementById("pmiTglBerlaku").value    = f.tgl_berlaku;
+
+          // Store OCR filename for submission
+          document.getElementById("pmiOcrFilename").value = json.data.filename || "";
+
+          // Show result
+          const confColor = conf === "HIGH" ? "text-green-300" : conf === "MEDIUM" ? "text-yellow-300" : "text-red-300";
+          const filledCount = ["nama","no_kartu_pmi","lembaga","negara_tujuan","tgl_berlaku"].filter(k => f[k]).length;
+          resultDiv.innerHTML = `
+            <div class="flex items-center gap-2 mb-1">
+              <i class="fas fa-check-circle text-green-400"></i>
+              <span class="font-medium">OCR selesai — </span>
+              <span class="${confColor} font-bold">${conf}</span>
+              <span class="text-gray-400">(${filledCount} field terisi)</span>
+            </div>
+            ${json.data.preview ? `<div class="text-gray-400 truncate">"${json.data.preview.slice(0,120)}..."</div>` : ""}
+            <div class="mt-1 text-gray-400 text-[10px]">Periksa dan koreksi field di atas sebelum menyimpan.</div>
+          `;
+          if (filledCount === 0) {
+            resultDiv.className = "mt-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-200";
+            resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> OCR tidak dapat membaca field. Isi manual atau coba foto yang lebih jelas.';
+          }
+        } catch (err) {
+          resultDiv.className = "mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-300";
+          resultDiv.innerHTML = '<i class="fas fa-times-circle mr-1"></i> ' + err.message;
+        } finally {
+          scanBtn.disabled = false;
+          scanBtn.innerHTML = '<i class="fas fa-magic"></i> Scan &amp; Isi Otomatis';
+        }
       }
 
       async function submitPmiRecord(e) {
