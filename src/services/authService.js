@@ -2,7 +2,10 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "skyguard-fallback-secret-change-in-prod";
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES = process.env.JWT_EXPIRES || "10h";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
