@@ -8256,18 +8256,87 @@
                             <span class="text-lg">Total Pajak</span><span class="text-2xl font-bold text-green-400">Rp ${p.total_pajak_idr.toLocaleString("id-ID")}</span>
                         </div>
                         <div class="text-xs text-gray-500 text-center pt-2">Kurs: Rp ${k.rate.toLocaleString("id-ID")}/USD</div>
+                        <button onclick="imeiPrintPajak()" class="w-full mt-2 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;cursor:pointer;"><i class="fas fa-print"></i> PRINT NOTA PAJAK</button>
                     </div>`;
 
           document.getElementById("hasilPajak").innerHTML = html;
+          imeiLastPajak = { p, k, totalFob, devices: [selectedDevices[1], unitCount === 2 ? selectedDevices[2] : null] };
         } catch (e) {
           showToast("Error menghitung pajak", "error");
         }
+      }
+
+      let imeiLastPajak = null;
+      function imeiPrintPajak() {
+        if (!imeiLastPajak) return;
+        const { p, k, totalFob, devices } = imeiLastPajak;
+        const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
+        const now = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const deviceRows = devices.filter(Boolean).map((dv, i) =>
+          `<tr><td>${i + 1}</td><td>${dv.brand} ${dv.model}</td><td>${dv.capacity || "-"}</td><td style="text-align:right;font-weight:bold;">$${dv.price_usd.toLocaleString()}</td></tr>`
+        ).join("");
+        const w = window.open("", "_blank", "width=800,height=700");
+        w.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+<title>Nota Pajak HP</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #111; margin: 0; padding: 20px; }
+  .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 14px; }
+  .logo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
+  h1 { font-size: 15px; margin: 4px 0 0; }
+  h2 { font-size: 12px; font-weight: normal; margin: 2px 0 0; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th { background: #1e3a5f; color: #fff; padding: 8px 10px; text-align: left; font-size: 12px; }
+  th:last-child { text-align: right; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+  td:first-child { text-align: center; width: 32px; color: #666; }
+  .tax-table td:last-child { text-align: right; font-weight: bold; }
+  .total-row td { background: #f0f4ff; font-weight: bold; font-size: 14px; }
+  .total-row td:last-child { font-size: 16px; color: #1e3a5f; text-align: right; }
+  .badges { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .badge { border: 1px solid #ccc; border-radius: 6px; padding: 6px 12px; flex: 1; min-width: 100px; }
+  .badge .lbl { font-size: 9px; color: #666; text-transform: uppercase; }
+  .badge .val { font-size: 13px; font-weight: bold; margin-top: 2px; }
+  .note { font-size: 10px; color: #666; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 10px; }
+  .sign { margin-top: 40px; display: flex; justify-content: flex-end; }
+  .sign-box { text-align: center; width: 180px; }
+  .sign-box .line { border-top: 1px solid #333; margin-top: 50px; padding-top: 4px; font-size: 11px; }
+  @media print { body { padding: 10px; } }
+</style></head><body>
+<div class="header">
+  <div class="logo">KANTOR BEA DAN CUKAI KUALANAMU</div>
+  <h1>NOTA PAJAK BARANG BAWAAN PENUMPANG</h1>
+  <h2>Telepon Genggam / Perangkat Elektronik</h2>
+  <p style="font-size:11px;color:#666;margin:4px 0 0;">${now}</p>
+</div>
+<table><thead><tr><th>No</th><th>Merk / Model</th><th>Kapasitas</th><th>Harga (USD)</th></tr></thead>
+<tbody>${deviceRows}</tbody></table>
+<div class="badges">
+  <div class="badge"><div class="lbl">Total FOB</div><div class="val">$${totalFob.toLocaleString()}</div></div>
+  <div class="badge"><div class="lbl">Pembebasan</div><div class="val">USD ${p.pembebasan_usd}</div></div>
+  <div class="badge"><div class="lbl">Kena Pajak</div><div class="val">$${p.kena_pajak_usd.toLocaleString()}</div></div>
+  <div class="badge"><div class="lbl">Nilai Pabean</div><div class="val">${fmtRp(p.nilai_pabean_idr)}</div></div>
+  <div class="badge"><div class="lbl">Kurs USD</div><div class="val">Rp ${Math.round(k.rate).toLocaleString("id-ID")}</div></div>
+</div>
+<table class="tax-table"><thead><tr><th>No</th><th>Jenis Pungutan</th><th>Perhitungan</th><th>Nilai (Rp)</th></tr></thead>
+<tbody>
+  <tr><td>1</td><td>Bea Masuk (BM)</td><td>10% × Nilai Pabean, bulat ke 1.000</td><td>${fmtRp(p.bm_idr)}</td></tr>
+  <tr><td>2</td><td>PPN</td><td>11% × (Nilai Pabean + BM eksak)</td><td>${fmtRp(p.ppn_idr)}</td></tr>
+</tbody>
+<tfoot><tr class="total-row"><td colspan="3">JUMLAH PUNGUTAN</td><td>${fmtRp(p.total_pajak_idr)}</td></tr></tfoot>
+</table>
+<div class="note">* Perhitungan berdasarkan kurs pajak resmi Kementerian Keuangan RI. Hasil ini bersifat simulasi.</div>
+<div class="sign"><div class="sign-box"><div class="line">Petugas Bea dan Cukai</div></div></div>
+</body></html>`);
+        w.document.close();
+        w.focus();
+        setTimeout(() => w.print(), 400);
       }
 
       // ============================================================
       //  KALKULATOR PABEAN (BM) — Customs Duty Calculator
       // ============================================================
       let kbmKursCache = null;
+      let kbmLastData = null;
 
       function getKalkulatorBMContent() {
         return `
@@ -8664,21 +8733,17 @@
           valutaCode === "USD" ? nilaiBarang : (nilaiBarang * kurs) / usdKurs;
         let nilaiPabeanUsd = Math.max(0, fobUsd - pembebasan * jumlahOrang);
         let nilaiPabeanRp = nilaiPabeanUsd * usdKurs;
-        let bm = nilaiPabeanRp * (tarifBM / 100);
+        nilaiPabeanRp = Math.round(nilaiPabeanRp);
+        const bm_exact = nilaiPabeanRp * (tarifBM / 100);
         let bmtp = tarifBMTP;
-        let dasarPPN = nilaiPabeanRp + bm + bmtp;
-        let ppn = dasarPPN * (tarifPPN / 100);
-        let ppnbm = dasarPPN * (tarifPPnBM / 100);
-        let pph = dasarPPN * (tarifPPh / 100);
-        let denda = bm * (tarifDenda / 100);
+        const dasarPPN = nilaiPabeanRp + bm_exact + bmtp;
+        // BM bulat ke atas ke kelipatan 1.000 (sesuai kursService / CEISA billing)
+        let bm = Math.ceil(bm_exact / 1000) * 1000;
+        let ppn = Math.round(dasarPPN * (tarifPPN / 100));
+        let ppnbm = Math.ceil(dasarPPN * (tarifPPnBM / 100));
+        let pph = Math.ceil(dasarPPN * (tarifPPh / 100));
+        let denda = Math.ceil(bm * (tarifDenda / 100));
         let total = bm + bmtp + ppn + ppnbm + pph + denda;
-        bm = Math.ceil(bm);
-        ppn = Math.ceil(ppn);
-        ppnbm = Math.ceil(ppnbm);
-        pph = Math.ceil(pph);
-        denda = Math.ceil(denda);
-        total = Math.ceil(total);
-        nilaiPabeanRp = Math.ceil(nilaiPabeanRp);
         const fmt = (v) => "Rp " + v.toLocaleString("id-ID");
         document.getElementById("kbmResValuta").textContent = valutaCode;
         document.getElementById("kbmResKurs").textContent =
@@ -8730,6 +8795,74 @@
         });
       }
 
+      function kbmCloseModal() {
+        const m = document.getElementById("kbmResultModal");
+        if (m) m.remove();
+      }
+
+      function kbmPrint(d) {
+        const fmt2 = (v) => v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
+        const now = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const w = window.open("", "_blank", "width=800,height=700");
+        w.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+<title>Hasil Perhitungan Bea Masuk</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #111; margin: 0; padding: 20px; }
+  h1 { font-size: 15px; text-align: center; margin: 0; }
+  h2 { font-size: 12px; text-align: center; font-weight: normal; margin: 2px 0 0; }
+  .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 14px; }
+  .logo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
+  .badges { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .badge { border: 1px solid #ccc; border-radius: 6px; padding: 6px 12px; flex: 1; min-width: 100px; }
+  .badge .lbl { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge .val { font-size: 14px; font-weight: bold; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th { background: #1e3a5f; color: #fff; padding: 8px 10px; text-align: left; font-size: 12px; }
+  th:last-child { text-align: right; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+  td:first-child { text-align: center; color: #666; width: 36px; }
+  td:last-child { text-align: right; font-weight: bold; }
+  tfoot td { background: #f0f4ff; font-weight: bold; font-size: 14px; padding: 10px; }
+  tfoot td:last-child { font-size: 16px; text-align: right; color: #1e3a5f; }
+  .note { margin-top: 14px; font-size: 10px; color: #666; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+  .sign { margin-top: 40px; display: flex; justify-content: flex-end; }
+  .sign-box { text-align: center; width: 180px; }
+  .sign-box .line { border-top: 1px solid #333; margin-top: 50px; padding-top: 4px; font-size: 11px; }
+  @media print { body { padding: 10px; } }
+</style></head><body>
+<div class="header">
+  <div class="logo">KANTOR BEA DAN CUKAI KUALANAMU</div>
+  <h1>NOTA HASIL PERHITUNGAN BEA MASUK DAN PAJAK</h1>
+  <h2>Barang Bawaan Penumpang dari Luar Negeri</h2>
+  <p style="font-size:11px;color:#666;margin:4px 0 0;">${now}</p>
+</div>
+<div class="badges">
+  <div class="badge"><div class="lbl">FOB (${d.valutaCode})</div><div class="val">${fmt2(d.fobUsd)}</div></div>
+  <div class="badge"><div class="lbl">Kurs (${d.valutaCode})</div><div class="val">Rp ${Math.round(d.kurs).toLocaleString("id-ID")}</div></div>
+  <div class="badge"><div class="lbl">Pembebasan</div><div class="val">USD ${d.pembebasan} × ${d.jumlahOrang} orang</div></div>
+  <div class="badge"><div class="lbl">Nilai Pabean</div><div class="val">${fmtRp(d.nilaiPabeanRp)}</div></div>
+</div>
+<table>
+  <thead><tr><th>No</th><th>Jenis Pungutan</th><th>Perhitungan</th><th>Nilai (Rp)</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Bea Masuk (BM)</td><td>${d.tarifBM}% × Nilai Pabean</td><td>${fmtRp(d.bm)}</td></tr>
+    <tr><td>2</td><td>Bea Masuk Tindakan Pengamanan (BMTP)</td><td>-</td><td>${fmtRp(d.bmtp)}</td></tr>
+    <tr><td>3</td><td>PPN</td><td>${d.tarifPPN}% × (Nilai Pabean + BM)</td><td>${fmtRp(d.ppn)}</td></tr>
+    <tr><td>4</td><td>PPnBM</td><td>${d.tarifPPnBM}% × (Nilai Pabean + BM)</td><td>${fmtRp(d.ppnbm)}</td></tr>
+    <tr><td>5</td><td>PPh</td><td>${d.tarifPPh}% × (Nilai Pabean + BM)</td><td>${fmtRp(d.pph)}</td></tr>
+    <tr><td>6</td><td>Denda</td><td>${d.tarifDenda}% × BM</td><td>${fmtRp(d.denda)}</td></tr>
+  </tbody>
+  <tfoot><tr><td colspan="3"><strong>JUMLAH PUNGUTAN</strong></td><td>${fmtRp(d.total)}</td></tr></tfoot>
+</table>
+<div class="note">* Perhitungan berdasarkan kurs pajak resmi Kementerian Keuangan RI. Hasil ini bersifat simulasi dan dapat berbeda dengan ketetapan resmi petugas.</div>
+<div class="sign"><div class="sign-box"><div class="line">Petugas Bea dan Cukai</div></div></div>
+</body></html>`);
+        w.document.close();
+        w.focus();
+        setTimeout(() => w.print(), 400);
+      }
+
       function kbmShowResultModal(d) {
         const fmt = (v) =>
           v.toLocaleString("id-ID", {
@@ -8744,7 +8877,7 @@
         modal.style.cssText =
           "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;";
         modal.innerHTML = `
-          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);" onclick="document.getElementById('kbmResultModal').remove()"></div>
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);" id="kbmModalBackdrop"></div>
           <div style="position:relative;width:100%;max-width:780px;max-height:90vh;overflow-y:auto;border-radius:20px;border:1px solid rgba(168,85,247,0.25);background:linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.98));box-shadow:0 25px 60px rgba(0,0,0,0.5),0 0 40px rgba(168,85,247,0.1);">
             <!-- Header -->
             <div style="background:linear-gradient(135deg,#7c3aed,#2563eb);padding:20px 28px;border-radius:20px 20px 0 0;position:relative;overflow:hidden;">
@@ -8754,7 +8887,10 @@
                   <h3 style="color:#fff;font-size:16px;font-weight:800;letter-spacing:0.5px;margin:0;">HASIL PERHITUNGAN BESARAN BEA MASUK</h3>
                   <p style="color:rgba(255,255,255,0.7);font-size:11px;margin:4px 0 0;letter-spacing:1px;">DAN PAJAK YANG HARUS DILUNASI</p>
                 </div>
-                <button onclick="document.getElementById('kbmResultModal').remove()" style="width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">&times;</button>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button onclick="kbmPrint(kbmLastData)" style="height:36px;padding:0 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-print"></i> PRINT</button>
+                  <button id="kbmCloseBtn" style="width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">&times;</button>
+                </div>
               </div>
             </div>
 
@@ -8857,8 +8993,10 @@
             </div>
           </div>
         `;
+        kbmLastData = d;
         document.body.appendChild(modal);
-        // Animate in
+        document.getElementById("kbmCloseBtn").addEventListener("click", kbmCloseModal);
+        document.getElementById("kbmModalBackdrop").addEventListener("click", kbmCloseModal);
         requestAnimationFrame(() => {
           modal.querySelector("div:nth-child(2)").style.animation =
             "kbmModalIn 0.3s ease-out";
