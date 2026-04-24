@@ -3545,7 +3545,7 @@
           const container = document.getElementById("content-barang");
           if (!container) return;
           if (subId === "hscode") {
-            loadBarangContent("hscode");
+            if (typeof loadBarangContent === "function") loadBarangContent("hscode");
           } else if (subId === "tarif") {
             container.innerHTML = getTarifContent();
           } else if (subId === "kalkulatorbm") {
@@ -8878,8 +8878,8 @@
         modal.style.cssText =
           "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;";
         modal.innerHTML = `
-          <div data-backdrop style="position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);"></div>
-          <div style="position:relative;width:100%;max-width:780px;max-height:90vh;overflow-y:auto;border-radius:20px;border:1px solid rgba(168,85,247,0.25);background:linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.98));box-shadow:0 25px 60px rgba(0,0,0,0.5),0 0 40px rgba(168,85,247,0.1);">
+          <div data-backdrop style="position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:1;pointer-events:none;"></div>
+          <div style="position:relative;z-index:2;width:100%;max-width:780px;max-height:90vh;overflow-y:auto;border-radius:20px;border:1px solid rgba(168,85,247,0.25);background:linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.98));box-shadow:0 25px 60px rgba(0,0,0,0.5),0 0 40px rgba(168,85,247,0.1);">
             <!-- Header -->
             <div style="background:linear-gradient(135deg,#7c3aed,#2563eb);padding:20px 28px;border-radius:20px 20px 0 0;position:relative;overflow:hidden;">
               <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;background:rgba(255,255,255,0.05);border-radius:50%;"></div>
@@ -8996,8 +8996,13 @@
         `;
         kbmLastData = d;
         document.body.appendChild(modal);
-        modal.querySelector("[data-close]").addEventListener("click", function () { modal.remove(); });
-        modal.querySelector("[data-backdrop]").addEventListener("click", function () { modal.remove(); });
+        setTimeout(function () {
+          var closeBtn = modal.querySelector("[data-close]");
+          if (closeBtn) closeBtn.onclick = function () { modal.remove(); };
+        }, 0);
+        modal.onclick = function (e) {
+          if (e.target === modal) modal.remove();
+        };
         requestAnimationFrame(() => {
           modal.querySelector("div:nth-child(2)").style.animation =
             "kbmModalIn 0.3s ease-out";
