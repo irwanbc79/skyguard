@@ -8888,7 +8888,10 @@
                   <h3 style="color:#fff;font-size:16px;font-weight:800;letter-spacing:0.5px;margin:0;">HASIL PERHITUNGAN BESARAN BEA MASUK</h3>
                   <p style="color:rgba(255,255,255,0.7);font-size:11px;margin:4px 0 0;letter-spacing:1px;">DAN PAJAK YANG HARUS DILUNASI</p>
                 </div>
-                <div id="kbmActionSlot" style="display:flex;gap:8px;align-items:center;"></div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button onclick="window.kbmPrint(window.kbmLastData)" style="height:36px;padding:0 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="fas fa-print"></i> PRINT</button>
+                  <button onclick="document.getElementById('kbmResultModal').remove()" style="width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>
+                </div>
               </div>
             </div>
 
@@ -8992,20 +8995,8 @@
           </div>
         `;
         kbmLastData = d;
+        window.kbmLastData = d;
         document.body.appendChild(modal);
-        var slot = document.getElementById("kbmActionSlot");
-        if (slot) {
-          var pBtn = document.createElement("button");
-          pBtn.innerHTML = '<i class="fas fa-print"></i> PRINT';
-          pBtn.style.cssText = "height:36px;padding:0 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;";
-          pBtn.onclick = function () { window.kbmPrint(d); };
-          var xBtn = document.createElement("button");
-          xBtn.innerHTML = "&times;";
-          xBtn.style.cssText = "width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;";
-          xBtn.onclick = function () { modal.remove(); };
-          slot.appendChild(pBtn);
-          slot.appendChild(xBtn);
-        }
         modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
         requestAnimationFrame(() => {
           modal.querySelector("div:nth-child(2)").style.animation =
