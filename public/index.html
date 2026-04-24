@@ -8267,7 +8267,7 @@
       }
 
       let imeiLastPajak = null;
-      function imeiPrintPajak() {
+      window.imeiPrintPajak = function () {
         if (!imeiLastPajak) return;
         const { p, k, totalFob, devices } = imeiLastPajak;
         const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
@@ -8330,7 +8330,7 @@
         w.document.close();
         w.focus();
         setTimeout(() => w.print(), 400);
-      }
+      };
 
       // ============================================================
       //  KALKULATOR PABEAN (BM) — Customs Duty Calculator
@@ -8795,12 +8795,12 @@
         });
       }
 
-      function kbmCloseModal() {
+      window.kbmCloseModal = function () {
         const m = document.getElementById("kbmResultModal");
         if (m) m.remove();
-      }
+      };
 
-      function kbmPrint(d) {
+      window.kbmPrint = function (d) {
         const fmt2 = (v) => v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
         const now = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -8861,7 +8861,7 @@
         w.document.close();
         w.focus();
         setTimeout(() => w.print(), 400);
-      }
+      };
 
       function kbmShowResultModal(d) {
         const fmt = (v) =>
