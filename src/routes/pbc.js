@@ -29,7 +29,12 @@ router.get("/batches", requireAuth, c.listBatches);
 router.delete("/batches/:id", requireAuth, c.deleteBatch);
 router.get("/records", requireAuth, c.listRecords);
 
-// Rekapitulasi (cikal bakal IKI)
+// Rekapitulasi data pendukung (cikal bakal IKI)
 router.get("/summary", requireAuth, c.getSummary);
+
+// Jadwal Bulanan
+router.post("/jadwal/upload", requireAuth, upload.single("file"), c.uploadJadwal);
+router.get("/jadwal/summary", requireAuth, c.getJadwalSummary);
+router.delete("/jadwal/batches/:id", requireAuth, c.deleteJadwalBatch);
 
 module.exports = router;

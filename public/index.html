@@ -3779,6 +3779,35 @@
               </button>
             </div>
 
+            <!-- Card: Jadwal Bulanan -->
+            <div class="pbc-source-card" style="border-color:rgba(251,191,36,0.2);background:rgba(251,191,36,0.05);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(251,191,36,0.15);display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-calendar-alt" style="color:#fbbf24;font-size:18px;"></i>
+                  </div>
+                  <div>
+                    <div style="font-weight:700;color:#e2e8f0;font-size:14px;">Jadwal Bulanan</div>
+                    <div style="font-size:11px;color:#94a3b8;">Shift Terminal · Ekspor-Impor · PBC</div>
+                  </div>
+                </div>
+                <span id="pbcJadwalStatus" class="pbc-badge" style="background:rgba(100,116,139,0.2);color:#64748b;">-</span>
+              </div>
+              <div style="font-size:11px;color:#64748b;line-height:1.6;">
+                Format: XLSX jadwal shift bulanan KPPBC<br>
+                Sheet: <strong style="color:#94a3b8;">Terminal · Ekspor-Impor</strong> (otomatis terdeteksi)<br>
+                Kolom per hari: <strong style="color:#94a3b8;">M</strong>=Malam · <strong style="color:#94a3b8;">S</strong>=Siang · <strong style="color:#94a3b8;">P</strong>=Pagi · <strong style="color:#94a3b8;">L</strong>=Libur
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="pbc-btn pbc-btn-primary" style="background:linear-gradient(135deg,#d97706,#b45309);" onclick="pbcShowJadwalUpload()">
+                  <i class="fas fa-upload mr-1"></i> Upload Jadwal
+                </button>
+                <button class="pbc-btn pbc-btn-ghost" onclick="pbcShowJadwalSummary()">
+                  <i class="fas fa-chart-bar mr-1"></i> Lihat Rekap
+                </button>
+              </div>
+            </div>
+
             <!-- Card: Sumber lain (placeholder) -->
             <div class="pbc-source-card placeholder">
               <div style="display:flex;align-items:center;gap:10px;">
@@ -3806,6 +3835,66 @@
           <div class="pbc-title"><i class="fas fa-history" style="color:#3b82f6;"></i> Riwayat Upload Terakhir</div>
           <div id="pbcBatchList">
             <div style="text-align:center;padding:20px;color:#475569;"><i class="fas fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+
+        <!-- Section: Rekap Jadwal (hidden by default) -->
+        <div id="pbcJadwalSummarySection" style="display:none;" class="pbc-section">
+          <div class="pbc-title">
+            <i class="fas fa-calendar-check" style="color:#fbbf24;"></i> Rekap Jadwal Bulanan
+            <button class="pbc-btn pbc-btn-ghost" style="padding:4px 10px;font-size:11px;margin-left:auto;" onclick="document.getElementById('pbcJadwalSummarySection').style.display='none'"><i class="fas fa-times"></i></button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+            <select class="pbc-select" id="pbcJadwalYear" style="width:100px;">
+              <option value="2026">2026</option><option value="2025">2025</option>
+            </select>
+            <select class="pbc-select" id="pbcJadwalMonth">
+              <option value="">Semua Bulan</option>
+              <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+              <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+              <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+              <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+            </select>
+            <button class="pbc-btn pbc-btn-primary" onclick="pbcLoadJadwalSummary()"><i class="fas fa-search mr-1"></i> Tampilkan</button>
+          </div>
+          <div id="pbcJadwalSummaryResult">
+            <div style="text-align:center;padding:20px;color:#475569;font-size:12px;">Pilih periode lalu klik Tampilkan.</div>
+          </div>
+        </div>
+
+        <!-- Modal: Upload Jadwal -->
+        <div id="pbcJadwalUploadModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+          <div style="background:linear-gradient(135deg,#0d1b2a,#1a2744);border:1px solid rgba(251,191,36,0.25);border-radius:1.25rem;padding:1.75rem;width:100%;max-width:500px;margin:16px;">
+            <h3 style="color:#e2e8f0;font-size:15px;font-weight:700;margin:0 0 1.25rem;"><i class="fas fa-calendar-alt mr-2" style="color:#fbbf24;"></i>Upload Jadwal Bulanan</h3>
+            <div style="display:grid;gap:10px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Bulan *</label>
+                  <select class="pbc-select" id="pbcJadwalUploadMonth" style="width:100%;">
+                    <option value="">- Pilih -</option>
+                    <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                    <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                    <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                    <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                  </select>
+                </div>
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Tahun *</label>
+                  <input class="pbc-input" id="pbcJadwalUploadYear" value="2026" type="number" min="2020" max="2099">
+                </div>
+              </div>
+              <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">File Jadwal (XLSX) *</label>
+                <input type="file" id="pbcJadwalUploadFile" accept=".xlsx,.xls" style="width:100%;background:rgba(255,255,255,0.05);border:1px dashed rgba(251,191,36,0.3);border-radius:8px;padding:12px;color:#94a3b8;font-size:12px;cursor:pointer;">
+              </div>
+              <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:8px;padding:10px 12px;font-size:11px;color:#64748b;line-height:1.7;">
+                <strong style="color:#fbbf24;">Format yang didukung:</strong> File jadwal bulanan KPPBC standar<br>
+                Sheet <strong style="color:#94a3b8;">Terminal</strong> dan <strong style="color:#94a3b8;">Ekspor-Impor</strong> akan di-parse otomatis.<br>
+                Sheet PBC dan Pelaksana (penugasan statis) dicatat sebagai info.
+              </div>
+            </div>
+            <div id="pbcJadwalUploadError" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:12px;"></div>
+            <div style="display:flex;gap:8px;margin-top:1.25rem;justify-content:flex-end;">
+              <button class="pbc-btn pbc-btn-ghost" onclick="document.getElementById('pbcJadwalUploadModal').style.display='none'">Batal</button>
+              <button class="pbc-btn" style="background:linear-gradient(135deg,#d97706,#b45309);color:#fff;font-weight:700;cursor:pointer;" id="pbcJadwalSubmitBtn" onclick="pbcDoJadwalUpload()"><i class="fas fa-upload mr-1"></i> Upload</button>
+            </div>
           </div>
         </div>
 
@@ -4129,6 +4218,130 @@
       function pbcShowBatches(sourceType) {
         const labels = { rao:"RAO (ECD Scanning)", lembur:"Lembur", uang_makan:"Uang Makan" };
         alert("Filter riwayat per sumber: " + (labels[sourceType]||sourceType) + "\n\nLihat tabel Riwayat Upload di bawah.");
+      }
+
+      function pbcShowJadwalUpload() {
+        document.getElementById("pbcJadwalUploadFile").value = "";
+        document.getElementById("pbcJadwalUploadError").style.display = "none";
+        document.getElementById("pbcJadwalSubmitBtn").disabled = false;
+        document.getElementById("pbcJadwalSubmitBtn").innerHTML = '<i class="fas fa-upload mr-1"></i> Upload';
+        document.getElementById("pbcJadwalUploadModal").style.display = "flex";
+      }
+
+      async function pbcDoJadwalUpload() {
+        const fileEl = document.getElementById("pbcJadwalUploadFile");
+        const errEl = document.getElementById("pbcJadwalUploadError");
+        const btn = document.getElementById("pbcJadwalSubmitBtn");
+        const month = document.getElementById("pbcJadwalUploadMonth").value;
+        const year = document.getElementById("pbcJadwalUploadYear").value;
+        errEl.style.display = "none";
+        if (!month || !year) { errEl.textContent = "Bulan dan tahun wajib dipilih."; errEl.style.display = "block"; return; }
+        if (!fileEl.files || !fileEl.files[0]) { errEl.textContent = "Pilih file jadwal terlebih dahulu."; errEl.style.display = "block"; return; }
+        const fd = new FormData();
+        fd.append("file", fileEl.files[0]);
+        fd.append("period_month", month);
+        fd.append("period_year", year);
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Memproses...';
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/pbc/jadwal/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          document.getElementById("pbcJadwalUploadModal").style.display = "none";
+          pbcLoadBatches();
+          // Update status badge
+          const BULAN = ["","Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt","Nov","Des"];
+          const jEl = document.getElementById("pbcJadwalStatus");
+          if (jEl) { jEl.textContent = BULAN[Number(month)] + " " + year; jEl.style.background = "rgba(251,191,36,0.15)"; jEl.style.color = "#fbbf24"; }
+          alert("✓ " + json.message + "\n\nSheet: " + (json.data.sheets || []).join(", "));
+        } catch(e) {
+          errEl.textContent = e.message; errEl.style.display = "block";
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Upload';
+        }
+      }
+
+      function pbcShowJadwalSummary() {
+        const sec = document.getElementById("pbcJadwalSummarySection");
+        sec.style.display = "block";
+        sec.scrollIntoView({ behavior: "smooth" });
+      }
+
+      async function pbcLoadJadwalSummary() {
+        const el = document.getElementById("pbcJadwalSummaryResult");
+        const year = document.getElementById("pbcJadwalYear").value;
+        const month = document.getElementById("pbcJadwalMonth").value;
+        el.innerHTML = '<div style="text-align:center;padding:20px;color:#475569;"><i class="fas fa-spinner fa-spin"></i></div>';
+        const SHIFT_COLOR = { M:"#818cf8", S:"#60a5fa", P:"#34d399", L:"#64748b", LP:"#f97316", LS:"#f87171", PE:"#c084fc" };
+        const BULAN = ["","Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          let url = "/api/pbc/jadwal/summary?year=" + year;
+          if (month) url += "&month=" + month;
+          const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          const { per_officer, per_section, shift_distribution, batches } = json.data;
+
+          if (!per_officer || per_officer.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:24px;color:#475569;font-size:12px;">Belum ada data jadwal untuk periode ini. Upload jadwal terlebih dahulu.</div>';
+            return;
+          }
+
+          // Shift legend
+          const legend = shift_distribution.slice(0,6).map(s =>
+            `<span class="pbc-badge" style="background:rgba(0,0,0,0.2);color:${SHIFT_COLOR[s._id]||"#94a3b8"};">${s._id||"?"}: ${s.count}</span>`
+          ).join(" ");
+
+          // Officer table
+          const rows = per_officer.map(o => {
+            const pct = o.total_hari > 0 ? Math.round((o.hari_kerja / o.total_hari) * 100) : 0;
+            return `<tr>
+              <td style="font-family:monospace;font-size:11px;color:#64748b;">${o._id}</td>
+              <td style="font-weight:600;color:#e2e8f0;">${o.nama}</td>
+              <td style="text-align:center;"><span style="color:#4ade80;font-weight:700;">${o.hari_kerja}</span></td>
+              <td style="text-align:center;color:#64748b;">${o.hari_libur}</td>
+              <td style="text-align:center;">
+                <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+                  ${o.shift_M > 0 ? `<span class="pbc-badge" style="background:rgba(129,140,248,0.15);color:#818cf8;">M:${o.shift_M}</span>` : ""}
+                  ${o.shift_S > 0 ? `<span class="pbc-badge" style="background:rgba(96,165,250,0.15);color:#60a5fa;">S:${o.shift_S}</span>` : ""}
+                  ${o.shift_P > 0 ? `<span class="pbc-badge" style="background:rgba(52,211,153,0.15);color:#34d399;">P:${o.shift_P}</span>` : ""}
+                  ${o.shift_LP > 0 ? `<span class="pbc-badge" style="background:rgba(249,115,22,0.15);color:#f97316;">LP:${o.shift_LP}</span>` : ""}
+                </div>
+              </td>
+              <td style="text-align:right;">
+                <div style="width:60px;background:rgba(255,255,255,0.06);border-radius:4px;height:6px;display:inline-block;vertical-align:middle;margin-right:6px;">
+                  <div style="width:${pct}%;background:#4ade80;height:100%;border-radius:4px;"></div>
+                </div>
+                <span style="font-size:11px;color:#64748b;">${pct}%</span>
+              </td>
+            </tr>`;
+          }).join("");
+
+          const batchInfo = batches.slice(0,3).map(b =>
+            `<span style="font-size:11px;color:#64748b;margin-right:8px;"><i class="fas fa-file-excel mr-1" style="color:#4ade80;"></i>${b.source_label} (${b.total_records} rec)</span>`
+          ).join("");
+
+          el.innerHTML = `
+            <div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <span style="font-size:11px;color:#64748b;">Distribusi shift:</span> ${legend}
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="pbc-officer-table">
+                <thead><tr>
+                  <th>NIP</th><th>Nama</th><th style="text-align:center;">Hari Kerja</th>
+                  <th style="text-align:center;">Libur</th><th style="text-align:center;">Breakdown Shift</th>
+                  <th style="text-align:right;">Kehadiran</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);">
+              <span style="font-size:11px;color:#475569;"><i class="fas fa-database mr-1"></i>Sumber: </span>${batchInfo}
+            </div>`;
+        } catch(e) {
+          el.innerHTML = '<div style="padding:12px;color:#f87171;font-size:12px;">' + e.message + '</div>';
+        }
       }
 
       // ==================== INTELLIGENCE CENTER ====================

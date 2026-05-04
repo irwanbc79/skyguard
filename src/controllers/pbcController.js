@@ -7,6 +7,8 @@ const XLSX = require("xlsx");
 const PbcOfficer = require("../models/PbcOfficer");
 const PbcDataBatch = require("../models/PbcDataBatch");
 const PbcDataRecord = require("../models/PbcDataRecord");
+const PbcScheduleRecord = require("../models/PbcScheduleRecord");
+const { processJadwalXlsx } = require("../services/pbcJadwalService");
 
 // ─── OFFICER MASTER ──────────────────────────────────────────────────────────
 
@@ -276,6 +278,116 @@ async function getSummary(req, res) {
   }
 }
 
+// ─── JADWAL BULANAN ──────────────────────────────────────────────────────────
+
+// POST /api/pbc/jadwal/upload
+async function uploadJadwal(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ status: "error", message: "File tidak ditemukan." });
+    const { period_month, period_year } = req.body;
+    if (!period_month || !period_year)
+      return res.status(400).json({ status: "error", message: "Bulan dan tahun wajib diisi." });
+
+    const uploadedBy = (req.user && (req.user.email || String(req.user._id))) || "manual";
+    const result = await processJadwalXlsx({
+      buffer: req.file.buffer,
+      filename: req.file.originalname,
+      month: Number(period_month),
+      year: Number(period_year),
+      uploadedBy,
+    });
+
+    res.json({
+      status: "ok",
+      message: `Jadwal berhasil diimport: ${result.totalScheduleRecords} record jadwal dari ${result.processedSheets.length} sheet.`,
+      data: {
+        batch_id: result.batch._id,
+        total_records: result.totalScheduleRecords,
+        sheets: result.processedSheets,
+        notes: result.batch.notes,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// GET /api/pbc/jadwal/summary?year=2026&month=5&nip=
+// Rekap hari kerja, libur, dan distribusi shift per petugas
+async function getJadwalSummary(req, res) {
+  try {
+    const match = {};
+    if (req.query.year) match.period_year = Number(req.query.year);
+    if (req.query.month) match.period_month = Number(req.query.month);
+    if (req.query.nip) match.nip = req.query.nip;
+    if (req.query.section) match.section = req.query.section;
+
+    const [perOfficer, perSection, shiftDist, batches] = await Promise.all([
+      // Rekap per petugas: hari kerja, libur, breakdown shift
+      PbcScheduleRecord.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: "$nip",
+            nama: { $first: "$nama" },
+            total_hari: { $sum: 1 },
+            hari_kerja: { $sum: { $cond: ["$is_working", 1, 0] } },
+            hari_libur: { $sum: { $cond: ["$is_working", 0, 1] } },
+            shift_M: { $sum: { $cond: [{ $eq: ["$shift", "M"] }, 1, 0] } },
+            shift_S: { $sum: { $cond: [{ $eq: ["$shift", "S"] }, 1, 0] } },
+            shift_P: { $sum: { $cond: [{ $eq: ["$shift", "P"] }, 1, 0] } },
+            shift_L: { $sum: { $cond: [{ $eq: ["$shift", "L"] }, 1, 0] } },
+            shift_LP: { $sum: { $cond: [{ $eq: ["$shift", "LP"] }, 1, 0] } },
+          },
+        },
+        { $sort: { "_id": 1 } },
+      ]),
+      // Rekap per seksi
+      PbcScheduleRecord.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: "$section",
+            total_records: { $sum: 1 },
+            officers: { $addToSet: "$nip" },
+            hari_kerja: { $sum: { $cond: ["$is_working", 1, 0] } },
+          },
+        },
+        { $project: { _id: 1, total_records: 1, hari_kerja: 1, officers: { $size: "$officers" } } },
+      ]),
+      // Distribusi shift keseluruhan
+      PbcScheduleRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$shift", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      // Batches jadwal untuk periode ini
+      PbcDataBatch.find({ source_type: "jadwal", ...( req.query.year ? { period_year: Number(req.query.year) } : {} ), ...( req.query.month ? { period_month: Number(req.query.month) } : {} ) })
+        .sort({ createdAt: -1 }).limit(10).select("source_label period_month period_year total_records status notes createdAt"),
+    ]);
+
+    res.json({
+      status: "ok",
+      data: { per_officer: perOfficer, per_section: perSection, shift_distribution: shiftDist, batches },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// DELETE /api/pbc/jadwal/batches/:id
+async function deleteJadwalBatch(req, res) {
+  try {
+    const batch = await PbcDataBatch.findOne({ _id: req.params.id, source_type: "jadwal" });
+    if (!batch) return res.status(404).json({ status: "error", message: "Batch tidak ditemukan." });
+    const { deletedCount } = await PbcScheduleRecord.deleteMany({ batch_id: batch._id });
+    await batch.deleteOne();
+    res.json({ status: "ok", message: `Batch dan ${deletedCount} record jadwal berhasil dihapus.` });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
 module.exports = {
   listOfficers,
   createOfficer,
@@ -286,4 +398,7 @@ module.exports = {
   deleteBatch,
   listRecords,
   getSummary,
+  uploadJadwal,
+  getJadwalSummary,
+  deleteJadwalBatch,
 };
