@@ -644,7 +644,7 @@
             class="main-menu-item menu-flights flex items-center gap-2 whitespace-nowrap"
             data-menu="flights"
           >
-            <i class="fas fa-plane"></i> FLIGHT RADAR
+            <i class="fas fa-clipboard-list"></i> LAPORAN PBC
           </button>
           <button
             onclick="setMainMenu('dashboard')"
@@ -3300,6 +3300,10 @@
             },
             { id: "tracking", label: "Pelacakan", icon: "fa-crosshairs" },
             { id: "routemap", label: "Peta Rute", icon: "fa-map-marked-alt" },
+            { id: "board", label: "Flight Board", icon: "fa-plane-arrival" },
+            { id: "map", label: "Live Map", icon: "fa-map-marked-alt" },
+            { id: "alerts", label: "Alerts", icon: "fa-bell" },
+            { id: "fids", label: "FIDS Monitor", icon: "fa-tv" },
           ],
           color: "#ef4444",
         },
@@ -3307,12 +3311,7 @@
         regulasi: { subMenus: [], color: "#818cf8" },
         admin: { subMenus: [], color: "#f59e0b" },
         flights: {
-          subMenus: [
-            { id: "board", label: "Flight Board", icon: "fa-plane-arrival" },
-            { id: "map", label: "Live Map", icon: "fa-map-marked-alt" },
-            { id: "alerts", label: "Alerts", icon: "fa-bell" },
-            { id: "fids", label: "FIDS Monitor", icon: "fa-tv" },
-          ],
+          subMenus: [],
           color: "#3b82f6",
         },
       };
@@ -3650,6 +3649,17 @@
         } else if (subId === "routemap") {
           container.innerHTML = getIntelRouteMapContent();
           setTimeout(() => initIntelMap(), 100);
+        } else if (subId === "board") {
+          container.innerHTML = getFlightBoardContent();
+          loadFlightBoard();
+        } else if (subId === "map") {
+          container.innerHTML = getFlightMapContent();
+          setTimeout(initFlightMap, 100);
+        } else if (subId === "alerts") {
+          container.innerHTML = getFlightAlertsContent();
+          loadFlightAlerts();
+        } else if (subId === "fids") {
+          window.open("/flight-board", "_blank");
         }
       }
 
