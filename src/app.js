@@ -176,6 +176,9 @@ app.use("/api/qsvm", require("./routes/qsvm"));
 // PMI Record — manajemen data PMI terverifikasi
 app.use("/api/pmi", require("./routes/pmi"));
 
+// PBC — Master Petugas, Upload Data Pendukung IKI
+app.use("/api/pbc", require("./routes/pbc"));
+
 // Admin: User Management
 app.use("/api/admin", require("./routes/admin-users"));
 

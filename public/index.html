@@ -3311,7 +3311,14 @@
         regulasi: { subMenus: [], color: "#818cf8" },
         admin: { subMenus: [], color: "#f59e0b" },
         flights: {
-          subMenus: [],
+          subMenus: [
+            { id: "upload", label: "Upload Data", icon: "fa-upload" },
+            { id: "dashboard", label: "Dashboard IKI", icon: "fa-chart-bar" },
+            { id: "iki", label: "Rekap IKI", icon: "fa-tasks" },
+            { id: "lembur", label: "Lembur", icon: "fa-clock" },
+            { id: "libur", label: "Libur Pengganti", icon: "fa-calendar-minus" },
+            { id: "uang_makan", label: "Uang Makan", icon: "fa-utensils" },
+          ],
           color: "#3b82f6",
         },
       };
@@ -3556,7 +3563,7 @@
         } else if (menu === "cargo") {
           loadCargoSubContent(subId);
         } else if (menu === "flights") {
-          loadFlightsSubContent(subId);
+          loadPbcSubContent(subId);
         } else if (menu === "manifest") {
           loadManifestSubContent(subId);
         } else if (menu === "intel") {
@@ -3631,6 +3638,497 @@
           </div>
           <button onclick="setMainMenu('pencarian')" style="background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:0.75rem;padding:0.5rem 1.25rem;color:#fff;font-weight:600;cursor:pointer;font-size:0.8rem;white-space:nowrap;display:flex;align-items:center;gap:0.4rem;"><i class="fas fa-search"></i> Buka Pencarian Sentral</button>
         </div>`;
+      }
+
+      // ==================== LAPORAN PBC ====================
+
+      function loadPbcSubContent(subId) {
+        const container = document.getElementById("content-flights");
+        if (!container) return;
+        if (subId === "upload") {
+          container.innerHTML = getPbcUploadContent();
+          pbcLoadAll();
+        } else {
+          container.innerHTML = pbcComingSoon(subId);
+        }
+      }
+
+      function pbcComingSoon(subId) {
+        const labels = {
+          dashboard: "Dashboard IKI", iki: "Rekap IKI", lembur: "Lembur",
+          libur: "Libur Pengganti", uang_makan: "Uang Makan",
+        };
+        return `<div style="padding:60px 24px;text-align:center;color:#64748b;">
+          <i class="fas fa-tools" style="font-size:48px;margin-bottom:16px;display:block;color:#3b82f6;opacity:0.4;"></i>
+          <div style="font-size:18px;font-weight:700;color:#94a3b8;margin-bottom:8px;">${labels[subId]||subId}</div>
+          <div style="font-size:13px;">Fitur ini sedang dalam pengembangan. Upload data terlebih dahulu di menu <strong style="color:#3b82f6;">Upload Data</strong>.</div>
+        </div>`;
+      }
+
+      function getPbcUploadContent() {
+        return `
+        <style>
+          .pbc-section { background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.07);border-radius:1.25rem;padding:1.5rem;margin-bottom:1.25rem; }
+          .pbc-title { font-size:1rem;font-weight:700;color:#e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem; }
+          .pbc-source-card { background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:1rem;padding:1.25rem;display:flex;flex-direction:column;gap:0.75rem;transition:all 0.2s; }
+          .pbc-source-card:hover { border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.1); }
+          .pbc-source-card.rao { border-color:rgba(168,85,247,0.2);background:rgba(168,85,247,0.05); }
+          .pbc-source-card.rao:hover { border-color:rgba(168,85,247,0.45); }
+          .pbc-source-card.imei { border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.05); }
+          .pbc-source-card.placeholder { border-color:rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);border-style:dashed; }
+          .pbc-badge { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:2rem;font-size:10px;font-weight:700;letter-spacing:.04em; }
+          .pbc-btn { padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all 0.2s; }
+          .pbc-btn-primary { background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff; }
+          .pbc-btn-primary:hover { opacity:0.85;transform:translateY(-1px); }
+          .pbc-btn-ghost { background:rgba(255,255,255,0.07);color:#94a3b8;border:1px solid rgba(255,255,255,0.1); }
+          .pbc-btn-ghost:hover { background:rgba(255,255,255,0.12);color:#e2e8f0; }
+          .pbc-btn-danger { background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.2); }
+          .pbc-officer-table { width:100%;border-collapse:separate;border-spacing:0; }
+          .pbc-officer-table th { padding:10px 14px;font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,0.06);text-align:left; }
+          .pbc-officer-table td { padding:10px 14px;font-size:13px;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,0.04); }
+          .pbc-officer-table tr:last-child td { border-bottom:none; }
+          .pbc-officer-table tr:hover td { background:rgba(59,130,246,0.04); }
+          .pbc-batch-row { display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px; }
+          .pbc-batch-row:last-child { border-bottom:none; }
+          .pbc-input { width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px;outline:none; }
+          .pbc-input:focus { border-color:rgba(59,130,246,0.5); }
+          .pbc-select { background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:13px;cursor:pointer; }
+        </style>
+
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(99,102,241,0.1));border:1px solid rgba(59,130,246,0.2);border-radius:1.5rem;padding:1.5rem 2rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <h2 style="font-size:1.3rem;font-weight:800;color:#e2e8f0;margin:0;display:flex;align-items:center;gap:10px;">
+              <i class="fas fa-upload" style="color:#3b82f6;"></i> UPLOAD DATA PENDUKUNG IKI
+            </h2>
+            <p style="color:#64748b;font-size:12px;margin:4px 0 0;letter-spacing:.04em;">
+              LAPORAN PBC — KPPBC TMP B KUALANAMU · Data diolah dari RAO, IMEI, dan sumber lainnya
+            </p>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="pbc-btn pbc-btn-ghost" onclick="pbcLoadAll()"><i class="fas fa-sync-alt mr-1"></i> Refresh</button>
+            <button class="pbc-btn pbc-btn-primary" onclick="pbcShowAddOfficer()"><i class="fas fa-user-plus mr-1"></i> Tambah Petugas</button>
+          </div>
+        </div>
+
+        <!-- Section: Master Petugas -->
+        <div class="pbc-section">
+          <div class="pbc-title">
+            <i class="fas fa-id-badge" style="color:#3b82f6;"></i> Master Petugas PBC
+            <span id="pbcOfficerCount" class="pbc-badge" style="background:rgba(59,130,246,0.15);color:#60a5fa;margin-left:4px;">memuat...</span>
+          </div>
+          <div id="pbcOfficerTable" style="overflow-x:auto;max-height:340px;overflow-y:auto;">
+            <div style="text-align:center;padding:24px;color:#475569;"><i class="fas fa-spinner fa-spin"></i> Memuat data petugas...</div>
+          </div>
+        </div>
+
+        <!-- Section: Sumber Data Upload -->
+        <div class="pbc-section">
+          <div class="pbc-title"><i class="fas fa-database" style="color:#3b82f6;"></i> Sumber Data Upload</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;">
+
+            <!-- Card: Data RAO -->
+            <div class="pbc-source-card rao">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(168,85,247,0.2);display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-barcode-read" style="color:#c084fc;font-size:18px;"></i>
+                  </div>
+                  <div>
+                    <div style="font-weight:700;color:#e2e8f0;font-size:14px;">Data RAO</div>
+                    <div style="font-size:11px;color:#94a3b8;">ECD Scanning Penumpang</div>
+                  </div>
+                </div>
+                <span id="pbcRaoStatus" class="pbc-badge" style="background:rgba(100,116,139,0.2);color:#64748b;">-</span>
+              </div>
+              <div style="font-size:11px;color:#64748b;line-height:1.6;">
+                Format: XLSX/XLS/CSV<br>
+                Kolom wajib: <strong style="color:#94a3b8;">NIP · TANGGAL · JUMLAH ECD</strong><br>
+                Opsional: NAMA · SHIFT · KETERANGAN
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="pbc-btn pbc-btn-primary" onclick="pbcShowUpload('rao','Data RAO (ECD Scanning)')">
+                  <i class="fas fa-upload mr-1"></i> Upload
+                </button>
+                <button class="pbc-btn pbc-btn-ghost" onclick="pbcShowBatches('rao')">
+                  <i class="fas fa-history mr-1"></i> Riwayat
+                </button>
+              </div>
+            </div>
+
+            <!-- Card: Data IMEI (auto-linked) -->
+            <div class="pbc-source-card imei">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-mobile-alt" style="color:#4ade80;font-size:18px;"></i>
+                  </div>
+                  <div>
+                    <div style="font-weight:700;color:#e2e8f0;font-size:14px;">Data IMEI</div>
+                    <div style="font-size:11px;color:#94a3b8;">Auto-linked dari menu Penumpang</div>
+                  </div>
+                </div>
+                <span class="pbc-badge" style="background:rgba(34,197,94,0.15);color:#4ade80;">AUTO</span>
+              </div>
+              <div style="font-size:11px;color:#64748b;line-height:1.6;">
+                Data IMEI diambil otomatis dari upload di menu <strong style="color:#4ade80;">PENUMPANG → Upload Data</strong>. Tidak perlu upload ulang.
+              </div>
+              <div id="pbcImeiInfo" style="font-size:11px;color:#475569;">Menghitung...</div>
+              <button class="pbc-btn pbc-btn-ghost" onclick="setMainMenu('penumpang');setTimeout(()=>setSubMenu('upload'),200);">
+                <i class="fas fa-external-link-alt mr-1"></i> Buka Menu Penumpang
+              </button>
+            </div>
+
+            <!-- Card: Sumber lain (placeholder) -->
+            <div class="pbc-source-card placeholder">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;">
+                  <i class="fas fa-plus" style="color:#475569;font-size:16px;"></i>
+                </div>
+                <div>
+                  <div style="font-weight:700;color:#475569;font-size:14px;">Sumber Data Baru</div>
+                  <div style="font-size:11px;color:#334155;">Lembur · Uang Makan · Lainnya</div>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#334155;line-height:1.6;">
+                Sumber data tambahan akan ditambahkan sesuai kebutuhan dari petugas maupun bagian umum/teknis.
+              </div>
+              <button class="pbc-btn" style="background:rgba(255,255,255,0.04);color:#475569;border:1px dashed rgba(255,255,255,0.08);" disabled>
+                <i class="fas fa-clock mr-1"></i> Segera hadir
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Section: Riwayat Upload Terakhir -->
+        <div class="pbc-section">
+          <div class="pbc-title"><i class="fas fa-history" style="color:#3b82f6;"></i> Riwayat Upload Terakhir</div>
+          <div id="pbcBatchList">
+            <div style="text-align:center;padding:20px;color:#475569;"><i class="fas fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+
+        <!-- Flow info -->
+        <div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.1);border-radius:1rem;padding:1.25rem 1.5rem;font-size:12px;color:#64748b;line-height:1.8;">
+          <div style="font-weight:700;color:#60a5fa;margin-bottom:8px;font-size:13px;"><i class="fas fa-info-circle mr-1"></i> Alur Penghitungan Realisasi IKI</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
+            <span style="background:rgba(168,85,247,0.15);color:#c084fc;padding:4px 12px;border-radius:2rem;font-size:11px;font-weight:600;"><i class="fas fa-upload mr-1"></i>Upload RAO</span>
+            <i class="fas fa-plus" style="color:#475569;"></i>
+            <span style="background:rgba(34,197,94,0.12);color:#4ade80;padding:4px 12px;border-radius:2rem;font-size:11px;font-weight:600;"><i class="fas fa-mobile-alt mr-1"></i>Data IMEI (auto)</span>
+            <i class="fas fa-plus" style="color:#475569;"></i>
+            <span style="background:rgba(59,130,246,0.12);color:#60a5fa;padding:4px 12px;border-radius:2rem;font-size:11px;font-weight:600;"><i class="fas fa-plus-circle mr-1"></i>Sumber Lain</span>
+            <i class="fas fa-arrow-right" style="color:#475569;"></i>
+            <span style="background:rgba(250,204,21,0.12);color:#fbbf24;padding:4px 12px;border-radius:2rem;font-size:11px;font-weight:700;"><i class="fas fa-calculator mr-1"></i>Formula IKI → Rekap</span>
+          </div>
+          <div>Setiap sumber data dikelompokkan per <strong style="color:#94a3b8;">NIP petugas</strong>, lalu diolah sesuai formula IKI yang berlaku. Penambahan sumber baru cukup upload file baru — sistem akan merge otomatis per periode.</div>
+        </div>
+
+        <!-- Modal: Add Officer -->
+        <div id="pbcOfficerModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+          <div style="background:linear-gradient(135deg,#0d1b2a,#1a2744);border:1px solid rgba(59,130,246,0.25);border-radius:1.25rem;padding:1.75rem;width:100%;max-width:480px;margin:16px;">
+            <h3 style="color:#e2e8f0;font-size:15px;font-weight:700;margin:0 0 1.25rem;"><i class="fas fa-user-plus mr-2" style="color:#3b82f6;"></i><span id="pbcModalTitle">Tambah Petugas PBC</span></h3>
+            <input type="hidden" id="pbcEditId">
+            <div style="display:grid;gap:10px;">
+              <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">NIP *</label><input class="pbc-input" id="pbcFormNip" placeholder="19850409201012004"></div>
+              <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Nama Lengkap *</label><input class="pbc-input" id="pbcFormNama" placeholder="NAMA PETUGAS"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Pangkat</label><input class="pbc-input" id="pbcFormPangkat" placeholder="PENATA TK.I"></div>
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Golongan</label><input class="pbc-input" id="pbcFormGolongan" placeholder="III d"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Nomor SKP</label><input class="pbc-input" id="pbcFormSkp" placeholder="SKP-1/BC.15.7/JF/2026"></div>
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Tahun</label><input class="pbc-input" id="pbcFormTahun" value="2026" type="number"></div>
+              </div>
+            </div>
+            <div id="pbcFormError" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:12px;"></div>
+            <div style="display:flex;gap:8px;margin-top:1.25rem;justify-content:flex-end;">
+              <button class="pbc-btn pbc-btn-ghost" onclick="pbcCloseOfficerModal()">Batal</button>
+              <button class="pbc-btn pbc-btn-primary" onclick="pbcSaveOfficer()"><i class="fas fa-save mr-1"></i> Simpan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal: Upload Data -->
+        <div id="pbcUploadModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+          <div style="background:linear-gradient(135deg,#0d1b2a,#1a2744);border:1px solid rgba(59,130,246,0.25);border-radius:1.25rem;padding:1.75rem;width:100%;max-width:520px;margin:16px;">
+            <h3 style="color:#e2e8f0;font-size:15px;font-weight:700;margin:0 0 1.25rem;"><i class="fas fa-upload mr-2" style="color:#3b82f6;"></i><span id="pbcUploadModalTitle">Upload Data</span></h3>
+            <input type="hidden" id="pbcUploadSourceType">
+            <div style="display:grid;gap:10px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Bulan</label>
+                  <select class="pbc-select" id="pbcUploadMonth" style="width:100%;">
+                    <option value="">- Pilih Bulan -</option>
+                    <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                    <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                    <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                    <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                  </select>
+                </div>
+                <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Tahun</label><input class="pbc-input" id="pbcUploadYear" value="2026" type="number"></div>
+              </div>
+              <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Catatan (opsional)</label><input class="pbc-input" id="pbcUploadNotes" placeholder="Mis. Data RAO Januari shift pagi-siang"></div>
+              <div>
+                <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">File (XLSX / XLS / CSV) *</label>
+                <input type="file" id="pbcUploadFile" accept=".xlsx,.xls,.csv" style="width:100%;background:rgba(255,255,255,0.05);border:1px dashed rgba(59,130,246,0.3);border-radius:8px;padding:12px;color:#94a3b8;font-size:12px;cursor:pointer;">
+              </div>
+              <div style="background:rgba(59,130,246,0.06);border-radius:8px;padding:10px 12px;font-size:11px;color:#64748b;line-height:1.6;">
+                <strong style="color:#60a5fa;">Format kolom wajib:</strong> NIP · TANGGAL · JUMLAH (nilai utama)<br>
+                Opsional: NAMA · SHIFT · KETERANGAN
+              </div>
+            </div>
+            <div id="pbcUploadError" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:12px;"></div>
+            <div style="display:flex;gap:8px;margin-top:1.25rem;justify-content:flex-end;">
+              <button class="pbc-btn pbc-btn-ghost" onclick="pbcCloseUploadModal()">Batal</button>
+              <button class="pbc-btn pbc-btn-primary" id="pbcUploadSubmitBtn" onclick="pbcDoUpload()"><i class="fas fa-upload mr-1"></i> Upload</button>
+            </div>
+          </div>
+        </div>
+        `;
+      }
+
+      // ─── PBC JS functions ─────────────────────────────────────────────────
+
+      async function pbcLoadAll() {
+        pbcLoadOfficers();
+        pbcLoadBatches();
+        pbcLoadImeiInfo();
+      }
+
+      async function pbcLoadOfficers() {
+        const tableEl = document.getElementById("pbcOfficerTable");
+        const countEl = document.getElementById("pbcOfficerCount");
+        if (!tableEl) return;
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/pbc/officers?tahun=2026", { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          if (!json.data || json.data.length === 0) {
+            tableEl.innerHTML = '<div style="text-align:center;padding:24px;color:#475569;">Belum ada petugas terdaftar. Klik <strong>Tambah Petugas</strong>.</div>';
+            if (countEl) countEl.textContent = "0 petugas";
+            return;
+          }
+          if (countEl) countEl.textContent = json.data.length + " petugas";
+          const BULAN = ["","Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt","Nov","Des"];
+          const golColors = { "III d":"#c084fc","III c":"#818cf8","III b":"#60a5fa","III a":"#34d399","II d":"#fbbf24","II c":"#f97316" };
+          tableEl.innerHTML = `<table class="pbc-officer-table">
+            <thead><tr>
+              <th>No</th><th>NIP</th><th>Nama</th><th>Pangkat / Gol</th><th>Nomor SKP</th><th></th>
+            </tr></thead><tbody>
+            ${json.data.map((o,i) => {
+              const gol = o.golongan || "-";
+              const clr = golColors[gol] || "#94a3b8";
+              return `<tr>
+                <td style="color:#475569;">${i+1}</td>
+                <td style="font-family:monospace;font-size:12px;color:#94a3b8;">${o.nip}</td>
+                <td style="font-weight:600;color:#e2e8f0;">${o.nama}</td>
+                <td><span style="font-size:11px;color:#64748b;">${o.pangkat||""}</span> <span class="pbc-badge" style="background:rgba(255,255,255,0.06);color:${clr};">${gol}</span></td>
+                <td style="font-size:11px;color:#64748b;">${o.nomor_skp||"-"}</td>
+                <td style="display:flex;gap:6px;">
+                  <button class="pbc-btn pbc-btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="pbcEditOfficer('${o._id}','${o.nip}','${o.nama}','${(o.pangkat||"").replace(/'/g,"\\'")}','${o.golongan||""}','${o.nomor_skp||""}',${o.tahun||2026})"><i class="fas fa-edit"></i></button>
+                  <button class="pbc-btn pbc-btn-danger" style="padding:4px 10px;font-size:11px;" onclick="pbcDeleteOfficer('${o._id}','${o.nama}')"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>`;
+            }).join("")}
+            </tbody></table>`;
+        } catch(e) {
+          tableEl.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;"><i class="fas fa-exclamation-circle mr-1"></i>' + e.message + '</div>';
+        }
+      }
+
+      async function pbcLoadBatches() {
+        const el = document.getElementById("pbcBatchList");
+        if (!el) return;
+        const MONTH_NAMES = ["","Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        const SRC_LABELS = { rao:"RAO (ECD)", lembur:"Lembur", uang_makan:"Uang Makan", custom:"Kustom" };
+        const SRC_COLORS = { rao:"#c084fc", lembur:"#fbbf24", uang_makan:"#34d399", custom:"#60a5fa" };
+        const statusColors = { imported:"#4ade80", processing:"#fbbf24", failed:"#f87171" };
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/pbc/batches", { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          if (!json.data || json.data.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:20px;color:#475569;font-size:12px;">Belum ada upload. Upload file pertama Anda di atas.</div>';
+            document.getElementById("pbcRaoStatus") && (document.getElementById("pbcRaoStatus").textContent = "Belum ada data");
+            return;
+          }
+          // Update RAO status badge
+          const raoBatches = json.data.filter(b => b.source_type === "rao");
+          const raoEl = document.getElementById("pbcRaoStatus");
+          if (raoEl && raoBatches.length > 0) {
+            const last = raoBatches[0];
+            raoEl.textContent = MONTH_NAMES[last.period_month||0]||"-";
+            raoEl.style.background = "rgba(168,85,247,0.15)";
+            raoEl.style.color = "#c084fc";
+          }
+          el.innerHTML = json.data.slice(0,15).map(b => {
+            const clr = SRC_COLORS[b.source_type] || "#60a5fa";
+            const sclr = statusColors[b.status] || "#94a3b8";
+            const dt = new Date(b.createdAt).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+            return `<div class="pbc-batch-row">
+              <span class="pbc-badge" style="background:rgba(0,0,0,0.2);color:${clr};min-width:90px;justify-content:center;">${SRC_LABELS[b.source_type]||b.source_type}</span>
+              <span style="color:#e2e8f0;flex:1;">${b.source_label||b.original_filename||"-"}</span>
+              <span style="color:#64748b;">${MONTH_NAMES[b.period_month||0]||"-"} ${b.period_year||""}</span>
+              <span class="pbc-badge" style="background:rgba(0,0,0,0.2);color:${sclr};">${b.total_records} record</span>
+              <span style="color:#475569;font-size:10px;">${dt}</span>
+              <button class="pbc-btn pbc-btn-danger" style="padding:3px 8px;font-size:11px;" onclick="pbcDeleteBatch('${b._id}')"><i class="fas fa-trash"></i></button>
+            </div>`;
+          }).join("");
+        } catch(e) {
+          el.innerHTML = '<div style="padding:12px;color:#f87171;font-size:12px;">' + e.message + '</div>';
+        }
+      }
+
+      async function pbcLoadImeiInfo() {
+        const el = document.getElementById("pbcImeiInfo");
+        if (!el) return;
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/passengers?limit=1", { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          const count = json.pagination?.total || json.total || 0;
+          el.innerHTML = `<span style="color:#4ade80;"><i class="fas fa-check-circle mr-1"></i>${count.toLocaleString("id-ID")} data penumpang tersedia</span>`;
+        } catch {
+          el.innerHTML = '<span style="color:#475569;">Tidak dapat memuat info IMEI</span>';
+        }
+      }
+
+      function pbcShowAddOfficer() {
+        document.getElementById("pbcEditId").value = "";
+        document.getElementById("pbcModalTitle").textContent = "Tambah Petugas PBC";
+        ["pbcFormNip","pbcFormNama","pbcFormPangkat","pbcFormGolongan","pbcFormSkp"].forEach(id => {
+          const el = document.getElementById(id); if(el) el.value = "";
+        });
+        document.getElementById("pbcFormTahun").value = "2026";
+        document.getElementById("pbcFormError").style.display = "none";
+        const m = document.getElementById("pbcOfficerModal");
+        m.style.display = "flex";
+      }
+
+      function pbcEditOfficer(id, nip, nama, pangkat, golongan, skp, tahun) {
+        document.getElementById("pbcEditId").value = id;
+        document.getElementById("pbcModalTitle").textContent = "Edit Petugas PBC";
+        document.getElementById("pbcFormNip").value = nip;
+        document.getElementById("pbcFormNama").value = nama;
+        document.getElementById("pbcFormPangkat").value = pangkat;
+        document.getElementById("pbcFormGolongan").value = golongan;
+        document.getElementById("pbcFormSkp").value = skp;
+        document.getElementById("pbcFormTahun").value = tahun;
+        document.getElementById("pbcFormError").style.display = "none";
+        document.getElementById("pbcOfficerModal").style.display = "flex";
+      }
+
+      function pbcCloseOfficerModal() {
+        document.getElementById("pbcOfficerModal").style.display = "none";
+      }
+
+      async function pbcSaveOfficer() {
+        const id = document.getElementById("pbcEditId").value;
+        const body = {
+          nip: document.getElementById("pbcFormNip").value.trim(),
+          nama: document.getElementById("pbcFormNama").value.trim(),
+          pangkat: document.getElementById("pbcFormPangkat").value.trim(),
+          golongan: document.getElementById("pbcFormGolongan").value.trim(),
+          nomor_skp: document.getElementById("pbcFormSkp").value.trim(),
+          tahun: Number(document.getElementById("pbcFormTahun").value) || 2026,
+        };
+        const errEl = document.getElementById("pbcFormError");
+        errEl.style.display = "none";
+        if (!body.nip || !body.nama) {
+          errEl.textContent = "NIP dan Nama wajib diisi.";
+          errEl.style.display = "block";
+          return;
+        }
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const url = id ? "/api/pbc/officers/" + id : "/api/pbc/officers";
+          const method = id ? "PUT" : "POST";
+          const res = await fetch(url, {
+            method, headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          pbcCloseOfficerModal();
+          pbcLoadOfficers();
+        } catch(e) {
+          errEl.textContent = e.message;
+          errEl.style.display = "block";
+        }
+      }
+
+      async function pbcDeleteOfficer(id, nama) {
+        if (!confirm("Hapus petugas " + nama + "?")) return;
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          await fetch("/api/pbc/officers/" + id, { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+          pbcLoadOfficers();
+        } catch(e) { alert(e.message); }
+      }
+
+      function pbcShowUpload(sourceType, label) {
+        document.getElementById("pbcUploadSourceType").value = sourceType;
+        document.getElementById("pbcUploadModalTitle").textContent = "Upload " + label;
+        document.getElementById("pbcUploadFile").value = "";
+        document.getElementById("pbcUploadNotes").value = "";
+        document.getElementById("pbcUploadError").style.display = "none";
+        document.getElementById("pbcUploadSubmitBtn").disabled = false;
+        const m = document.getElementById("pbcUploadModal");
+        m.style.display = "flex";
+      }
+
+      function pbcCloseUploadModal() {
+        document.getElementById("pbcUploadModal").style.display = "none";
+      }
+
+      async function pbcDoUpload() {
+        const fileEl = document.getElementById("pbcUploadFile");
+        const errEl = document.getElementById("pbcUploadError");
+        const btn = document.getElementById("pbcUploadSubmitBtn");
+        errEl.style.display = "none";
+        if (!fileEl.files || !fileEl.files[0]) {
+          errEl.textContent = "Pilih file terlebih dahulu.";
+          errEl.style.display = "block";
+          return;
+        }
+        const fd = new FormData();
+        fd.append("file", fileEl.files[0]);
+        fd.append("source_type", document.getElementById("pbcUploadSourceType").value);
+        fd.append("period_month", document.getElementById("pbcUploadMonth").value);
+        fd.append("period_year", document.getElementById("pbcUploadYear").value);
+        fd.append("notes", document.getElementById("pbcUploadNotes").value);
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengupload...';
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/pbc/upload", {
+            method: "POST", headers: { Authorization: "Bearer " + token }, body: fd,
+          });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          pbcCloseUploadModal();
+          pbcLoadBatches();
+          alert("✓ " + json.message);
+        } catch(e) {
+          errEl.textContent = e.message;
+          errEl.style.display = "block";
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Upload';
+        }
+      }
+
+      async function pbcDeleteBatch(id) {
+        if (!confirm("Hapus batch upload ini beserta semua recordnya?")) return;
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          await fetch("/api/pbc/batches/" + id, { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+          pbcLoadBatches();
+        } catch(e) { alert(e.message); }
+      }
+
+      function pbcShowBatches(sourceType) {
+        const labels = { rao:"RAO (ECD Scanning)", lembur:"Lembur", uang_makan:"Uang Makan" };
+        alert("Filter riwayat per sumber: " + (labels[sourceType]||sourceType) + "\n\nLihat tabel Riwayat Upload di bawah.");
       }
 
       // ==================== INTELLIGENCE CENTER ====================
