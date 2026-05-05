@@ -1,6 +1,6 @@
 /**
  * pbcController.js
- * Endpoints: Master Petugas PBC, Upload Data Pendukung IKI
+ * Endpoints: Master Petugas PBC, Upload Data Pendukung IKI, IKI Indicators & Realisasi
  */
 
 const XLSX = require("xlsx");
@@ -8,6 +8,8 @@ const PbcOfficer = require("../models/PbcOfficer");
 const PbcDataBatch = require("../models/PbcDataBatch");
 const PbcDataRecord = require("../models/PbcDataRecord");
 const PbcScheduleRecord = require("../models/PbcScheduleRecord");
+const PbcIkiIndicator = require("../models/PbcIkiIndicator");
+const PbcIkiRealization = require("../models/PbcIkiRealization");
 const { processJadwalXlsx } = require("../services/pbcJadwalService");
 
 // ─── OFFICER MASTER ──────────────────────────────────────────────────────────
@@ -388,6 +390,164 @@ async function deleteJadwalBatch(req, res) {
   }
 }
 
+// ─── IKI MASTER INDICATORS ───────────────────────────────────────────────────
+
+// GET /api/pbc/iki/indicators?tahun=2026&active=true
+async function listIkiIndicators(req, res) {
+  try {
+    const filter = {};
+    if (req.query.tahun) filter.tahun = Number(req.query.tahun);
+    if (req.query.active !== "false") filter.is_active = true;
+    const indicators = await PbcIkiIndicator.find(filter).sort({ urutan: 1, kode: 1 });
+    res.json({ status: "ok", data: indicators, total: indicators.length });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// POST /api/pbc/iki/indicators
+async function createIkiIndicator(req, res) {
+  try {
+    const { nama, target, satuan, tahun, keterangan, urutan } = req.body;
+    if (!nama || target === undefined)
+      return res.status(400).json({ status: "error", message: "Nama dan target wajib diisi." });
+
+    // Auto-generate kode IKI-NNN
+    const last = await PbcIkiIndicator.findOne({ tahun: tahun || 2026 }).sort({ kode: -1 }).lean();
+    let seq = 1;
+    if (last && last.kode) {
+      const m = last.kode.match(/IKI-(\d+)$/);
+      if (m) seq = parseInt(m[1]) + 1;
+    }
+    const kode = `IKI-${String(seq).padStart(3, "0")}`;
+
+    const indicator = await PbcIkiIndicator.create({
+      kode,
+      nama: String(nama).trim(),
+      target: Number(target),
+      satuan: satuan || "%",
+      tahun: tahun ? Number(tahun) : 2026,
+      keterangan: keterangan ? String(keterangan).trim() : undefined,
+      urutan: urutan ? Number(urutan) : seq,
+    });
+    res.status(201).json({ status: "ok", data: indicator });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ status: "error", message: "Kode IKI sudah ada." });
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// PUT /api/pbc/iki/indicators/:id
+async function updateIkiIndicator(req, res) {
+  try {
+    const { nama, target, satuan, tahun, keterangan, urutan, is_active } = req.body;
+    const indicator = await PbcIkiIndicator.findByIdAndUpdate(
+      req.params.id,
+      { nama, target, satuan, tahun, keterangan, urutan, is_active },
+      { new: true, runValidators: true }
+    );
+    if (!indicator) return res.status(404).json({ status: "error", message: "Indikator IKI tidak ditemukan." });
+    res.json({ status: "ok", data: indicator });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// DELETE /api/pbc/iki/indicators/:id
+// Soft-delete jika sudah ada realisasi, hard-delete jika belum
+async function deleteIkiIndicator(req, res) {
+  try {
+    const indicator = await PbcIkiIndicator.findById(req.params.id);
+    if (!indicator) return res.status(404).json({ status: "error", message: "Indikator IKI tidak ditemukan." });
+
+    const hasRealisasi = await PbcIkiRealization.exists({ iki_id: indicator._id });
+    if (hasRealisasi) {
+      indicator.is_active = false;
+      await indicator.save();
+      return res.json({ status: "ok", message: "Indikator dinonaktifkan (ada data realisasi terkait)." });
+    }
+    await indicator.deleteOne();
+    res.json({ status: "ok", message: "Indikator IKI berhasil dihapus." });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// ─── IKI REALISASI ────────────────────────────────────────────────────────────
+
+// POST /api/pbc/iki/realisasi  { iki_id, nip, period_month, period_year, realisasi, keterangan }
+async function upsertRealisasi(req, res) {
+  try {
+    const { iki_id, nip, period_month, period_year, realisasi, keterangan } = req.body;
+    if (!iki_id || !nip || !period_month || !period_year || realisasi === undefined)
+      return res.status(400).json({ status: "error", message: "iki_id, nip, period_month, period_year, realisasi wajib diisi." });
+
+    const indicator = await PbcIkiIndicator.findById(iki_id).lean();
+    if (!indicator) return res.status(404).json({ status: "error", message: "Indikator IKI tidak ditemukan." });
+
+    const officer = await PbcOfficer.findOne({ nip: String(nip).trim() }).lean();
+    const namaOfficer = officer ? officer.nama : null;
+
+    const capaian_pct = indicator.target ? (Number(realisasi) / indicator.target) * 100 : 0;
+    const input_by = (req.user && (req.user.email || String(req.user._id))) || "manual";
+
+    const doc = await PbcIkiRealization.findOneAndUpdate(
+      { iki_id, nip: String(nip).trim(), period_year: Number(period_year), period_month: Number(period_month) },
+      {
+        $set: {
+          nama: namaOfficer,
+          realisasi: Number(realisasi),
+          capaian_pct: Math.round(capaian_pct * 100) / 100,
+          input_by,
+          keterangan: keterangan ? String(keterangan).trim() : undefined,
+        },
+      },
+      { upsert: true, new: true }
+    );
+    res.json({ status: "ok", data: doc });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// GET /api/pbc/iki/dashboard?year=2026&month=5
+// Return: { indicators[], officers[], matrix: { nip: { iki_id: { realisasi, capaian_pct } } } }
+async function getIkiDashboard(req, res) {
+  try {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    const month = req.query.month ? Number(req.query.month) : null;
+
+    const matchRealisasi = { period_year: year };
+    if (month) matchRealisasi.period_month = month;
+
+    const [indicators, officers, realizations] = await Promise.all([
+      PbcIkiIndicator.find({ is_active: true, tahun: year }).sort({ urutan: 1, kode: 1 }).lean(),
+      PbcOfficer.find({ is_active: true }).sort({ nomor_skp: 1 }).lean(),
+      PbcIkiRealization.find(matchRealisasi).lean(),
+    ]);
+
+    // Build matrix: nip → iki_id → { realisasi, capaian_pct, keterangan, period_month }
+    const matrix = {};
+    for (const r of realizations) {
+      const k = String(r.nip);
+      const ikiKey = String(r.iki_id);
+      if (!matrix[k]) matrix[k] = {};
+      if (!matrix[k][ikiKey]) {
+        matrix[k][ikiKey] = { realisasi: r.realisasi, capaian_pct: r.capaian_pct, period_month: r.period_month, keterangan: r.keterangan };
+      } else {
+        // Jika multi-bulan (tanpa filter bulan): akumulasi rata-rata
+        const prev = matrix[k][ikiKey];
+        prev.realisasi = (prev.realisasi + r.realisasi) / 2;
+        prev.capaian_pct = (prev.capaian_pct + r.capaian_pct) / 2;
+      }
+    }
+
+    res.json({ status: "ok", data: { indicators, officers, matrix, year, month } });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
 module.exports = {
   listOfficers,
   createOfficer,
@@ -401,4 +561,10 @@ module.exports = {
   uploadJadwal,
   getJadwalSummary,
   deleteJadwalBatch,
+  listIkiIndicators,
+  createIkiIndicator,
+  updateIkiIndicator,
+  deleteIkiIndicator,
+  upsertRealisasi,
+  getIkiDashboard,
 };

@@ -37,4 +37,14 @@ router.post("/jadwal/upload", requireAuth, upload.single("file"), c.uploadJadwal
 router.get("/jadwal/summary", requireAuth, c.getJadwalSummary);
 router.delete("/jadwal/batches/:id", requireAuth, c.deleteJadwalBatch);
 
+// IKI Master Indicators
+router.get("/iki/indicators", requireAuth, c.listIkiIndicators);
+router.post("/iki/indicators", requireAuth, c.createIkiIndicator);
+router.put("/iki/indicators/:id", requireAuth, c.updateIkiIndicator);
+router.delete("/iki/indicators/:id", requireAuth, c.deleteIkiIndicator);
+
+// IKI Realisasi & Dashboard
+router.post("/iki/realisasi", requireAuth, c.upsertRealisasi);
+router.get("/iki/dashboard", requireAuth, c.getIkiDashboard);
+
 module.exports = router;
