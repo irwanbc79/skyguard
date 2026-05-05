@@ -10,7 +10,11 @@ const PbcDataRecord = require("../models/PbcDataRecord");
 const PbcScheduleRecord = require("../models/PbcScheduleRecord");
 const PbcIkiIndicator = require("../models/PbcIkiIndicator");
 const PbcIkiRealization = require("../models/PbcIkiRealization");
+const PbcEcdRecord = require("../models/PbcEcdRecord");
+const ImeiRegistration = require("../models/ImeiRegistration");
+const ImeiDetail = require("../models/ImeiDetail");
 const { processJadwalXlsx } = require("../services/pbcJadwalService");
+const { processEcdXlsx, getTriwulanDates } = require("../services/pbcEcdService");
 
 // ─── OFFICER MASTER ──────────────────────────────────────────────────────────
 
@@ -390,6 +394,198 @@ async function deleteJadwalBatch(req, res) {
   }
 }
 
+// ─── ECD / DATA BARANG PENUMPANG ─────────────────────────────────────────────
+
+// POST /api/pbc/ecd/upload
+async function uploadEcd(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ status: "error", message: "File tidak ditemukan." });
+    const uploadedBy = (req.user && (req.user.email || String(req.user._id))) || "manual";
+    const result = await processEcdXlsx({
+      buffer: req.file.buffer,
+      filename: req.file.originalname,
+      uploadedBy,
+    });
+    res.json({
+      status: "ok",
+      message: `Upload berhasil: ${result.total} record dimasukkan (${result.imeiCount} atensi IMEI).`,
+      data: {
+        batch_id: result.batch._id,
+        total: result.total,
+        imei_count: result.imeiCount,
+        jalur_m: result.jalurM,
+        jalur_h: result.jalurH,
+        date_range: result.dateRange,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// GET /api/pbc/ecd/summary?year=&month=
+async function getEcdSummary(req, res) {
+  try {
+    const match = {};
+    if (req.query.year) match.period_year = Number(req.query.year);
+    if (req.query.month) match.period_month = Number(req.query.month);
+
+    const [perBatch, imeiPerPetugas, totalStats] = await Promise.all([
+      PbcDataBatch.find({ source_type: "barang_penumpang", ...(req.query.year ? { period_year: Number(req.query.year) } : {}) })
+        .sort({ createdAt: -1 }).limit(20).select("source_label original_filename period_month period_year total_records status notes createdAt"),
+      PbcEcdRecord.aggregate([
+        { $match: { ...match, has_imei: true } },
+        {
+          $group: {
+            _id: "$nipPetugasPindai",
+            nama: { $first: "$namaPetugasPindai" },
+            total_imei: { $sum: 1 },
+            has_waktu_scan: { $sum: { $cond: [{ $ne: ["$waktuScanQr", null] }, 1, 0] } },
+          },
+        },
+        { $sort: { total_imei: -1 } },
+      ]),
+      PbcEcdRecord.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            total_imei: { $sum: { $cond: ["$has_imei", 1, 0] } },
+            jalur_m: { $sum: { $cond: [{ $eq: ["$kodeJalur", "M"] }, 1, 0] } },
+            jalur_h: { $sum: { $cond: [{ $eq: ["$kodeJalur", "H"] }, 1, 0] } },
+          },
+        },
+      ]),
+    ]);
+
+    res.json({ status: "ok", data: { batches: perBatch, imei_per_petugas: imeiPerPetugas, stats: totalStats[0] || {} } });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// DELETE /api/pbc/ecd/batches/:id
+async function deleteEcdBatch(req, res) {
+  try {
+    const batch = await PbcDataBatch.findOne({ _id: req.params.id, source_type: "barang_penumpang" });
+    if (!batch) return res.status(404).json({ status: "error", message: "Batch tidak ditemukan." });
+    const { deletedCount } = await PbcEcdRecord.deleteMany({ batch_id: batch._id });
+    await batch.deleteOne();
+    res.json({ status: "ok", message: `Batch dan ${deletedCount} record ECD berhasil dihapus.` });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
+// GET /api/pbc/iki/001-calc?triwulan=1&year=2026&nip=  (opsional nip untuk filter 1 petugas)
+// Hitung Komponen A (ketepatan waktu) IKI-001 dari data ECD + ImeiDetail
+async function calcIki001(req, res) {
+  try {
+    const { triwulan, year, nip } = req.query;
+    if (!triwulan || !year) return res.status(400).json({ status: "error", message: "triwulan dan year wajib diisi." });
+
+    const { start, end } = getTriwulanDates(triwulan, year);
+
+    // 1. Query ImeiRegistration sebagai denominator (data resmi CEISA per petugas)
+    const imeiFilter = { tgl_kedatangan: { $gte: start, $lte: end } };
+    if (nip) imeiFilter.nip_petugas = nip;
+
+    const [imeiRegs, imeiDetails] = await Promise.all([
+      ImeiRegistration.find(imeiFilter).lean(),
+      ImeiDetail.find({
+        waktu_kedatangan: { $gte: start, $lte: end },
+        ...(nip ? {} : {}),
+      }).select("no_identitas waktu_kedatangan waktu_rekam registration_id").lean(),
+    ]);
+
+    // Build lookup paspor → waktu_rekam (T-end, waktu petugas selesai rekam)
+    const detailByPassport = {};
+    for (const d of imeiDetails) {
+      const key = d.no_identitas;
+      if (!key) continue;
+      if (!detailByPassport[key] || (d.waktu_rekam && d.waktu_rekam > detailByPassport[key])) {
+        detailByPassport[key] = d.waktu_rekam;
+      }
+    }
+
+    // 2. Query ECD untuk T-start (waktuScanQr) per paspor
+    const passports = [...new Set(imeiRegs.map((r) => r.no_identitas).filter(Boolean))];
+    const ecdRecords = passports.length > 0
+      ? await PbcEcdRecord.find({
+          paspor: { $in: passports },
+          has_imei: true,
+          tanggalKedatangan: { $gte: start, $lte: end },
+        }).select("paspor waktuScanQr nipPetugasPindai").lean()
+      : [];
+
+    const ecdByPassport = {};
+    ecdRecords.forEach((r) => { if (r.paspor && r.waktuScanQr) ecdByPassport[r.paspor] = r.waktuScanQr; });
+
+    // 3. Hitung per petugas
+    const perPetugas = {};
+    for (const reg of imeiRegs) {
+      const nipKey = reg.nip_petugas || "UNKNOWN";
+      if (!perPetugas[nipKey]) {
+        perPetugas[nipKey] = { nip: nipKey, total: 0, tepat_waktu: 0, no_tstart: 0, no_tend: 0, durasi_list: [] };
+      }
+      const p = perPetugas[nipKey];
+      p.total++;
+
+      const tStart = ecdByPassport[reg.no_identitas];
+      const tEnd = detailByPassport[reg.no_identitas];
+
+      if (!tStart) { p.no_tstart++; continue; }
+      if (!tEnd) { p.no_tend++; continue; }
+
+      const durasiMenit = (new Date(tEnd) - new Date(tStart)) / 60000;
+      if (durasiMenit >= 0) p.durasi_list.push(Math.round(durasiMenit));
+      if (durasiMenit >= 0 && durasiMenit <= 180) p.tepat_waktu++;
+    }
+
+    // 4. Format hasil
+    const officers = await PbcOfficer.find({ is_active: true }).select("nip nama").lean();
+    const officerMap = {};
+    officers.forEach((o) => { officerMap[o.nip] = o.nama; });
+
+    const result = Object.values(perPetugas).map((p) => {
+      const calculable = p.total - p.no_tstart - p.no_tend;
+      const pct_a = calculable > 0 ? Math.round((p.tepat_waktu / calculable) * 100 * 10) / 10 : null;
+      const avg_durasi = p.durasi_list.length > 0
+        ? Math.round(p.durasi_list.reduce((a, b) => a + b, 0) / p.durasi_list.length)
+        : null;
+      return {
+        nip: p.nip,
+        nama: officerMap[p.nip] || p.nip,
+        total_permohonan: p.total,
+        tepat_waktu: p.tepat_waktu,
+        tidak_dapat_dihitung: p.no_tstart + p.no_tend,
+        no_ecd_data: p.no_tstart,
+        no_tend_data: p.no_tend,
+        pct_komponen_a: pct_a,     // (tepat_waktu/calculable)*100, untuk × 70
+        skor_komponen_a: pct_a !== null ? Math.round(pct_a * 0.7 * 10) / 10 : null,
+        avg_durasi_menit: avg_durasi,
+      };
+    }).sort((a, b) => b.total_permohonan - a.total_permohonan);
+
+    res.json({
+      status: "ok",
+      data: {
+        triwulan: Number(triwulan),
+        year: Number(year),
+        periode: { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) },
+        sla_menit: 180,
+        total_registrasi: imeiRegs.length,
+        ecd_matched: ecdRecords.length,
+        per_petugas: result,
+        catatan: "Komponen A (70%) dapat dihitung dari data ini. Komponen B (30% — Kualitas Analisis) diinput manual oleh Kasi PKC per triwulan.",
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+}
+
 // ─── IKI MASTER INDICATORS ───────────────────────────────────────────────────
 
 // GET /api/pbc/iki/indicators?tahun=2026&active=true
@@ -567,4 +763,8 @@ module.exports = {
   deleteIkiIndicator,
   upsertRealisasi,
   getIkiDashboard,
+  uploadEcd,
+  getEcdSummary,
+  deleteEcdBatch,
+  calcIki001,
 };

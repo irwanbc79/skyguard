@@ -3811,6 +3811,36 @@
               </div>
             </div>
 
+            <!-- Card: Data Barang Penumpang (ECD) -->
+            <div class="pbc-source-card" style="border-color:rgba(56,189,248,0.25);background:rgba(56,189,248,0.05);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(56,189,248,0.15);display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-passport" style="color:#38bdf8;font-size:18px;"></i>
+                  </div>
+                  <div>
+                    <div style="font-weight:700;color:#e2e8f0;font-size:14px;">Data Barang Penumpang</div>
+                    <div style="font-size:11px;color:#94a3b8;">Export CEISA · BC 2.2 (Customs Declaration)</div>
+                  </div>
+                </div>
+                <span id="pbcEcdStatus" class="pbc-badge" style="background:rgba(100,116,139,0.2);color:#64748b;">-</span>
+              </div>
+              <div style="font-size:11px;color:#64748b;line-height:1.6;">
+                Sumber data <strong style="color:#38bdf8;">IKI-001</strong> (Registrasi IMEI).<br>
+                Format: XLSX export dari CEISA dengan header <strong style="color:#94a3b8;">nomorDokumen, kodeAtensi, waktuScanQr</strong>, dll.<br>
+                Kolom <strong style="color:#38bdf8;">kodeAtensi = I</strong> dideteksi otomatis sebagai atensi IMEI.
+              </div>
+              <div id="pbcEcdInfo" style="font-size:11px;color:#475569;padding:6px 10px;background:rgba(56,189,248,0.05);border-radius:6px;display:none;"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="pbc-btn pbc-btn-primary" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);" onclick="pbcShowEcdUpload()">
+                  <i class="fas fa-upload mr-1"></i> Upload Data
+                </button>
+                <button class="pbc-btn pbc-btn-ghost" onclick="pbcLoadEcdSummary()">
+                  <i class="fas fa-chart-pie mr-1"></i> Lihat Rekap
+                </button>
+              </div>
+            </div>
+
             <!-- Card: Sumber lain (placeholder) -->
             <div class="pbc-source-card placeholder">
               <div style="display:flex;align-items:center;gap:10px;">
@@ -3941,6 +3971,35 @@
           </div>
         </div>
 
+        <!-- Modal: Upload Data Barang Penumpang (ECD) -->
+        <div id="pbcEcdUploadModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+          <div style="background:#0f172a;border:1px solid rgba(56,189,248,0.2);border-radius:1.25rem;padding:1.75rem;width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+              <h3 style="color:#e2e8f0;font-size:15px;font-weight:700;margin:0;"><i class="fas fa-passport mr-2" style="color:#38bdf8;"></i>Upload Data Barang Penumpang</h3>
+              <button onclick="document.getElementById('pbcEcdUploadModal').style.display='none'" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;">&times;</button>
+            </div>
+            <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:8px;padding:10px 12px;margin-bottom:1rem;font-size:11px;color:#7dd3fc;line-height:1.7;">
+              <strong>Sumber:</strong> Export CEISA → Data Barang Penumpang<br>
+              <strong>Format:</strong> XLSX dengan header <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">nomorDokumen, kodeAtensi, waktuScanQr</code>, dll.<br>
+              <strong>Otomatis:</strong> Atensi IMEI (<code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">kodeAtensi=I</code>) dideteksi dan dipakai untuk hitung IKI-001.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+              <div>
+                <label style="font-size:11px;color:#64748b;display:block;margin-bottom:6px;">File XLSX <span style="color:#f87171;">*</span></label>
+                <input type="file" id="pbcEcdUploadFile" accept=".xlsx,.xls" style="width:100%;background:rgba(255,255,255,0.04);border:1px dashed rgba(56,189,248,0.3);border-radius:8px;padding:12px;color:#94a3b8;font-size:12px;cursor:pointer;box-sizing:border-box;">
+              </div>
+            </div>
+            <div id="pbcEcdUploadError" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:12px;"></div>
+            <div id="pbcEcdUploadResult" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);color:#4ade80;font-size:12px;"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;">
+              <button onclick="document.getElementById('pbcEcdUploadModal').style.display='none'" class="pbc-btn pbc-btn-ghost">Tutup</button>
+              <button id="pbcEcdSubmitBtn" onclick="pbcDoEcdUpload()" class="pbc-btn" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;font-weight:700;">
+                <i class="fas fa-upload mr-1"></i> Upload
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Modal: Upload Data -->
         <div id="pbcUploadModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
           <div style="background:linear-gradient(135deg,#0d1b2a,#1a2744);border:1px solid rgba(59,130,246,0.25);border-radius:1.25rem;padding:1.75rem;width:100%;max-width:520px;margin:16px;">
@@ -3985,6 +4044,7 @@
         pbcLoadOfficers();
         pbcLoadBatches();
         pbcLoadImeiInfo();
+        pbcLoadEcdBadge();
       }
 
       async function pbcLoadOfficers() {
@@ -4347,6 +4407,109 @@
         }
       }
 
+      // ==================== PBC ECD ====================
+
+      function pbcShowEcdUpload() {
+        document.getElementById("pbcEcdUploadFile").value = "";
+        const err = document.getElementById("pbcEcdUploadError");
+        const res = document.getElementById("pbcEcdUploadResult");
+        err.style.display = "none"; res.style.display = "none";
+        document.getElementById("pbcEcdUploadModal").style.display = "flex";
+      }
+
+      async function pbcDoEcdUpload() {
+        const file = document.getElementById("pbcEcdUploadFile").files[0];
+        const errEl = document.getElementById("pbcEcdUploadError");
+        const resEl = document.getElementById("pbcEcdUploadResult");
+        const btn = document.getElementById("pbcEcdSubmitBtn");
+        errEl.style.display = "none"; resEl.style.display = "none";
+        if (!file) { errEl.textContent = "Pilih file terlebih dahulu."; errEl.style.display = "block"; return; }
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengupload...';
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/pbc/ecd/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message || "Upload gagal.");
+          const d = json.data;
+          resEl.innerHTML = `<i class="fas fa-check-circle mr-1"></i> <strong>${d.total.toLocaleString()}</strong> record diimport · <strong style="color:#38bdf8;">${d.imei_count}</strong> atensi IMEI · Jalur M:${d.jalur_m} H:${d.jalur_h}`;
+          resEl.style.display = "block";
+          pbcLoadAll();
+          pbcLoadEcdBadge();
+        } catch(e) {
+          errEl.textContent = e.message; errEl.style.display = "block";
+        } finally {
+          btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Upload';
+        }
+      }
+
+      async function pbcLoadEcdBadge() {
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const year = new Date().getFullYear();
+          const res = await fetch("/api/pbc/ecd/summary?year=" + year, { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          const badge = document.getElementById("pbcEcdStatus");
+          const info = document.getElementById("pbcEcdInfo");
+          if (!badge) return;
+          if (json.data.stats && json.data.stats.total > 0) {
+            const s = json.data.stats;
+            badge.textContent = s.total_imei + " IMEI";
+            badge.style.background = "rgba(56,189,248,0.15)"; badge.style.color = "#38bdf8";
+            if (info) {
+              info.textContent = `Total: ${s.total.toLocaleString()} record · ${s.total_imei} atensi IMEI · M:${s.jalur_m} H:${s.jalur_h}`;
+              info.style.display = "block";
+            }
+          }
+        } catch(_) {}
+      }
+
+      async function pbcLoadEcdSummary() {
+        const year = new Date().getFullYear();
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/pbc/ecd/summary?year=" + year, { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          const { batches, imei_per_petugas, stats } = json.data;
+          let html = "";
+          if (batches.length === 0) {
+            html = '<div style="text-align:center;padding:20px;color:#475569;font-size:12px;">Belum ada data. Upload file terlebih dahulu.</div>';
+          } else {
+            html = `<div style="margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap;">
+              <span style="font-size:12px;color:#38bdf8;"><i class="fas fa-file-alt mr-1"></i> ${stats.total?.toLocaleString()||0} total record</span>
+              <span style="font-size:12px;color:#818cf8;"><i class="fas fa-mobile-alt mr-1"></i> ${stats.total_imei||0} atensi IMEI</span>
+            </div>
+            <div style="overflow-x:auto;"><table class="pbc-officer-table"><thead><tr>
+              <th>File</th><th style="text-align:center;">Records</th><th style="text-align:center;">Periode</th><th style="text-align:right;">Aksi</th>
+            </tr></thead><tbody>
+            ${batches.map(b => `<tr>
+              <td style="color:#e2e8f0;font-size:12px;">${b.original_filename||b.source_label}</td>
+              <td style="text-align:center;color:#38bdf8;font-weight:700;">${(b.total_records||0).toLocaleString()}</td>
+              <td style="text-align:center;font-size:11px;color:#64748b;">${["","Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"][b.period_month||0]||"-"} ${b.period_year||""}</td>
+              <td style="text-align:right;">
+                <button class="pbc-btn" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2);font-size:10px;padding:3px 8px;" onclick="pbcDeleteEcdBatch('${b._id}')"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>`).join("")}
+            </tbody></table></div>`;
+          }
+          // Tampilkan di section yang ada
+          const batchEl = document.getElementById("pbcBatchList");
+          if (batchEl) batchEl.innerHTML = html;
+        } catch(e) { console.error(e); }
+      }
+
+      async function pbcDeleteEcdBatch(id) {
+        if (!confirm("Hapus batch ECD ini beserta semua record-nya?")) return;
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch("/api/pbc/ecd/batches/" + id, { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          pbcLoadAll();
+        } catch(e) { alert("Error: " + e.message); }
+      }
+
       // ==================== PBC IKI ====================
 
       function getPbcIkiContent() {
@@ -4402,6 +4565,35 @@
             </div>
             <div style="overflow-x:auto;max-height:600px;overflow-y:auto;" id="ikiDashboardWrap">
               <div style="padding:40px;text-align:center;color:#475569;"><i class="fas fa-spinner fa-spin"></i> Memuat data...</div>
+            </div>
+          </div>
+
+          <!-- Kalkulator IKI-001 (Komponen A) -->
+          <div class="pbc-section">
+            <div class="pbc-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <span><i class="fas fa-calculator mr-2" style="color:#38bdf8;"></i>Kalkulator IKI-001 — Komponen A (Ketepatan Waktu)</span>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <select id="iki001Triwulan" style="background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;padding:5px 8px;border-radius:7px;font-size:11px;">
+                  <option value="1">TW I (16 Des–15 Mar)</option>
+                  <option value="2">TW II (16 Mar–15 Jun)</option>
+                  <option value="3" selected>TW III (16 Jun–15 Sep)</option>
+                  <option value="4">TW IV (16 Sep–15 Des)</option>
+                </select>
+                <select id="iki001Year" style="background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;padding:5px 8px;border-radius:7px;font-size:11px;">
+                  <option value="2026" selected>2026</option>
+                  <option value="2025">2025</option>
+                </select>
+                <button class="pbc-btn pbc-btn-primary" style="font-size:11px;background:linear-gradient(135deg,#0ea5e9,#0284c7);" onclick="pbcIkiCalc001()">
+                  <i class="fas fa-calculator mr-1"></i> Hitung
+                </button>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#475569;margin-bottom:12px;line-height:1.6;">
+              SLA: <strong style="color:#38bdf8;">≤ 3 jam</strong> sejak <code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;">waktuScanQr</code> (RAO scan) hingga petugas selesai rekam di CEISA.
+              Butuh data: <strong style="color:#38bdf8;">Data Barang Penumpang</strong> (upload di atas) + <strong style="color:#4ade80;">Data IMEI</strong> (menu Penumpang).
+            </div>
+            <div id="iki001CalcResult">
+              <div style="text-align:center;padding:24px;color:#475569;font-size:12px;"><i class="fas fa-info-circle mr-1"></i> Pilih triwulan dan klik Hitung untuk kalkulasi Komponen A.</div>
             </div>
           </div>
 
@@ -4513,6 +4705,107 @@
       function pbcIkiLoadAll() {
         pbcIkiLoadIndicators();
         pbcIkiLoadDashboard();
+      }
+
+      async function pbcIkiCalc001() {
+        const triwulan = document.getElementById("iki001Triwulan").value;
+        const year = document.getElementById("iki001Year").value;
+        const el = document.getElementById("iki001CalcResult");
+        if (!el) return;
+        el.innerHTML = '<div style="text-align:center;padding:20px;color:#475569;"><i class="fas fa-spinner fa-spin"></i> Menghitung...</div>';
+        try {
+          const token = localStorage.getItem("sg_token") || "";
+          const res = await fetch(`/api/pbc/iki/001-calc?triwulan=${triwulan}&year=${year}`, { headers: { Authorization: "Bearer " + token } });
+          const json = await res.json();
+          if (json.status !== "ok") throw new Error(json.message);
+          const d = json.data;
+          const TW = ["","I","II","III","IV"];
+
+          if (!d.per_petugas.length) {
+            el.innerHTML = `<div style="text-align:center;padding:20px;color:#475569;font-size:12px;">Tidak ada data registrasi IMEI untuk Triwulan ${TW[d.triwulan]} ${d.year}.<br>Pastikan data IMEI sudah diupload di menu Penumpang.</div>`;
+            return;
+          }
+
+          const rows = d.per_petugas.map(p => {
+            const skorA = p.skor_komponen_a !== null ? p.skor_komponen_a.toFixed(1) : "?";
+            const pctA = p.pct_komponen_a !== null ? p.pct_komponen_a.toFixed(1) + "%" : "N/A";
+            const tpColor = p.pct_komponen_a >= 100 ? "#4ade80" : p.pct_komponen_a >= 70 ? "#fbbf24" : "#f87171";
+            const durasi = p.avg_durasi_menit !== null ? `${p.avg_durasi_menit} mnt` : "-";
+            const noData = p.tidak_dapat_dihitung > 0 ? `<span style="color:#f87171;font-size:10px;" title="${p.no_ecd_data} tdk ada ECD · ${p.no_tend_data} tdk ada T-end">⚠${p.tidak_dapat_dihitung}</span>` : "";
+            return `<tr>
+              <td style="font-family:monospace;font-size:10px;color:#64748b;">${p.nip}</td>
+              <td style="font-weight:600;color:#e2e8f0;font-size:12px;">${p.nama}</td>
+              <td style="text-align:center;color:#818cf8;font-weight:700;">${p.total_permohonan}</td>
+              <td style="text-align:center;color:#4ade80;">${p.tepat_waktu} ${noData}</td>
+              <td style="text-align:center;color:${tpColor};font-weight:700;">${pctA}</td>
+              <td style="text-align:center;color:#64748b;font-size:11px;">${durasi}</td>
+              <td style="text-align:center;">
+                <span style="background:rgba(56,189,248,0.12);color:#38bdf8;border-radius:6px;padding:3px 8px;font-weight:700;font-size:12px;">${skorA}</span>
+                <span style="font-size:10px;color:#475569;margin-left:4px;">/ 70</span>
+              </td>
+              <td style="text-align:center;">
+                <button class="pbc-btn pbc-btn-primary" style="font-size:10px;padding:3px 9px;" onclick="pbcIkiOpenRealisasiFromCalc('${p.nip}','${p.nama}',${d.triwulan},${d.year},${p.skor_komponen_a||0})">
+                  <i class="fas fa-pen"></i> Input
+                </button>
+              </td>
+            </tr>`;
+          }).join("");
+
+          el.innerHTML = `
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;">
+              <span style="color:#64748b;"><i class="fas fa-calendar mr-1"></i> TW ${TW[d.triwulan]} ${d.year}: <strong style="color:#e2e8f0;">${d.periode.start} s.d. ${d.periode.end}</strong></span>
+              <span style="color:#818cf8;"><i class="fas fa-mobile-alt mr-1"></i> ${d.total_registrasi} registrasi IMEI</span>
+              <span style="color:#38bdf8;"><i class="fas fa-link mr-1"></i> ${d.ecd_matched} matched ECD</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="pbc-officer-table">
+                <thead><tr>
+                  <th>NIP</th><th>Nama</th>
+                  <th style="text-align:center;">Total</th>
+                  <th style="text-align:center;">Tepat Waktu</th>
+                  <th style="text-align:center;">% KompA</th>
+                  <th style="text-align:center;">Avg Durasi</th>
+                  <th style="text-align:center;">Skor A (×70)</th>
+                  <th style="text-align:center;">Input IKI</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            <div style="margin-top:10px;padding:8px 12px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:8px;font-size:11px;color:#92400e;color:#fbbf24;line-height:1.7;">
+              <i class="fas fa-info-circle mr-1"></i>
+              <strong>Komponen B (×30 — Kualitas Analisis)</strong> dianalisis oleh Kasi PKC/PBC Ahli Pertama menggunakan matriks DJBC, input manual per triwulan.<br>
+              <strong>Realisasi IKI-001</strong> = Skor A + (Berkualitas/Total × 30)
+            </div>`;
+        } catch(e) {
+          el.innerHTML = `<div style="padding:12px;color:#f87171;font-size:12px;"><i class="fas fa-exclamation-triangle mr-1"></i> ${e.message}</div>`;
+        }
+      }
+
+      function pbcIkiOpenRealisasiFromCalc(nip, namaOfficer, triwulan, year, skorA) {
+        // Buka modal input realisasi IKI-001 dengan skor A sudah terisi sebagai panduan
+        const ikiNama = "Persentase kualitas layanan registrasi IMEI";
+        // Cari IKI-001 dari indicator list yang sudah dimuat
+        const TW = ["","I","II","III","IV"];
+        // Gunakan bulan terakhir triwulan sebagai period_month untuk input
+        const twMonthMap = { 1: 3, 2: 6, 3: 9, 4: 12 };
+        const month = twMonthMap[triwulan] || new Date().getMonth() + 1;
+        document.getElementById("ikiRealNip").value = nip;
+        document.getElementById("ikiRealYear").value = year;
+        document.getElementById("ikiRealMonth").value = month;
+        document.getElementById("ikiRealNilai").value = "";
+        document.getElementById("ikiRealKet").value = `TW ${TW[triwulan]} ${year} | Skor Komponen A (×70): ${skorA.toFixed ? skorA.toFixed(1) : skorA}`;
+        document.getElementById("ikiRealInfo").innerHTML =
+          `<strong style="color:#e2e8f0;">${namaOfficer}</strong><br>
+           <span style="color:#64748b;">IKI: </span>${ikiNama}<br>
+           <span style="color:#64748b;">Target: </span><strong style="color:#fbbf24;">82 %</strong><br>
+           <span style="color:#38bdf8;font-size:11px;"><i class="fas fa-calculator mr-1"></i>Skor Komponen A (otomatis): ${skorA.toFixed ? skorA.toFixed(1) : skorA} / 70 — tambahkan Komponen B manual</span>`;
+        // Cari iki_id dari daftar indicator
+        fetch("/api/pbc/iki/indicators?tahun=" + year, { headers: { Authorization: "Bearer " + (localStorage.getItem("sg_token")||"") } })
+          .then(r => r.json()).then(j => {
+            const iki001 = (j.data||[]).find(i => i.kode === "IKI-001");
+            if (iki001) document.getElementById("ikiRealIkiId").value = iki001._id;
+          }).catch(()=>{});
+        document.getElementById("ikiRealisasiModal").style.display = "flex";
       }
 
       async function pbcIkiLoadIndicators() {

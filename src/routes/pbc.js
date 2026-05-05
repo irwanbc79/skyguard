@@ -47,4 +47,12 @@ router.delete("/iki/indicators/:id", requireAuth, c.deleteIkiIndicator);
 router.post("/iki/realisasi", requireAuth, c.upsertRealisasi);
 router.get("/iki/dashboard", requireAuth, c.getIkiDashboard);
 
+// ECD / Data Barang Penumpang
+router.post("/ecd/upload", requireAuth, upload.single("file"), c.uploadEcd);
+router.get("/ecd/summary", requireAuth, c.getEcdSummary);
+router.delete("/ecd/batches/:id", requireAuth, c.deleteEcdBatch);
+
+// IKI-001 Kalkulator (Komponen A — Ketepatan Waktu)
+router.get("/iki/001-calc", requireAuth, c.calcIki001);
+
 module.exports = router;
