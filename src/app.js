@@ -210,9 +210,12 @@ app.get("/api/kantor-list", (req, res) => {
 app.use((err, req, res, next) => {
   // Multer: file upload error
   if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ status: "error", message: "File terlalu besar (maks 10MB)" });
+    return res.status(413).json({ status: "error", message: "File terlalu besar. Maksimum ukuran file yang diizinkan adalah 100MB." });
   }
-  if (err.message && err.message.includes("Only image files")) {
+  if (err.code === "LIMIT_UNEXPECTED_FILE") {
+    return res.status(400).json({ status: "error", message: "Field file tidak sesuai." });
+  }
+  if (err.message && (err.message.includes("Only image files") || err.message.includes("Hanya file"))) {
     return res.status(415).json({ status: "error", message: err.message });
   }
   // Mongoose validation error
