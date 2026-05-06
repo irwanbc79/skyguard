@@ -4433,7 +4433,7 @@
           const json = await res.json();
           if (json.status !== "ok") throw new Error(json.message || "Upload gagal.");
           const d = json.data;
-          resEl.innerHTML = `<i class="fas fa-check-circle mr-1"></i> <strong>${d.total.toLocaleString()}</strong> record diimport · <strong style="color:#38bdf8;">${d.imei_count}</strong> atensi IMEI · Jalur M:${d.jalur_m} H:${d.jalur_h}`;
+          resEl.innerHTML = `<i class="fas fa-check-circle mr-1"></i> <strong>${d.total_scan.toLocaleString()}</strong> scan diproses · <strong style="color:#38bdf8;">${d.imei_inserted}</strong> record IMEI disimpan · Jalur M:${d.jalur_m} H:${d.jalur_h}`;
           resEl.style.display = "block";
           pbcLoadAll();
           pbcLoadEcdBadge();

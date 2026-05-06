@@ -408,13 +408,14 @@ async function uploadEcd(req, res) {
     });
     res.json({
       status: "ok",
-      message: `Upload berhasil: ${result.total} record dimasukkan (${result.imeiCount} atensi IMEI).`,
+      message: `Upload berhasil: ${result.total_scan.toLocaleString()} scan diproses, ${result.imei_inserted} record IMEI disimpan.`,
       data: {
         batch_id: result.batch._id,
-        total: result.total,
-        imei_count: result.imeiCount,
+        total_scan: result.total_scan,
+        imei_inserted: result.imei_inserted,
         jalur_m: result.jalurM,
         jalur_h: result.jalurH,
+        atensi_narkoba: result.atensiD,
         date_range: result.dateRange,
       },
     });

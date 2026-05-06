@@ -5,7 +5,7 @@ const c = require("../controllers/pbcController");
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB — ECD file bisa besar
   fileFilter: (req, file, cb) => {
     const name = (file.originalname || "").toLowerCase();
     if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv")) {

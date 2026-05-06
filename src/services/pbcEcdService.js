@@ -1,14 +1,17 @@
 /**
  * pbcEcdService.js
- * Parser untuk file "Data Barang Penumpang" export dari CEISA
- * Format header: nomorPenerbangan, pekerjaan, ..., waktuRekam (27 kolom)
+ * Parser untuk file "Data Barang Penumpang" export dari CEISA (BC 2.2).
+ *
+ * Strategi storage: hanya simpan record kodeAtensi=I (atensi IMEI) ke MongoDB.
+ * Record lain (non-IMEI) diproses di memori untuk statistik, lalu dibuang.
+ * Hasilnya: 28.700 rows → ~16 rows yang disimpan per 7 hari (~99.9% lebih hemat).
+ * Summary lengkap (total_scan, jalur, atensi lain) disimpan di PbcDataBatch.notes.
  */
 
 const XLSX = require("xlsx");
 const PbcDataBatch = require("../models/PbcDataBatch");
 const PbcEcdRecord = require("../models/PbcEcdRecord");
 
-// Parse tanggal format DD-MM-YYYY atau DD-MM-YYYY HH:MM:SS (WIB)
 function parseDate(str) {
   if (!str) return null;
   const s = String(str).trim();
@@ -23,16 +26,20 @@ function str(v) {
   return v !== null && v !== undefined && v !== "" ? String(v).trim() : null;
 }
 
+function hasImei(kodeAtensi) {
+  if (!kodeAtensi) return false;
+  return String(kodeAtensi).split(",").map((s) => s.trim()).includes("I");
+}
+
 async function processEcdXlsx({ buffer, filename, uploadedBy }) {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
 
-  // Cari sheet yang punya kolom nomorDokumen
+  // Cari sheet yang mengandung kolom nomorDokumen
   let ws = null;
   for (const name of workbook.SheetNames) {
-    const sheet = workbook.Sheets[name];
-    const firstRow = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, range: 0 })[0] || [];
-    if (firstRow.includes("nomorDokumen")) {
-      ws = sheet;
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null, range: 0 });
+    if ((rows[0] || []).includes("nomorDokumen")) {
+      ws = workbook.Sheets[name];
       break;
     }
   }
@@ -41,64 +48,72 @@ async function processEcdXlsx({ buffer, filename, uploadedBy }) {
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
   const headers = rows[0] || [];
   const dataRows = rows.slice(1).filter((r) => r.some((v) => v !== null && v !== ""));
-
   if (dataRows.length === 0) throw new Error("File tidak memiliki baris data.");
 
-  // Build index: field name → column index
   const idx = {};
   headers.forEach((h, i) => { if (h) idx[String(h).trim()] = i; });
-
   const get = (row, field) => (idx[field] !== undefined ? row[idx[field]] : null);
 
+  // Statistik untuk semua baris (disimpan di notes, bukan MongoDB)
+  let totalScan = 0, jalurM = 0, jalurH = 0;
+  let atensiD = 0, atensiI = 0, atensiA = 0;
   let minDate = null, maxDate = null;
-  let imeiCount = 0, jalurM = 0, jalurH = 0;
 
-  const records = dataRows.map((row) => {
+  // Hanya record IMEI yang masuk MongoDB
+  const imeiRecords = [];
+
+  for (const row of dataRows) {
+    totalScan++;
     const tanggal = parseDate(get(row, "tanggalKedatangan"));
     if (tanggal) {
       if (!minDate || tanggal < minDate) minDate = tanggal;
       if (!maxDate || tanggal > maxDate) maxDate = tanggal;
     }
 
-    const kodeAtensi = str(get(row, "kodeAtensi"));
-    const has_imei = kodeAtensi
-      ? kodeAtensi.split(",").map((s) => s.trim()).includes("I")
-      : false;
-
-    if (has_imei) imeiCount++;
     const jalur = str(get(row, "kodeJalur"));
-    if (jalur === "M") jalurM++;
-    else if (jalur === "H") jalurH++;
+    if (jalur === "M") jalurM++; else if (jalur === "H") jalurH++;
 
-    return {
-      nomorDokumen: str(get(row, "nomorDokumen")),
-      qrCode: str(get(row, "qrCode")),
+    const kodeAtensi = str(get(row, "kodeAtensi"));
+    if (kodeAtensi) {
+      const parts = kodeAtensi.split(",").map((s) => s.trim());
+      if (parts.includes("D")) atensiD++;
+      if (parts.includes("I")) atensiI++;
+      if (parts.includes("A")) atensiA++;
+    }
+
+    // Hanya simpan ke DB jika ada atensi IMEI
+    if (!hasImei(kodeAtensi)) continue;
+
+    imeiRecords.push({
       paspor: str(get(row, "paspor")),
       nama: str(get(row, "nama")),
-      kebangsaan: str(get(row, "kebangsaan")),
       nomorPenerbangan: str(get(row, "nomorPenerbangan")),
       kodeJalur: jalur,
-      statusDokumen: str(get(row, "statusDokumen")),
       kodeAtensi,
-      has_imei,
       tanggalKedatangan: tanggal,
       nipPetugasPindai: str(get(row, "nipPetugasPindai")),
       namaPetugasPindai: str(get(row, "namaPetugasPindai")),
-      nipPetugasPemeriksa: str(get(row, "nipPetugasPemeriksa")),
-      namaPetugasPemeriksa: str(get(row, "namaPetugasPemeriksa")),
-      nipPetugasPeneliti: str(get(row, "nipPetugasPeneliti")),
-      namaPetugasPeneliti: str(get(row, "namaPetugasPeneliti")),
       waktuScanQr: parseDate(get(row, "waktuScanQr")),
-      waktuPemeriksaan: parseDate(get(row, "waktuPemeriksaan")),
       waktuPenelitian: parseDate(get(row, "waktuPenelitian")),
-      waktuRekam: parseDate(get(row, "waktuRekam")),
       kodeKantor: str(get(row, "kodeKantor")),
       period_month: tanggal ? tanggal.getMonth() + 1 : null,
       period_year: tanggal ? tanggal.getFullYear() : null,
-    };
+    });
+  }
+
+  // Summary lengkap tersimpan di PbcDataBatch — tidak perlu simpan baris non-IMEI
+  const summaryNotes = JSON.stringify({
+    total_scan: totalScan,
+    jalur_m: jalurM,
+    jalur_h: jalurH,
+    atensi_narkoba: atensiD,
+    atensi_imei: atensiI,
+    atensi_lain: atensiA,
+    date_from: minDate?.toISOString().slice(0, 10),
+    date_to: maxDate?.toISOString().slice(0, 10),
+    storage_note: `Hanya ${atensiI} record IMEI yang disimpan ke DB dari ${totalScan} total scan.`,
   });
 
-  // Buat batch record
   const batch = await PbcDataBatch.create({
     source_type: "barang_penumpang",
     source_label: "Data Barang Penumpang (ECD)",
@@ -107,19 +122,18 @@ async function processEcdXlsx({ buffer, filename, uploadedBy }) {
     period_year: minDate ? minDate.getFullYear() : null,
     uploaded_by: uploadedBy,
     status: "processing",
-    notes: `${records.length} record | ${imeiCount} atensi IMEI | Jalur M:${jalurM} H:${jalurH} | ${minDate?.toISOString().slice(0, 10)} s.d. ${maxDate?.toISOString().slice(0, 10)}`,
+    notes: summaryNotes,
   });
 
-  // Insert per chunk 500
-  const CHUNK = 500;
+  // Bulk insert — hanya record IMEI
   let inserted = 0;
-  for (let i = 0; i < records.length; i += CHUNK) {
-    const chunk = records.slice(i, i + CHUNK).map((r) => ({ ...r, batch_id: batch._id }));
+  const CHUNK = 200;
+  for (let i = 0; i < imeiRecords.length; i += CHUNK) {
+    const chunk = imeiRecords.slice(i, i + CHUNK).map((r) => ({ ...r, batch_id: batch._id }));
     try {
       const result = await PbcEcdRecord.insertMany(chunk, { ordered: false });
       inserted += result.length;
     } catch (e) {
-      // ordered:false — hitung yang berhasil
       if (e.insertedDocs) inserted += e.insertedDocs.length;
     }
   }
@@ -128,10 +142,19 @@ async function processEcdXlsx({ buffer, filename, uploadedBy }) {
   batch.status = "imported";
   await batch.save();
 
-  return { batch, total: inserted, imeiCount, jalurM, jalurH, dateRange: { from: minDate, to: maxDate } };
+  return {
+    batch,
+    total_scan: totalScan,
+    imei_inserted: inserted,
+    jalurM,
+    jalurH,
+    atensiD,
+    atensiI,
+    dateRange: { from: minDate, to: maxDate },
+  };
 }
 
-// Hitung periode triwulan berdasarkan manual IKI DJBC
+// Periode triwulan resmi DJBC per Manual IKI
 function getTriwulanDates(triwulan, year) {
   const Y = Number(year);
   switch (Number(triwulan)) {
