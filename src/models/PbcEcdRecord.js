@@ -23,7 +23,12 @@ const pbcEcdRecordSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-pbcEcdRecordSchema.index({ paspor: 1, tanggalKedatangan: -1 });
+// Dedup: satu paspor hanya boleh muncul sekali per tanggal kedatangan
+// (penumpang hanya tiba sekali per hari — mencegah upload ulang file yang sama)
+pbcEcdRecordSchema.index(
+  { paspor: 1, tanggalKedatangan: 1 },
+  { unique: true, sparse: true }
+);
 pbcEcdRecordSchema.index({ nipPetugasPindai: 1, period_year: 1, period_month: 1 });
 pbcEcdRecordSchema.index({ tanggalKedatangan: -1 });
 
