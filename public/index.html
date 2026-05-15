@@ -10091,9 +10091,9 @@
         }
       }
 
-      // JPY dan KRW: Kemenkeu sajikan per 100 unit — harus dibagi 100 untuk kalkulasi per unit
+      // JPY: Kemenkeu sajikan per 100 yen — harus dibagi 100 untuk kalkulasi per yen
       function kbmEffectiveRate(code, rate) {
-        return (code === "JPY" || code === "KRW") ? rate / 100 : rate;
+        return code === "JPY" ? rate / 100 : rate;
       }
 
       function kbmUpdateKurs() {
@@ -10114,16 +10114,15 @@
           ? { code: "IDR", rate: 1 }
           : kbmKursCache.currencies.find((c) => c.code === code);
         if (found) {
-          const isPer100 = code === "JPY" || code === "KRW";
+          const isPer100 = code === "JPY";
           const isIDR = code === "IDR";
           const rateDisplay = found.rate.toLocaleString("id-ID", { minimumFractionDigits: 2 });
-          const unitLabel = code === "JPY" ? "100 yen" : code === "KRW" ? "100 won" : code;
-          if (kursInput) kursInput.value = isPer100 ? `Rp ${rateDisplay} / ${unitLabel}` : isIDR ? "Rp 1,00 (basis)" : `Rp ${rateDisplay}`;
+          if (kursInput) kursInput.value = isPer100 ? `Rp ${rateDisplay} / 100 yen` : isIDR ? "Rp 1,00 (basis)" : `Rp ${rateDisplay}`;
           if (kursBadge) kursBadge.classList.remove("hidden");
           // Note per-100 atau IDR
           if (noteEl && noteText) {
             if (isPer100) {
-              noteText.textContent = `Kurs Kemenkeu untuk ${code} disajikan per 100 unit. Kalkulasi otomatis menyesuaikan ke per-unit.`;
+              noteText.textContent = "Kurs Kemenkeu untuk JPY disajikan per 100 yen. Kalkulasi otomatis menyesuaikan ke per-yen.";
               noteEl.style.color = "#fbbf24";
               noteEl.style.background = "rgba(251,191,36,0.08)";
               noteEl.style.borderColor = "rgba(251,191,36,0.2)";
