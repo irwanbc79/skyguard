@@ -9872,6 +9872,7 @@
                       <span id="kbmKursBadge" class="kbm-badge bg-green-500/20 text-green-400 hidden"><i class="fas fa-check-circle mr-1"></i>Resmi</span>
                     </label>
                     <input type="text" id="kbmKursPajak" class="kbm-input" readonly style="background:rgba(34,197,94,0.05);border-color:rgba(34,197,94,0.2);color:#86efac;">
+                    <div id="kbmKursNote" style="display:none;font-size:10px;margin-top:5px;padding:4px 8px;border-radius:5px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);"><i class="fas fa-info-circle mr-1"></i><span id="kbmKursNoteText"></span></div>
                   </div>
                   <div>
                     <label class="kbm-label">FOB (USD Equivalent)</label>
@@ -10054,9 +10055,15 @@
           kbmKursCache = allKursData;
           const sel = document.getElementById("kbmValuta");
           if (sel && kbmKursCache) {
-            const currencies = [...kbmKursCache.currencies].sort((a, b) => {
+            // Inject IDR — tidak ada di Kemenkeu karena ini base currency
+            const hasIDR = kbmKursCache.currencies.some(c => c.code === "IDR");
+            const augmented = hasIDR ? [...kbmKursCache.currencies]
+              : [...kbmKursCache.currencies, { code: "IDR", name: "Rupiah Indonesia(IDR)", rate: 1, flag: "https://flagcdn.com/w40/id.png" }];
+            const currencies = augmented.sort((a, b) => {
               if (a.code === "USD") return -1;
               if (b.code === "USD") return 1;
+              if (a.code === "IDR") return -1;
+              if (b.code === "IDR") return 1;
               return a.code.localeCompare(b.code);
             });
             sel.innerHTML =
@@ -10084,34 +10091,60 @@
         }
       }
 
+      // JPY dan KRW: Kemenkeu sajikan per 100 unit — harus dibagi 100 untuk kalkulasi per unit
+      function kbmEffectiveRate(code, rate) {
+        return (code === "JPY" || code === "KRW") ? rate / 100 : rate;
+      }
+
       function kbmUpdateKurs() {
         const code = document.getElementById("kbmValuta")?.value;
         const kursInput = document.getElementById("kbmKursPajak");
         const kursBadge = document.getElementById("kbmKursBadge");
         const kursUsdLabel = document.getElementById("kbmKursUSDLabel");
+        const noteEl = document.getElementById("kbmKursNote");
+        const noteText = document.getElementById("kbmKursNoteText");
         if (!code || !kbmKursCache) {
           if (kursInput) kursInput.value = "";
           if (kursBadge) kursBadge.classList.add("hidden");
+          if (noteEl) noteEl.style.display = "none";
           return;
         }
-        const found = kbmKursCache.currencies.find((c) => c.code === code);
+        // IDR tidak ada di data Kemenkeu — inject langsung
+        const found = code === "IDR"
+          ? { code: "IDR", rate: 1 }
+          : kbmKursCache.currencies.find((c) => c.code === code);
         if (found) {
-          if (kursInput)
-            kursInput.value =
-              "Rp " +
-              found.rate.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+          const isPer100 = code === "JPY" || code === "KRW";
+          const isIDR = code === "IDR";
+          const rateDisplay = found.rate.toLocaleString("id-ID", { minimumFractionDigits: 2 });
+          const unitLabel = code === "JPY" ? "100 yen" : code === "KRW" ? "100 won" : code;
+          if (kursInput) kursInput.value = isPer100 ? `Rp ${rateDisplay} / ${unitLabel}` : isIDR ? "Rp 1,00 (basis)" : `Rp ${rateDisplay}`;
           if (kursBadge) kursBadge.classList.remove("hidden");
-          if (kursUsdLabel && code === "USD")
-            kursUsdLabel.textContent =
-              "Rp " + found.rate.toLocaleString("id-ID");
-          // For non-USD, also show USD label
+          // Note per-100 atau IDR
+          if (noteEl && noteText) {
+            if (isPer100) {
+              noteText.textContent = `Kurs Kemenkeu untuk ${code} disajikan per 100 unit. Kalkulasi otomatis menyesuaikan ke per-unit.`;
+              noteEl.style.color = "#fbbf24";
+              noteEl.style.background = "rgba(251,191,36,0.08)";
+              noteEl.style.borderColor = "rgba(251,191,36,0.2)";
+              noteEl.style.display = "block";
+            } else if (isIDR) {
+              noteText.textContent = "Nilai barang dalam Rupiah — tidak perlu konversi kurs.";
+              noteEl.style.color = "#7dd3fc";
+              noteEl.style.background = "rgba(56,189,248,0.08)";
+              noteEl.style.borderColor = "rgba(56,189,248,0.2)";
+              noteEl.style.display = "block";
+            } else {
+              noteEl.style.display = "none";
+            }
+          }
           const usdObj = kbmKursCache.currencies.find((c) => c.code === "USD");
           if (kursUsdLabel && usdObj)
-            kursUsdLabel.textContent =
-              "Rp " + usdObj.rate.toLocaleString("id-ID");
+            kursUsdLabel.textContent = "Rp " + usdObj.rate.toLocaleString("id-ID");
         } else {
           if (kursInput) kursInput.value = "Kurs tidak tersedia";
           if (kursBadge) kursBadge.classList.add("hidden");
+          if (noteEl) noteEl.style.display = "none";
         }
         kbmAutoCalc();
       }
@@ -10125,15 +10158,16 @@
         const jumlahOrang =
           parseInt(document.getElementById("kbmJumlahOrang")?.value) || 1;
         if (!valutaCode || !kbmKursCache) return;
-        const kursObj = kbmKursCache.currencies.find(
-          (c) => c.code === valutaCode,
-        );
+        const kursObj = valutaCode === "IDR"
+          ? { rate: 1 }
+          : kbmKursCache.currencies.find((c) => c.code === valutaCode);
         if (!kursObj) return;
         const kurs = kursObj.rate;
+        const effectiveRate = kbmEffectiveRate(valutaCode, kurs);
         const usdKurs =
           kbmKursCache.currencies.find((c) => c.code === "USD")?.rate || 16818;
         let fobUsd =
-          valutaCode === "USD" ? nilaiBarang : (nilaiBarang * kurs) / usdKurs;
+          valutaCode === "USD" ? nilaiBarang : (nilaiBarang * effectiveRate) / usdKurs;
         document.getElementById("kbmFOBUsd").value =
           fobUsd > 0 ? "$ " + fobUsd.toFixed(2) : "";
         let nilaiPabeanUsd = Math.max(0, fobUsd - pembebasan * jumlahOrang);
@@ -10172,18 +10206,19 @@
           showToast("Masukkan nilai barang", "error");
           return;
         }
-        const kursObj = kbmKursCache.currencies.find(
-          (c) => c.code === valutaCode,
-        );
+        const kursObj = valutaCode === "IDR"
+          ? { rate: 1 }
+          : kbmKursCache.currencies.find((c) => c.code === valutaCode);
         if (!kursObj) {
           showToast("Kurs tidak tersedia", "error");
           return;
         }
         const kurs = kursObj.rate;
+        const effectiveRate = kbmEffectiveRate(valutaCode, kurs);
         const usdKurs =
           kbmKursCache.currencies.find((c) => c.code === "USD")?.rate || 16818;
         let fobUsd =
-          valutaCode === "USD" ? nilaiBarang : (nilaiBarang * kurs) / usdKurs;
+          valutaCode === "USD" ? nilaiBarang : (nilaiBarang * effectiveRate) / usdKurs;
         fobUsd = parseFloat(fobUsd.toFixed(2));
         let nilaiPabeanUsd = Math.max(0, fobUsd - pembebasan * jumlahOrang);
         let nilaiPabeanRp = nilaiPabeanUsd * usdKurs;
@@ -10201,7 +10236,7 @@
         const fmt = (v) => "Rp " + v.toLocaleString("id-ID");
         document.getElementById("kbmResValuta").textContent = valutaCode;
         document.getElementById("kbmResKurs").textContent =
-          "Rp " + kurs.toLocaleString("id-ID");
+          "Rp " + effectiveRate.toLocaleString("id-ID", { minimumFractionDigits: 2 });
         document.getElementById("kbmResCIF").textContent = fmt(nilaiPabeanRp);
         document.getElementById("kbmResBM").textContent = fmt(bm);
         document.getElementById("kbmResBMTP").textContent = fmt(bmtp);
@@ -10240,7 +10275,7 @@
           tarifPPh,
           tarifDenda,
           valutaCode,
-          kurs,
+          kurs: effectiveRate,  // per-unit rate (JPY/KRW sudah dibagi 100)
           fobUsd,
           nilaiPabeanUsd,
           usdKurs,
