@@ -4137,9 +4137,9 @@
         if (!el) return;
         try {
           const token = localStorage.getItem("sg_token") || "";
-          const res = await fetch("/api/passengers?limit=1", { headers: { Authorization: "Bearer " + token } });
+          const res = await fetch("/api/passengers/stats", { headers: { Authorization: "Bearer " + token } });
           const json = await res.json();
-          const count = json.pagination?.total || json.total || 0;
+          const count = json.data?.total_passengers || 0;
           el.innerHTML = `<span style="color:#4ade80;"><i class="fas fa-check-circle mr-1"></i>${count.toLocaleString("id-ID")} data penumpang tersedia</span>`;
         } catch {
           el.innerHTML = '<span style="color:#475569;">Tidak dapat memuat info IMEI</span>';
@@ -18500,7 +18500,6 @@
                 <input type="text" id="manifestSearchFilter" placeholder="Cari flight..." oninput="debouncedManifestSearch()" class="flex-1 px-2 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none" />
               </div>
               <div class="flex gap-2 mb-3">
-                <button onclick="ingestSampleManifests()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-orange-500/80 hover:bg-orange-500 transition"><i class="fas fa-folder-open mr-1"></i> Samples</button>
                 <button onclick="document.getElementById('manifestUploadInput').click()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-blue-500/80 hover:bg-blue-500 transition"><i class="fas fa-upload mr-1"></i> Upload</button>
                 <button onclick="openEmailScanner()" class="flex-1 px-3 py-2 rounded-lg text-xs bg-emerald-500/80 hover:bg-emerald-500 transition"><i class="fas fa-envelope mr-1"></i> Scan Email</button>
                 <input type="file" id="manifestUploadInput" accept=".txt,.csv,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="uploadManifestFile(this)"/>
@@ -19969,29 +19968,6 @@
       function exportManifestPassengers() {
         if (!selectedManifestId) return;
         window.location.href = `/api/manifests/${selectedManifestId}/passengers/export`;
-      }
-
-      async function ingestSampleManifests() {
-        try {
-          showToast("Memproses file sample...");
-          const res = await fetch("/api/manifests/ingest-samples", {
-            method: "POST",
-          });
-          const result = await res.json();
-          if (result.status === "ok") {
-            const data = result.data || [];
-            const ingested = data.filter((d) => d.status === "ingested");
-            showToast(
-              `${ingested.length} manifest baru diproses, ${data.length - ingested.length} sudah ada`,
-            );
-            loadManifestList();
-          } else {
-            showToast(result.message || "Gagal", "error");
-          }
-        } catch (e) {
-          console.error("Ingest samples error:", e);
-          showToast("Gagal memproses sample", "error");
-        }
       }
 
       async function uploadManifestFile(input) {

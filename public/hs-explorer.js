@@ -183,7 +183,7 @@ function getHSExplorerHTML() {
         <p class="text-gray-400 text-sm">
           <i class="fas fa-info-circle mr-2"></i>
           Data BTKI 2022 (Agustus). Untuk tarif terkini, cek langsung di 
-          <a href="https://eservice.insw.go.id/intr" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline">
+          <a href="https://www.insw.go.id/intr" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline">
             INSW - Indonesia National Single Window
           </a>
         </p>
@@ -717,7 +717,7 @@ async function showHSDetail(hsCode) {
         
         <!-- Actions -->
         <div class="flex gap-3">
-          <a href="https://eservice.insw.go.id/intr?search=${hs.hsCode.replace(/\./g, '')}" target="_blank"
+          <a href="https://www.insw.go.id/intr?search=${hs.hsCode.replace(/\./g, '')}" target="_blank"
              class="flex-1 px-4 py-3 bg-cyan-500/20 hover:bg-cyan-500/30 rounded-xl text-cyan-400 text-center transition-all">
             <i class="fas fa-external-link-alt mr-2"></i>Cek di INSW
           </a>
