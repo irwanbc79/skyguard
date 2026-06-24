@@ -292,6 +292,45 @@ router.get('/notes/chapter/:num', async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 });
+// Helper to call Gemini with model fallback (tries gemini-2.0-flash first, then gemini-1.5-flash)
+async function callGeminiWithFallback(prompt, apiKey) {
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    let lastError = null;
+
+    for (const model of models) {
+        try {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await fetch(geminiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: prompt }]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    }
+                })
+            });
+
+            if (response.ok) {
+                const resData = await response.json();
+                const textResult = resData.candidates[0].content.parts[0].text;
+                return JSON.parse(textResult.trim());
+            } else {
+                const errText = await response.text();
+                console.warn(`Gemini model ${model} failed: ${response.status} - ${errText}`);
+                lastError = new Error(`Gemini API Error (${model}) (HTTP ${response.status}): ${errText}`);
+            }
+        } catch (err) {
+            console.warn(`Error calling Gemini model ${model}:`, err.message);
+            lastError = err;
+        }
+    }
+    throw lastError || new Error('Gagal menghubungi Gemini API setelah mencoba beberapa model.');
+}
 
 // GET /ai-search - Pencarian Semantik berbasis AI menggunakan Gemini API
 router.get('/ai-search', async (req, res) => {
@@ -322,35 +361,12 @@ Format JSON wajib seperti ini:
   { "hsCode": "6203.43.00", "confidence": 75, "reasoning": "Baju celana pemadam dari serat sintetik" }
 ]`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
-            })
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Gemini API Error (HTTP ${response.status}): ${errText}`);
-        }
-
-        const resData = await response.json();
         let suggestions = [];
         try {
-            const textResult = resData.candidates[0].content.parts[0].text;
-            suggestions = JSON.parse(textResult.trim());
-        } catch (parseErr) {
-            console.error('Gagal parse JSON dari Gemini:', parseErr, resData);
-            throw new Error('Gagal memproses respons dari AI.');
+            suggestions = await callGeminiWithFallback(prompt, apiKey);
+        } catch (err) {
+            console.error('AI Query failed:', err);
+            return res.status(500).json({ status: 'error', message: err.message });
         }
 
         if (!Array.isArray(suggestions)) {
