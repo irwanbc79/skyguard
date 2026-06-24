@@ -129,12 +129,17 @@ function initMolecularCanvas() {
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
   
-  // Setup mouse/touch interactions
+  // Setup mouse interactions
   canvas.addEventListener('mousedown', onMouseDown);
   canvas.addEventListener('mousemove', onMouseMove);
   canvas.addEventListener('mouseup', onMouseUp);
   canvas.addEventListener('mouseleave', onMouseLeave);
   
+  // Setup touch interactions (tablet/mobile support)
+  canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+  canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+  canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+
   // Generate background starfield
   starfield = [];
   for (let i = 0; i < 40; i++) {
@@ -1467,6 +1472,69 @@ function onMouseLeave() {
   hoveredNode = null;
   const tooltip = document.getElementById('hsNodeTooltip');
   if (tooltip) tooltip.classList.add('hidden');
+}
+
+// Touch Event Handlers (Tablet/Mobile)
+function getTouchPos(e) {
+  if (!canvas) return { x: 0, y: 0 };
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0] || e.changedTouches[0];
+  return {
+    x: touch.clientX - rect.left,
+    y: touch.clientY - rect.top
+  };
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  const pos = getTouchPos(e);
+  const clicked = nodes.find(n => {
+    const dx = n.x - pos.x;
+    const dy = n.y - pos.y;
+    return Math.sqrt(dx*dx + dy*dy) < n.radius + 8; // +8px for easier touch target
+  });
+  
+  if (clicked) {
+    draggedNode = clicked;
+    draggedNode.vx = 0;
+    draggedNode.vy = 0;
+    draggedNode._touchStartX = pos.x;
+    draggedNode._touchStartY = pos.y;
+  }
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  if (!draggedNode) return;
+  const pos = getTouchPos(e);
+  draggedNode.x = pos.x;
+  draggedNode.y = pos.y;
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  if (draggedNode) {
+    const pos = getTouchPos(e);
+    const startX = draggedNode._touchStartX || pos.x;
+    const startY = draggedNode._touchStartY || pos.y;
+    const dist = Math.sqrt(Math.pow(pos.x - startX, 2) + Math.pow(pos.y - startY, 2));
+    
+    // Tap (not drag) = navigate
+    if (dist < 10) {
+      if (draggedNode.type === 'section') {
+        loadSectionChapters(draggedNode.sectionNumber);
+      } else if (draggedNode.type === 'chapter') {
+        loadChapterHS(draggedNode.chapterNumber);
+      } else if (draggedNode.type === 'hs_item') {
+        showHSDetail(draggedNode.hsCode);
+      } else if (draggedNode.type === 'section_center') {
+        loadHSSections();
+      } else if (draggedNode.type === 'chapter_center') {
+        loadSectionChapters(hsState.currentSection);
+      }
+    }
+    draggedNode = null;
+  }
 }
 
 // Export modules to window namespace
