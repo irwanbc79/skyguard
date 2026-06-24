@@ -96,7 +96,8 @@ let hsState = {
   currentSection: null,
   currentChapter: null,
   searchQuery: '',
-  viewMode: 'sections' // 'sections', 'chapters', 'hsList'
+  viewMode: 'sections', // 'sections', 'chapters', 'hsList'
+  aiEnabled: false
 };
 
 // Physics parameters
@@ -311,6 +312,10 @@ window.setExplorerLocale = function(locale) {
   if (textCh) textCh.textContent = UI_STRINGS[locale].chapters;
   const textTar = document.getElementById('lblStatTar');
   if (textTar) textTar.textContent = UI_STRINGS[locale].tariffs;
+  const textAiToggle = document.getElementById('lblAiSearchToggle');
+  if (textAiToggle) {
+    textAiToggle.textContent = locale === 'id' ? 'Cari dengan AI' : 'AI Search';
+  }
   
   // Refresh views to match new language
   if (hsState.searchQuery) {
@@ -321,6 +326,31 @@ window.setExplorerLocale = function(locale) {
     loadSectionChapters(hsState.currentSection);
   } else if (hsState.viewMode === 'hsList') {
     loadChapterHS(hsState.currentChapter);
+  }
+};
+
+// Toggle AI Search Mode
+window.toggleAiSearch = function() {
+  hsState.aiEnabled = !hsState.aiEnabled;
+  const btn = document.getElementById('btnAiSearch');
+  const icon = btn ? btn.querySelector('i') : null;
+  const label = document.getElementById('lblAiSearchToggle');
+  
+  if (btn) {
+    if (hsState.aiEnabled) {
+      btn.className = 'flex items-center justify-center gap-2 px-5 py-4 rounded-xl border transition-all duration-300 font-bold text-sm bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500/30 text-white shadow-lg shadow-purple-500/20';
+      if (icon) icon.className = 'fas fa-robot animate-pulse text-pink-300';
+    } else {
+      btn.className = 'flex items-center justify-center gap-2 px-5 py-4 rounded-xl border transition-all duration-300 font-bold text-sm bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10';
+      if (icon) icon.className = 'fas fa-robot';
+    }
+  }
+  
+  // Re-run search if query exists
+  const query = hsState.searchQuery;
+  if (query && query.length >= 2) {
+    document.getElementById('hsSearchLoading').classList.remove('hidden');
+    searchHSCodes(query);
   }
 };
 
@@ -369,14 +399,23 @@ function getHSExplorerHTML() {
         
         <!-- Search Bar -->
         <div class="mt-6">
-          <div class="relative">
-            <input type="text" id="hsSearchInput" 
-              placeholder="${t.placeholder}"
-              class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 pl-12 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
-            <div id="hsSearchLoading" class="absolute right-4 top-1/2 -translate-y-1/2 hidden">
-              <i class="fas fa-spinner fa-spin text-purple-400"></i>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+              <input type="text" id="hsSearchInput" 
+                placeholder="${t.placeholder}"
+                class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 pl-12 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all">
+              <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+              <div id="hsSearchLoading" class="absolute right-4 top-1/2 -translate-y-1/2 hidden">
+                <i class="fas fa-spinner fa-spin text-purple-400"></i>
+              </div>
             </div>
+            
+            <!-- AI Search Toggle Button -->
+            <button onclick="toggleAiSearch()" id="btnAiSearch" 
+              class="flex items-center justify-center gap-2 px-5 py-4 rounded-xl border transition-all duration-300 font-bold text-sm ${hsState.aiEnabled ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500/30 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}">
+              <i class="fas fa-robot ${hsState.aiEnabled ? 'animate-pulse text-pink-300' : ''}"></i>
+              <span id="lblAiSearchToggle">${explorerLocale === 'id' ? 'Cari dengan AI' : 'AI Search'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -641,19 +680,21 @@ function animationLoop() {
 }
 
 // Search HS Codes and generate Molecular Network
-async function searchHSCodes(query) {
-  try {
-    const response = await fetch(`/api/hs/search?q=${encodeURIComponent(query)}&limit=45`);
+    const url = hsState.aiEnabled
+      ? `/api/hs/ai-search?q=${encodeURIComponent(query)}`
+      : `/api/hs/search?q=${encodeURIComponent(query)}&limit=45`;
+    const response = await fetch(url);
     const result = await response.json();
     
     document.getElementById('hsSearchLoading').classList.add('hidden');
     
     const listContainer = document.getElementById('hsMainContent');
-    if (!result.success || !result.data.length) {
+    if (!result.success || !result.data || !result.data.length) {
+      const errMsg = result.message || UI_STRINGS[explorerLocale].no_results;
       listContainer.innerHTML = `
         <div class="glass-card rounded-xl p-8 text-center text-gray-400 border border-white/5">
           <i class="fas fa-search-minus text-4xl mb-3 text-purple-400/60"></i>
-          <p>${UI_STRINGS[explorerLocale].no_results}</p>
+          <p>${errMsg}</p>
         </div>
       `;
       // Clear molecular nodes
@@ -662,11 +703,18 @@ async function searchHSCodes(query) {
       return;
     }
     
-    // 1. Calculate relevance scores in the client side
-    const scoredData = result.data.map(item => {
-      const score = getRelevanceScore(query, item);
-      return { ...item, score };
-    }).sort((a, b) => b.score - a.score);
+    // 1. Calculate relevance scores or map AI scores
+    let scoredData;
+    if (hsState.aiEnabled) {
+      scoredData = result.data.map(item => {
+        return { ...item, score: item.aiConfidence || 85 };
+      }).sort((a, b) => b.score - a.score);
+    } else {
+      scoredData = result.data.map(item => {
+        const score = getRelevanceScore(query, item);
+        return { ...item, score };
+      }).sort((a, b) => b.score - a.score);
+    }
     
     // 2. Identify Triple Nucleus
     const tripleNucleus = scoredData.slice(0, 3);
@@ -681,10 +729,10 @@ async function searchHSCodes(query) {
     
     // Add 3 Nucleus Nodes in the Center
     tripleNucleus.forEach((item, idx) => {
-      // Color-coding based on compliance/lartas status (e.g. duty rating or placeholder BM)
       const duty = parseFloat(item.importDuty);
-      let color = '#a855f7'; // Purple nucleus by default
-      if (duty > 10) color = '#ef4444'; // Red restricted/high duty
+      let color = '#a855f7'; // Purple nucleus default
+      if (item.isAiResult) color = '#c084fc'; // Bright lavender for AI results
+      else if (duty > 10) color = '#ef4444'; // Red restricted/high duty
       else if (duty === 0) color = '#10b981'; // Green safe duty-free
       
       nodes.push({
@@ -698,6 +746,9 @@ async function searchHSCodes(query) {
         ppnbm: item.ppnbm,
         isNucleus: true,
         score: item.score,
+        isAiResult: item.isAiResult || false,
+        aiConfidence: item.aiConfidence,
+        aiReasoning: item.aiReasoning,
         x: w/2 + (idx - 1) * 90,
         y: h/2 + (idx === 1 ? -30 : 20),
         vx: 0,
@@ -735,12 +786,15 @@ async function searchHSCodes(query) {
         ppnbm: item.ppnbm,
         isNucleus: false,
         score: item.score,
+        isAiResult: item.isAiResult || false,
+        aiConfidence: item.aiConfidence,
+        aiReasoning: item.aiReasoning,
         x: w/2 + Math.cos(angle) * radiusDist,
         y: h/2 + Math.sin(angle) * radiusDist,
         vx: 0,
         vy: 0,
-        radius: 24,
-        color: color
+        radius: 26,
+        color: item.isAiResult ? '#c084fc' : color
       });
       
       // Connect each satellite to one of the 3 Nucleus nodes randomly to build network bonds
@@ -1261,6 +1315,20 @@ async function showHSDetail(hsCode) {
           <h3 class="text-xl font-bold text-white mb-2 leading-snug">${explorerLocale === 'id' ? hs.descriptionId : (hs.descriptionEn || hs.descriptionId)}</h3>
           <p class="text-gray-400 text-sm font-body">${explorerLocale === 'id' ? (hs.descriptionEn || '') : hs.descriptionId}</p>
         </div>
+        
+        <!-- AI Analysis details if applicable -->
+        ${(() => {
+          const activeNode = nodes.find(n => n.hsCode === hs.hsCode && n.isAiResult);
+          if (!activeNode) return '';
+          return `
+            <div class="bg-purple-950/40 border border-purple-500/20 rounded-xl p-4 mb-6">
+              <div class="flex items-center gap-2 mb-2 text-purple-400 font-semibold text-xs uppercase tracking-wider">
+                <i class="fas fa-robot animate-pulse"></i> Analisis AI (Gemini) - Keyakinan ${activeNode.aiConfidence}%
+              </div>
+              <p class="text-purple-300 text-sm leading-relaxed">${activeNode.aiReasoning}</p>
+            </div>
+          `;
+        })()}
         
         <!-- Tariff Grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

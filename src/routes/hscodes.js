@@ -293,4 +293,111 @@ router.get('/notes/chapter/:num', async (req, res) => {
     }
 });
 
+// GET /ai-search - Pencarian Semantik berbasis AI menggunakan Gemini API
+router.get('/ai-search', async (req, res) => {
+    try {
+        const q = req.query.q || '';
+        if (q.length < 2) return res.json({ success: true, data: [] });
+
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Fitur Cari dengan AI dinonaktifkan. Silakan isi GEMINI_API_KEY di file .env server.' 
+            });
+        }
+
+        const prompt = `Anda adalah Asisten Bea Cukai dan Ahli Klasifikasi HS Code (BTKI 2022).
+Petugas bea cukai sedang mencari HS Code yang tepat untuk barang dengan deskripsi berikut: "${q}".
+
+Tugas Anda:
+1. Temukan 3 hingga 5 HS Code (format 8 digit seperti "6210.10.00" atau "8517.13.00") atau minimal Bab (2 digit seperti "62" atau "85") yang paling cocok dengan deskripsi barang tersebut.
+2. Untuk setiap kode, berikan skor keyakinan (confidence score) antara 0 hingga 100 berdasarkan tingkat kecocokan.
+3. Berikan alasan singkat dalam Bahasa Indonesia (maksimal 2 kalimat) mengapa kode tersebut dipilih (misal: "Baju pemadam kebakaran terbuat dari serat sintetis pelindung luar dan masuk ke bab pakaian pelindung").
+
+Kembalikan respons HANYA dalam format JSON array yang valid, tanpa markdown wrapper (seperti \`\`\`json) dan tanpa penjelasan lain.
+Format JSON wajib seperti ini:
+[
+  { "hsCode": "6210.10.00", "confidence": 95, "reasoning": "Pakaian pelindung pemadam kebakaran masuk pos pakaian khusus" },
+  { "hsCode": "6203.43.00", "confidence": 75, "reasoning": "Baju celana pemadam dari serat sintetik" }
+]`;
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const response = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Gemini API Error (HTTP ${response.status}): ${errText}`);
+        }
+
+        const resData = await response.json();
+        let suggestions = [];
+        try {
+            const textResult = resData.candidates[0].content.parts[0].text;
+            suggestions = JSON.parse(textResult.trim());
+        } catch (parseErr) {
+            console.error('Gagal parse JSON dari Gemini:', parseErr, resData);
+            throw new Error('Gagal memproses respons dari AI.');
+        }
+
+        if (!Array.isArray(suggestions)) {
+            suggestions = [];
+        }
+
+        const db = mongoose.connection.db;
+        const finalData = [];
+
+        for (const item of suggestions) {
+            let cleanedCode = item.hsCode.replace(/[^0-9]/g, '');
+            if (cleanedCode.length === 8) {
+                cleanedCode = cleanedCode.slice(0, 2) + '.' + cleanedCode.slice(2, 4) + '.' + cleanedCode.slice(4, 6) + '.' + cleanedCode.slice(6, 8);
+            }
+
+            let queryObj = { hs_code: cleanedCode };
+            if (cleanedCode.length === 2) {
+                queryObj = { chapter: cleanedCode, hs_level: 4 };
+            }
+
+            const dbItems = await db.collection('hs_codes').find(queryObj).limit(2).toArray();
+            
+            for (const dbItem of dbItems) {
+                // Cegah duplikasi hasil
+                if (finalData.some(d => d.hsCode === dbItem.hs_code)) continue;
+
+                finalData.push({
+                    hsCode: dbItem.hs_code,
+                    descriptionId: dbItem.description_id,
+                    descriptionEn: dbItem.description_en,
+                    importDuty: dbItem.import_duty || '-',
+                    ppn: dbItem.ppn || '-',
+                    ppnbm: dbItem.ppnbm || '-',
+                    chapter: dbItem.chapter,
+                    level: dbItem.hs_level,
+                    isAiResult: true,
+                    aiConfidence: item.confidence,
+                    aiReasoning: item.reasoning
+                });
+            }
+        }
+
+        res.json({ success: true, data: finalData, query: q });
+    } catch (err) {
+        console.error('AI Search Error:', err);
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
 module.exports = router;
