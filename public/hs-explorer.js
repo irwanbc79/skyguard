@@ -680,6 +680,8 @@ function animationLoop() {
 }
 
 // Search HS Codes and generate Molecular Network
+async function searchHSCodes(query) {
+  try {
     const url = hsState.aiEnabled
       ? `/api/hs/ai-search?q=${encodeURIComponent(query)}`
       : `/api/hs/search?q=${encodeURIComponent(query)}&limit=45`;
