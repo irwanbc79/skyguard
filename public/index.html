@@ -9709,7 +9709,10 @@
                             <span class="text-lg">Total Pajak</span><span class="text-2xl font-bold text-green-400">Rp ${p.total_pajak_idr.toLocaleString("id-ID")}</span>
                         </div>
                         <div class="text-xs text-gray-500 text-center pt-2">Kurs: Rp ${k.rate.toLocaleString("id-ID")}/USD</div>
-                        <button onclick="imeiPrintPajak()" class="w-full mt-2 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;cursor:pointer;"><i class="fas fa-print"></i> PRINT NOTA PAJAK</button>
+                        <div class="flex gap-2 mt-2">
+                          <button onclick="imeiPrintPajak('id')" class="flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;cursor:pointer;"><i class="fas fa-print"></i> CETAK (ID)</button>
+                          <button onclick="imeiPrintPajak('en')" class="flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;cursor:pointer;"><i class="fas fa-print"></i> PRINT (EN)</button>
+                        </div>
                     </div>`;
 
           document.getElementById("hasilPajak").innerHTML = html;
@@ -9720,17 +9723,55 @@
       }
 
       let imeiLastPajak = null;
-      window.imeiPrintPajak = function () {
+      window.imeiPrintPajak = function (lang = 'id') {
         if (!imeiLastPajak) return;
+        const isInd = lang === 'id';
         const { p, k, totalFob, devices } = imeiLastPajak;
         const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
-        const now = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const localeStr = isInd ? "id-ID" : "en-US";
+        const dateSuffix = isInd ? " pukul " : " at ";
+        const nowRaw = new Date();
+        const now = nowRaw.toLocaleDateString(localeStr, { day: "2-digit", month: "long", year: "numeric" }) + 
+                    dateSuffix + 
+                    nowRaw.toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false });
+        
+        // Translations
+        const title = isInd ? "KANTOR BEA DAN CUKAI KUALANAMU" : "KUALANAMU CUSTOMS AND EXCISE OFFICE";
+        const docTitle = isInd ? "NOTA PAJAK BARANG BAWAAN PENUMPANG" : "PASSENGER ACCOMPANIED GOODS TAX RECEIPT";
+        const docSub = isInd ? "Telepon Genggam / Perangkat Elektronik" : "Mobile Phones / Electronic Devices";
+        
+        const thNo = isInd ? "No" : "No";
+        const thBrandModel = isInd ? "Merk / Model" : "Brand / Model";
+        const thCapacity = isInd ? "Kapasitas" : "Capacity";
+        const thPrice = isInd ? "Harga (USD)" : "Price (USD)";
+        
+        const lblTotalFob = "Total FOB";
+        const lblExemption = isInd ? "Pembebasan" : "Exemption";
+        const lblTaxable = isInd ? "Kena Pajak" : "Taxable Value";
+        const lblCustomsVal = isInd ? "Nilai Pabean" : "Customs Value";
+        const lblKurs = isInd ? "Kurs USD" : "USD Exchange Rate";
+        
+        const thLevyType = isInd ? "Jenis Pungutan" : "Type of Levy";
+        const thCalc = isInd ? "Perhitungan" : "Calculation";
+        const thAmount = isInd ? "Nilai (Rp)" : "Amount (IDR)";
+        
+        const rowBM = isInd ? "Bea Masuk (BM)" : "Import Duty (BM)";
+        const rowPPN = "PPN";
+        const calcBM = isInd ? "10% × Nilai Pabean, bulat ke 1.000" : "10% × Customs Value, rounded to 1,000";
+        const calcPPN = isInd ? "11% × (Nilai Pabean + BM eksak)" : "11% × (Customs Value + Exact BM)";
+        
+        const totalLabel = isInd ? "JUMLAH PUNGUTAN" : "TOTAL LEVIES";
+        const noteText = isInd 
+          ? "* Perhitungan berdasarkan kurs pajak resmi Kementerian Keuangan RI. Hasil ini bersifat simulasi."
+          : "* Calculation is based on the official tax exchange rate of the Ministry of Finance of Republic of Indonesia. This result is a simulation.";
+        const signatureText = isInd ? "Petugas Bea dan Cukai" : "Customs and Excise Officer";
+
         const deviceRows = devices.filter(Boolean).map((dv, i) =>
           `<tr><td>${i + 1}</td><td>${dv.brand} ${dv.model}</td><td>${dv.capacity || "-"}</td><td style="text-align:right;font-weight:bold;">$${dv.price_usd.toLocaleString()}</td></tr>`
         ).join("");
         const w = window.open("", "_blank", "width=800,height=700");
-        w.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
-<title>Nota Pajak HP</title>
+        w.document.write(`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">
+<title>${docTitle}</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 13px; color: #111; margin: 0; padding: 20px; }
   .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 14px; }
@@ -9756,29 +9797,29 @@
   @media print { body { padding: 10px; } }
 </style></head><body>
 <div class="header">
-  <div class="logo">KANTOR BEA DAN CUKAI KUALANAMU</div>
-  <h1>NOTA PAJAK BARANG BAWAAN PENUMPANG</h1>
-  <h2>Telepon Genggam / Perangkat Elektronik</h2>
+  <div class="logo">${title}</div>
+  <h1>${docTitle}</h1>
+  <h2>${docSub}</h2>
   <p style="font-size:11px;color:#666;margin:4px 0 0;">${now}</p>
 </div>
-<table><thead><tr><th>No</th><th>Merk / Model</th><th>Kapasitas</th><th>Harga (USD)</th></tr></thead>
+<table><thead><tr><th>${thNo}</th><th>${thBrandModel}</th><th>${thCapacity}</th><th>${thPrice}</th></tr></thead>
 <tbody>${deviceRows}</tbody></table>
 <div class="badges">
-  <div class="badge"><div class="lbl">Total FOB</div><div class="val">$${totalFob.toLocaleString()}</div></div>
-  <div class="badge"><div class="lbl">Pembebasan</div><div class="val">USD ${p.pembebasan_usd}</div></div>
-  <div class="badge"><div class="lbl">Kena Pajak</div><div class="val">$${p.kena_pajak_usd.toLocaleString()}</div></div>
-  <div class="badge"><div class="lbl">Nilai Pabean</div><div class="val">${fmtRp(p.nilai_pabean_idr)}</div></div>
-  <div class="badge"><div class="lbl">Kurs USD</div><div class="val">Rp ${Math.round(k.rate).toLocaleString("id-ID")}</div></div>
+  <div class="badge"><div class="lbl">${lblTotalFob}</div><div class="val">$${totalFob.toLocaleString()}</div></div>
+  <div class="badge"><div class="lbl">${lblExemption}</div><div class="val">USD ${p.pembebasan_usd}</div></div>
+  <div class="badge"><div class="lbl">${lblTaxable}</div><div class="val">$${p.kena_pajak_usd.toLocaleString()}</div></div>
+  <div class="badge"><div class="lbl">${lblCustomsVal}</div><div class="val">${fmtRp(p.nilai_pabean_idr)}</div></div>
+  <div class="badge"><div class="lbl">${lblKurs}</div><div class="val">Rp ${Math.round(k.rate).toLocaleString("id-ID")}</div></div>
 </div>
-<table class="tax-table"><thead><tr><th>No</th><th>Jenis Pungutan</th><th>Perhitungan</th><th>Nilai (Rp)</th></tr></thead>
+<table class="tax-table"><thead><tr><th>${thNo}</th><th>${thLevyType}</th><th>${thCalc}</th><th>${thAmount}</th></tr></thead>
 <tbody>
-  <tr><td>1</td><td>Bea Masuk (BM)</td><td>10% × Nilai Pabean, bulat ke 1.000</td><td>${fmtRp(p.bm_idr)}</td></tr>
-  <tr><td>2</td><td>PPN</td><td>11% × (Nilai Pabean + BM eksak)</td><td>${fmtRp(p.ppn_idr)}</td></tr>
+  <tr><td>1</td><td>${rowBM}</td><td>${calcBM}</td><td>${fmtRp(p.bm_idr)}</td></tr>
+  <tr><td>2</td><td>${rowPPN}</td><td>${calcPPN}</td><td>${fmtRp(p.ppn_idr)}</td></tr>
 </tbody>
-<tfoot><tr class="total-row"><td colspan="3">JUMLAH PUNGUTAN</td><td>${fmtRp(p.total_pajak_idr)}</td></tr></tfoot>
+<tfoot><tr class="total-row"><td colspan="3">${totalLabel}</td><td>${fmtRp(p.total_pajak_idr)}</td></tr></tfoot>
 </table>
-<div class="note">* Perhitungan berdasarkan kurs pajak resmi Kementerian Keuangan RI. Hasil ini bersifat simulasi.</div>
-<div class="sign"><div class="sign-box"><div class="line">Petugas Bea dan Cukai</div></div></div>
+<div class="note">${noteText}</div>
+<div class="sign"><div class="sign-box"><div class="line">${signatureText}</div></div></div>
 </body></html>`);
         w.document.close();
         w.focus();
@@ -10274,6 +10315,7 @@
           tarifPPh,
           tarifDenda,
           valutaCode,
+          nilaiBarang,
           kurs: effectiveRate,  // per-unit rate (JPY/KRW sudah dibagi 100)
           fobUsd,
           nilaiPabeanUsd,
@@ -10288,13 +10330,66 @@
         if (m) m.remove();
       };
 
-      window.kbmPrint = function (d) {
+      window.kbmPrint = function (d, lang = 'id') {
+        const isInd = lang === 'id';
         const fmt2 = (v) => v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const fmtRp = (v) => "Rp " + Math.round(v).toLocaleString("id-ID");
-        const now = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const localeStr = isInd ? "id-ID" : "en-US";
+        const dateSuffix = isInd ? " pukul " : " at ";
+        const nowRaw = new Date();
+        const now = nowRaw.toLocaleDateString(localeStr, { day: "2-digit", month: "long", year: "numeric" }) + 
+                    dateSuffix + 
+                    nowRaw.toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false });
+        
+        // Translating labels
+        const title = isInd ? "KANTOR BEA DAN CUKAI KUALANAMU" : "KUALANAMU CUSTOMS AND EXCISE OFFICE";
+        const docTitle = isInd ? "NOTA HASIL PERHITUNGAN BEA MASUK DAN PAJAK" : "CUSTOMS DUTY AND TAX CALCULATION RECEIPT";
+        const docSub = isInd ? "Barang Bawaan Penumpang dari Luar Negeri" : "Passenger Accompanied Goods from Abroad";
+        
+        const lblFobUsd = "FOB (USD)";
+        const lblFobDeclared = isInd ? "FOB Pemberitahuan" : "Declared FOB";
+        const lblKurs = isInd ? `Kurs (${d.valutaCode})` : `Exchange Rate (${d.valutaCode})`;
+        const lblExemption = isInd ? "Pembebasan" : "Exemption";
+        const lblCustomsVal = isInd ? "Nilai Pabean" : "Customs Value";
+        
+        const valExemption = isInd 
+          ? `USD ${d.pembebasan} × ${d.jumlahOrang} orang` 
+          : `USD ${d.pembebasan} × ${d.jumlahOrang} ${d.jumlahOrang > 1 ? 'people' : 'person'}`;
+        
+        // Table translations
+        const thNo = isInd ? "No" : "No";
+        const thLevyType = isInd ? "Jenis Pungutan" : "Type of Levy";
+        const thCalc = isInd ? "Perhitungan" : "Calculation";
+        const thAmount = isInd ? "Nilai (Rp)" : "Amount (IDR)";
+        
+        const rowBM = isInd ? "Bea Masuk (BM)" : "Import Duty (BM)";
+        const rowBMTP = isInd ? "Bea Masuk Tindakan Pengamanan (BMTP)" : "Safeguard Duty (BMTP)";
+        const rowPPN = "PPN";
+        const rowPPnBM = "PPnBM";
+        const rowPPh = "PPh";
+        const rowDenda = isInd ? "Denda" : "Administrative Penalty";
+        
+        const calcBM = isInd ? `${d.tarifBM}% × Nilai Pabean` : `${d.tarifBM}% × Customs Value`;
+        const calcPPN = isInd ? `${d.tarifPPN}% × (Nilai Pabean + BM)` : `${d.tarifPPN}% × (Customs Value + BM)`;
+        const calcPPnBM = isInd ? `${d.tarifPPnBM}% × (Nilai Pabean + BM)` : `${d.tarifPPnBM}% × (Customs Value + BM)`;
+        const calcPPh = isInd ? `${d.tarifPPh}% × (Nilai Pabean + BM)` : `${d.tarifPPh}% × (Customs Value + BM)`;
+        const calcDenda = isInd ? `${d.tarifDenda}% × BM` : `${d.tarifDenda}% × BM`;
+        
+        const totalLabel = isInd ? "JUMLAH PUNGUTAN" : "TOTAL LEVIES";
+        const noteText = isInd 
+          ? "* Perhitungan berdasarkan kurs pajak resmi Kementerian Keuangan RI. Hasil ini bersifat simulasi dan dapat berbeda dengan ketetapan resmi petugas."
+          : "* Calculation is based on the official tax exchange rate of the Ministry of Finance of Republic of Indonesia. This result is a simulation and may differ from the official customs assessment.";
+        const signatureText = isInd ? "Petugas Bea dan Cukai" : "Customs and Excise Officer";
+        
+        // Generate optional declared FOB badge
+        let declaredFobBadgeHtml = "";
+        if (d.valutaCode && d.valutaCode !== 'USD') {
+          declaredFobBadgeHtml = `<div class="badge"><div class="lbl">${lblFobDeclared}</div><div class="val">${d.valutaCode} ${fmt2(d.nilaiBarang)}</div></div>`;
+        }
+
         const w = window.open("", "_blank", "width=800,height=700");
-        w.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
-<title>Hasil Perhitungan Bea Masuk</title>
+        w.document.write(`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">
+<title>${docTitle}</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 13px; color: #111; margin: 0; padding: 20px; }
   h1 { font-size: 15px; text-align: center; margin: 0; }
@@ -10320,31 +10415,32 @@
   @media print { body { padding: 10px; } }
 </style></head><body>
 <div class="header">
-  <div class="logo">KANTOR BEA DAN CUKAI KUALANAMU</div>
-  <h1>NOTA HASIL PERHITUNGAN BEA MASUK DAN PAJAK</h1>
-  <h2>Barang Bawaan Penumpang dari Luar Negeri</h2>
+  <div class="logo">${title}</div>
+  <h1>${docTitle}</h1>
+  <h2>${docSub}</h2>
   <p style="font-size:11px;color:#666;margin:4px 0 0;">${now}</p>
 </div>
 <div class="badges">
-  <div class="badge"><div class="lbl">FOB (${d.valutaCode})</div><div class="val">${fmt2(d.fobUsd)}</div></div>
-  <div class="badge"><div class="lbl">Kurs (${d.valutaCode})</div><div class="val">Rp ${Math.round(d.kurs).toLocaleString("id-ID")}</div></div>
-  <div class="badge"><div class="lbl">Pembebasan</div><div class="val">USD ${d.pembebasan} × ${d.jumlahOrang} orang</div></div>
-  <div class="badge"><div class="lbl">Nilai Pabean</div><div class="val">${fmtRp(d.nilaiPabeanRp)}</div></div>
+  <div class="badge"><div class="lbl">${lblFobUsd}</div><div class="val">${fmt2(d.fobUsd)}</div></div>
+  ${declaredFobBadgeHtml}
+  <div class="badge"><div class="lbl">${lblKurs}</div><div class="val">Rp ${Math.round(d.kurs).toLocaleString("id-ID")}</div></div>
+  <div class="badge"><div class="lbl">${lblExemption}</div><div class="val">${valExemption}</div></div>
+  <div class="badge"><div class="lbl">${lblCustomsVal}</div><div class="val">${fmtRp(d.nilaiPabeanRp)}</div></div>
 </div>
 <table>
-  <thead><tr><th>No</th><th>Jenis Pungutan</th><th>Perhitungan</th><th>Nilai (Rp)</th></tr></thead>
+  <thead><tr><th>${thNo}</th><th>${thLevyType}</th><th>${thCalc}</th><th>${thAmount}</th></tr></thead>
   <tbody>
-    <tr><td>1</td><td>Bea Masuk (BM)</td><td>${d.tarifBM}% × Nilai Pabean</td><td>${fmtRp(d.bm)}</td></tr>
-    <tr><td>2</td><td>Bea Masuk Tindakan Pengamanan (BMTP)</td><td>-</td><td>${fmtRp(d.bmtp)}</td></tr>
-    <tr><td>3</td><td>PPN</td><td>${d.tarifPPN}% × (Nilai Pabean + BM)</td><td>${fmtRp(d.ppn)}</td></tr>
-    <tr><td>4</td><td>PPnBM</td><td>${d.tarifPPnBM}% × (Nilai Pabean + BM)</td><td>${fmtRp(d.ppnbm)}</td></tr>
-    <tr><td>5</td><td>PPh</td><td>${d.tarifPPh}% × (Nilai Pabean + BM)</td><td>${fmtRp(d.pph)}</td></tr>
-    <tr><td>6</td><td>Denda</td><td>${d.tarifDenda}% × BM</td><td>${fmtRp(d.denda)}</td></tr>
+    <tr><td>1</td><td>${rowBM}</td><td>${calcBM}</td><td>${fmtRp(d.bm)}</td></tr>
+    <tr><td>2</td><td>${rowBMTP}</td><td>-</td><td>${fmtRp(d.bmtp)}</td></tr>
+    <tr><td>3</td><td>${rowPPN}</td><td>${calcPPN}</td><td>${fmtRp(d.ppn)}</td></tr>
+    <tr><td>4</td><td>${rowPPnBM}</td><td>${calcPPnBM}</td><td>${fmtRp(d.ppnbm)}</td></tr>
+    <tr><td>5</td><td>${rowPPh}</td><td>${calcPPh}</td><td>${fmtRp(d.pph)}</td></tr>
+    <tr><td>6</td><td>${rowDenda}</td><td>${calcDenda}</td><td>${fmtRp(d.denda)}</td></tr>
   </tbody>
-  <tfoot><tr><td colspan="3"><strong>JUMLAH PUNGUTAN</strong></td><td>${fmtRp(d.total)}</td></tr></tfoot>
+  <tfoot><tr><td colspan="3"><strong>${totalLabel}</strong></td><td>${fmtRp(d.total)}</td></tr></tfoot>
 </table>
-<div class="note">* Perhitungan berdasarkan kurs pajak resmi Kementerian Keuangan RI. Hasil ini bersifat simulasi dan dapat berbeda dengan ketetapan resmi petugas.</div>
-<div class="sign"><div class="sign-box"><div class="line">Petugas Bea dan Cukai</div></div></div>
+<div class="note">${noteText}</div>
+<div class="sign"><div class="sign-box"><div class="line">${signatureText}</div></div></div>
 </body></html>`);
         w.document.close();
         w.focus();
@@ -10376,7 +10472,8 @@
                   <p style="color:rgba(255,255,255,0.7);font-size:11px;margin:4px 0 0;letter-spacing:1px;">DAN PAJAK YANG HARUS DILUNASI</p>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                  <button onclick="window.kbmPrint(window.kbmLastData)" style="height:36px;padding:0 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="fas fa-print"></i> PRINT</button>
+                  <button onclick="window.kbmPrint(window.kbmLastData, 'id')" style="height:36px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="fas fa-print"></i> CETAK (ID)</button>
+                  <button onclick="window.kbmPrint(window.kbmLastData, 'en')" style="height:36px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="fas fa-print"></i> PRINT (EN)</button>
                   <button onclick="document.getElementById('kbmResultModal').remove()" style="width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>
                 </div>
               </div>
@@ -10385,9 +10482,15 @@
             <!-- Summary badges -->
             <div style="padding:16px 28px 0;display:flex;gap:10px;flex-wrap:wrap;">
               <div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:10px;padding:8px 14px;flex:1;min-width:120px;">
-                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">FOB (${d.valutaCode})</div>
-                <div style="font-size:15px;font-weight:700;color:#c084fc;margin-top:2px;">${fmt(d.fobUsd)}</div>
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">FOB (USD)</div>
+                <div style="font-size:15px;font-weight:700;color:#c084fc;margin-top:2px;">$ ${fmt(d.fobUsd)}</div>
               </div>
+              ${d.valutaCode !== 'USD' ? `
+              <div style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:10px;padding:8px 14px;flex:1;min-width:120px;">
+                <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">FOB Pemberitahuan</div>
+                <div style="font-size:15px;font-weight:700;color:#22d3ee;margin-top:2px;">${d.valutaCode} ${fmt(d.nilaiBarang)}</div>
+              </div>
+              ` : ''}
               <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:8px 14px;flex:1;min-width:120px;">
                 <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Kurs (${d.valutaCode})</div>
                 <div style="font-size:15px;font-weight:700;color:#86efac;margin-top:2px;">Rp ${fmt(d.kurs)}</div>
