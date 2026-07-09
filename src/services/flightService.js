@@ -218,12 +218,17 @@ function isInternationalFlight(orig, dest) {
 }
 
 // ---------- FR24 API caller ----------
+// Cooldown: kalau key ditolak (401/403), jeda 6 jam agar log tidak banjir
+// dan kuota tidak terbuang. Di-reset saat key diperbarui via setApiKey().
+let fr24CooldownUntil = 0;
+
 async function callFR24(endpoint, params) {
   params = params || {};
   if (!FR24_API_KEY) {
     console.log("[FR24] No API key configured, using mock data");
     return null;
   }
+  if (Date.now() < fr24CooldownUntil) return null;
   const url = new URL(FR24_BASE_URL + endpoint);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
@@ -242,6 +247,10 @@ async function callFR24(endpoint, params) {
       console.error(
         "[FR24] API error " + r.status + ": " + r.statusText + " - " + t,
       );
+      if (r.status === 401 || r.status === 403) {
+        fr24CooldownUntil = Date.now() + 6 * 60 * 60 * 1000;
+        console.error("[FR24] API key ditolak — polling FR24 dijeda 6 jam. Perbarui key untuk melanjutkan.");
+      }
       return null;
     }
     return await r.json();
@@ -252,8 +261,12 @@ async function callFR24(endpoint, params) {
 }
 
 // ---------- AirLabs API caller ----------
+// Cooldown: kuota bulanan habis → jeda 24 jam; 429 → jeda 1 jam.
+let airlabsCooldownUntil = 0;
+
 async function callAirLabs(endpoint, params) {
   if (!AIRLABS_API_KEY) return null;
+  if (Date.now() < airlabsCooldownUntil) return null;
   const url = new URL(AIRLABS_BASE_URL + endpoint);
   url.searchParams.set("api_key", AIRLABS_API_KEY);
   Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -265,11 +278,19 @@ async function callAirLabs(endpoint, params) {
     if (!r.ok) {
       const t = await r.text().catch(() => "");
       console.error("[AirLabs] API error " + r.status + ": " + t);
+      if (r.status === 429) {
+        airlabsCooldownUntil = Date.now() + 60 * 60 * 1000;
+        console.error("[AirLabs] Rate limited — polling AirLabs dijeda 1 jam.");
+      }
       return null;
     }
     const json = await r.json();
     if (json.error) {
       console.error("[AirLabs] Error:", json.error.message);
+      if (/limit/i.test(json.error.message || "")) {
+        airlabsCooldownUntil = Date.now() + 24 * 60 * 60 * 1000;
+        console.error("[AirLabs] Kuota habis — polling AirLabs dijeda 24 jam.");
+      }
       return null;
     }
     return json;
@@ -1569,6 +1590,7 @@ function getStatus() {
 function setApiKey(key) {
   FR24_API_KEY = key;
   process.env.FR24_API_KEY = key;
+  fr24CooldownUntil = 0; // key baru → coba lagi langsung
   console.log("[FR24] API key updated");
   if (pollingActive) {
     collectUnified().catch(() => {});
@@ -1578,6 +1600,7 @@ function setApiKey(key) {
 function setAirLabsApiKey(key) {
   AIRLABS_API_KEY = key;
   process.env.AIRLABS_API_KEY = key;
+  airlabsCooldownUntil = 0; // key baru → coba lagi langsung
   airLabsLastPoll = 0;
   console.log("[AirLabs] API key updated");
   if (pollingActive) {

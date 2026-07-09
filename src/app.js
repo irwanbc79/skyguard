@@ -55,16 +55,46 @@ const heavyLimiter = rateLimit({
   message: { status: "error", message: "Too many heavy requests, please wait." },
 });
 
+// Rate Limiting — khusus kredensial (anti brute-force password).
+// Longgar cukup untuk satu kantor di balik NAT, terlalu lambat untuk brute force.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: "error", message: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit." },
+});
+
 app.use("/api/", limiter);
 app.use("/api/qsvm/scan", heavyLimiter);
 app.use("/api/imei-registrations/analytics", heavyLimiter);
 app.use("/api/manifests/parse", heavyLimiter);
+app.use(
+  ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password"],
+  authLimiter,
+);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(auditLogger);
 app.use(express.static(path.join(__dirname, "../public")));
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// /uploads berisi dokumen sensitif (manifest penumpang, foto suspect, data CEISA)
+// — wajib JWT. Token via header Authorization atau query ?token= (untuk <img src>).
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    const { verifyJwt } = require("./services/authService");
+    const header = req.headers.authorization;
+    const raw = header?.startsWith("Bearer ") ? header.slice(7) : req.query.token;
+    try {
+      verifyJwt(raw || "");
+      next();
+    } catch {
+      res.status(401).json({ status: "error", message: "Akses file memerlukan login." });
+    }
+  },
+  express.static(path.join(__dirname, "../uploads")),
+);
 
 // ─── Auth Routes (public — no JWT required) ───────────────────────────────────
 app.use("/api/auth", require("./routes/auth"));

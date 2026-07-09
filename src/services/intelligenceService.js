@@ -17,13 +17,28 @@ const cache = new NodeCache({ stdTTL: 600, checkperiod: 120 });
 // Max time for any single aggregation (30 seconds)
 const AGG_TIMEOUT = 30000;
 
+// Hasil sukses terakhir — dipakai sebagai fallback saat aggregation timeout
+// agar dashboard tetap tampil (stale) alih-alih error 500.
+let lastGoodOverview = null;
+
 // ──────────────────────────────────────
 //  1. RADAR OVERVIEW — Main dashboard
 // ──────────────────────────────────────
 async function getRadarOverview() {
   const cached = cache.get("radar_overview");
   if (cached) return cached;
+  try {
+    return await computeRadarOverview();
+  } catch (err) {
+    if (lastGoodOverview) {
+      console.error("[Intelligence Radar] compute gagal, serve data stale:", err.message);
+      return { ...lastGoodOverview, stale: true };
+    }
+    throw err;
+  }
+}
 
+async function computeRadarOverview() {
   const [
     totalManifestPax,
     withPassport,
@@ -60,12 +75,12 @@ async function getRadarOverview() {
         $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } },
       },
       { $count: "total" },
-    ]).option({ maxTimeMS: AGG_TIMEOUT }),
+    ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true }),
     Passenger.aggregate([
       { $match: { paspor: { $exists: true, $nin: [null, ""] } } },
       { $group: { _id: { $toUpper: { $trim: { input: "$paspor" } } } } },
       { $count: "total" },
-    ]).option({ maxTimeMS: AGG_TIMEOUT }),
+    ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true }),
   ]);
 
   // Cross-match: two-step approach (much faster than $lookup with $expr)
@@ -73,14 +88,14 @@ async function getRadarOverview() {
   const ceisaPassports = await Passenger.aggregate([
     { $match: { paspor: { $exists: true, $nin: [null, ""] } } },
     { $group: { _id: { $toUpper: { $trim: { input: "$paspor" } } } } },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
   const ceisaSet = new Set(ceisaPassports.map((c) => c._id));
 
   // Step 2: get unique manifest passports
   const manifestPassports = await ManifestPassenger.aggregate([
     { $match: { passport_number: { $exists: true, $nin: [null, ""] } } },
     { $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } } },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // Step 3: count intersection in JS (instant)
   let crossMatched = 0;
@@ -104,7 +119,7 @@ async function getRadarOverview() {
     { $group: { _id: "$nationality", count: { $sum: 1 } } },
     { $sort: { count: -1 } },
     { $limit: 15 },
-  ]);
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // Airline distribution
   const airlineAgg = await ManifestPassenger.aggregate([
@@ -222,6 +237,7 @@ async function getRadarOverview() {
     })),
   };
 
+  lastGoodOverview = result;
   cache.set("radar_overview", result);
   return result;
 }
@@ -244,7 +260,7 @@ async function countFrequentTravelers(minFlights) {
     { $project: { flights: { $size: "$flight_count" } } },
     { $match: { flights: { $gte: minFlights } } },
     { $count: "total" },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
   return result[0]?.total || 0;
 }
 
@@ -266,7 +282,7 @@ async function countWatchlistHits() {
     { $group: { _id: { $toUpper: { $trim: { input: "$passport_number" } } } } },
     { $match: { _id: { $in: passportNums } } },
     { $count: "total" },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   return hitsAgg[0]?.total || 0;
 }
@@ -399,7 +415,7 @@ async function getNameMismatches(page = 1, limit = 50) {
         flights: { $addToSet: "$flight_number" },
       },
     },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // Get CEISA names for those passports
   const passportNorms = manifestPax.map((p) => p._id).filter(Boolean);
@@ -429,7 +445,7 @@ async function getNameMismatches(page = 1, limit = 50) {
         paspor_norm: { $in: passportNorms },
       },
     },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // Also try case-insensitive matching
   const ceisaMap = {};
@@ -544,7 +560,7 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
     { $sort: { flight_count: -1 } },
     { $skip: (page - 1) * limit },
     { $limit: limit },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // Get total count
   const countResult = await ManifestPassenger.aggregate([
@@ -563,7 +579,7 @@ async function getFrequentTravelers(minFlights = 3, page = 1, limit = 50) {
     { $project: { cnt: { $size: "$c" } } },
     { $match: { cnt: { $gte: minFlights } } },
     { $count: "total" },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
   const total = countResult[0]?.total || 0;
 
   // Enrich: check CEISA and watchlist for each
@@ -701,7 +717,7 @@ async function getWatchlistHits() {
       },
     },
     { $sort: { flight_count: -1 } },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // Enrich with suspect info
   const suspectMap = {};
@@ -820,7 +836,7 @@ async function getMultiIdentity(page = 1, limit = 50) {
       },
     },
     { $sort: { _id: 1 } },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   // B) Same normalized name with multiple passports
   const multiPassport = await ManifestPassenger.aggregate([
@@ -880,7 +896,7 @@ async function getMultiIdentity(page = 1, limit = 50) {
       },
     },
     { $sort: { _id: 1 } },
-  ]).option({ maxTimeMS: AGG_TIMEOUT });
+  ]).option({ maxTimeMS: AGG_TIMEOUT, allowDiskUse: true });
 
   const anomalies = [];
 
