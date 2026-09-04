@@ -174,15 +174,29 @@ exports.addPrice = async (req, res) => {
   }
 };
 
-// Create new device (invalidate cache)
+// Create new device (invalidate cache with duplicate prevention)
 exports.createDevice = async (req, res) => {
   try {
-    const { brand, model, capacity, price_usd, tax_idr, source } = req.body;
+    let { brand, model, capacity, price_usd, tax_idr, source } = req.body;
+    brand = (brand || '').trim();
+    model = (model || '').trim();
+    capacity = (capacity || '').trim();
 
-    let device = await Device.findOne({ brand, model, capacity });
+    if (!brand || !model || !capacity) {
+      return res.status(400).json({ status: 'error', message: 'Brand, model, dan kapasitas wajib diisi' });
+    }
+
+    // Case-insensitive exact match to prevent duplicates
+    let device = await Device.findOne({
+      brand: { $regex: `^${escapeRegex(brand)}$`, $options: 'i' },
+      model: { $regex: `^${escapeRegex(model)}$`, $options: 'i' },
+      capacity: { $regex: `^${escapeRegex(capacity)}$`, $options: 'i' }
+    });
     
+    let isNewDevice = false;
     if (!device) {
       device = await Device.create({ brand, model, capacity });
+      isNewDevice = true;
     }
 
     await PriceReference.updateMany(
@@ -192,16 +206,288 @@ exports.createDevice = async (req, res) => {
 
     const price = await PriceReference.create({
       device_id: device._id,
-      price_usd,
-      tax_idr: tax_idr || 0,
+      price_usd: parseFloat(price_usd) || 0,
+      tax_idr: parseInt(tax_idr) || 0,
       source: source || 'Manual Input',
       is_latest: true,
-      created_by: 'customs_officer'
+      created_by: req.user?.username || 'customs_officer'
     });
 
     invalidateCache(); // Clear cache on data change
 
-    res.json({ status: 'ok', data: { device, price } });
+    res.json({
+      status: 'ok',
+      message: isNewDevice ? 'Device baru berhasil ditambahkan' : 'Device sudah ada, harga terbaru berhasil diperbarui (tidak membuat duplikat)',
+      data: { device, price, is_new: isNewDevice }
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// ==================== DUPLICATE DETECTION & CLEANUP ====================
+
+function normalizeKey(str) {
+  return (str || '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function normalizeCapacity(str) {
+  return (str || '').toString().trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function normalizeModel(str) {
+  let s = (str || '').toString().trim().toLowerCase();
+  s = s.replace(/pro\s*max/gi, 'pro max');
+  s = s.replace(/promax/gi, 'pro max');
+  s = s.replace(/\s*\+\s*/g, ' plus ');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function canonicalModel(modelStr) {
+  let s = (modelStr || '').toString().trim();
+  s = s.replace(/\bpro\s*max\b/gi, 'Pro Max');
+  s = s.replace(/\bpromax\b/gi, 'Pro Max');
+  s = s.replace(/\bpro\b/gi, 'Pro');
+  s = s.replace(/\bplus\b/gi, 'Plus');
+  s = s.replace(/\bmini\b/gi, 'Mini');
+  s = s.replace(/\s*\+\s*/g, ' Plus ');
+  s = s.replace(/\biphone\b/gi, 'iPhone');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+// Get list of all duplicate devices
+exports.getDuplicates = async (req, res) => {
+  try {
+    const devices = await Device.aggregate([
+      {
+        $lookup: {
+          from: 'price_references',
+          let: { deviceId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$device_id', '$$deviceId'] } } },
+            { $sort: { created_at: -1 } }
+          ],
+          as: 'prices'
+        }
+      }
+    ]);
+
+    const groups = {};
+    devices.forEach(d => {
+      const key = `${normalizeKey(d.brand)}:::${normalizeModel(d.model)}:::${normalizeCapacity(d.capacity)}`;
+      if (!groups[key]) {
+        groups[key] = {
+          key,
+          brand: d.brand,
+          model: canonicalModel(d.model),
+          capacity: d.capacity,
+          items: []
+        };
+      }
+      
+      const latestPrice = d.prices.find(p => p.is_latest) || d.prices[0] || null;
+      groups[key].items.push({
+        _id: d._id,
+        brand: d.brand,
+        model: d.model,
+        capacity: d.capacity,
+        created_at: d.created_at,
+        price_count: d.prices.length,
+        latest_price_usd: latestPrice?.price_usd ?? 0,
+        latest_tax_idr: latestPrice?.tax_idr ?? 0,
+        latest_price_id: latestPrice?._id ?? null,
+        latest_source: latestPrice?.source ?? '-',
+        latest_updated_at: latestPrice?.created_at ?? d.created_at
+      });
+    });
+
+    // Filter only groups with > 1 device
+    const duplicateGroups = Object.values(groups)
+      .filter(g => g.items.length > 1)
+      .map(g => ({
+        ...g,
+        count: g.items.length,
+        items: g.items.sort((a, b) => new Date(b.latest_updated_at) - new Date(a.latest_updated_at))
+      }));
+
+    const totalDuplicateItems = duplicateGroups.reduce((acc, g) => acc + (g.count - 1), 0);
+
+    res.json({
+      status: 'ok',
+      total_duplicate_groups: duplicateGroups.length,
+      total_excess_items: totalDuplicateItems,
+      data: duplicateGroups
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// Auto clean and smart merge all duplicates
+exports.autoCleanDuplicates = async (req, res) => {
+  try {
+    const devices = await Device.aggregate([
+      {
+        $lookup: {
+          from: 'price_references',
+          let: { deviceId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$device_id', '$$deviceId'] } } },
+            { $sort: { created_at: -1 } }
+          ],
+          as: 'prices'
+        }
+      }
+    ]);
+
+    const groups = {};
+    devices.forEach(d => {
+      const key = `${normalizeKey(d.brand)}:::${normalizeModel(d.model)}:::${normalizeCapacity(d.capacity)}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(d);
+    });
+
+    let mergedGroups = 0;
+    let deletedDevicesCount = 0;
+    let reassignedPricesCount = 0;
+    const summary = [];
+
+    for (const key of Object.keys(groups)) {
+      const list = groups[key];
+      if (list.length <= 1) continue;
+
+      // Sort to pick master: device with latest price or most recent update
+      list.sort((a, b) => {
+        const timeA = a.prices?.[0]?.created_at ? new Date(a.prices[0].created_at).getTime() : new Date(a.created_at).getTime();
+        const timeB = b.prices?.[0]?.created_at ? new Date(b.prices[0].created_at).getTime() : new Date(b.created_at).getTime();
+        return timeB - timeA;
+      });
+
+      const master = list[0];
+      const duplicates = list.slice(1);
+      const duplicateIds = duplicates.map(d => d._id);
+
+      // Reassign all price references from duplicate devices to master
+      const updateResult = await PriceReference.updateMany(
+        { device_id: { $in: duplicateIds } },
+        { $set: { device_id: master._id } }
+      );
+      reassignedPricesCount += (updateResult.modifiedCount || 0);
+
+      // Ensure proper is_latest flag for master prices
+      const allPrices = await PriceReference.find({ device_id: master._id }).sort({ created_at: -1 });
+      if (allPrices.length > 0) {
+        // Mark first one as latest, others as false
+        await PriceReference.updateMany(
+          { device_id: master._id },
+          { $set: { is_latest: false } }
+        );
+        await PriceReference.findByIdAndUpdate(allPrices[0]._id, { $set: { is_latest: true } });
+      }
+
+      // Ensure master model has clean canonical formatting (e.g. iPhone 13 Pro Max)
+      const cleanModel = canonicalModel(master.model);
+      await Device.findByIdAndUpdate(master._id, { $set: { model: cleanModel } });
+
+      // Delete duplicate Device documents
+      const deleteResult = await Device.deleteMany({ _id: { $in: duplicateIds } });
+      deletedDevicesCount += (deleteResult.deletedCount || 0);
+
+      mergedGroups++;
+      summary.push({
+        model: `${master.brand} ${cleanModel} (${master.capacity})`,
+        master_id: master._id,
+        removed_duplicate_count: duplicates.length
+      });
+    }
+
+    invalidateCache();
+
+    res.json({
+      status: 'ok',
+      message: `Berhasil membersihkan ${mergedGroups} grup duplikat (${deletedDevicesCount} device ganda dihapus, ${reassignedPricesCount} riwayat harga diamankan).`,
+      data: {
+        merged_groups: mergedGroups,
+        deleted_devices_count: deletedDevicesCount,
+        reassigned_prices_count: reassignedPricesCount,
+        summary
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// Merge specific duplicate devices into a target device
+exports.mergeDuplicates = async (req, res) => {
+  try {
+    const { target_device_id, source_device_ids } = req.body;
+    if (!target_device_id || !Array.isArray(source_device_ids) || source_device_ids.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'target_device_id dan source_device_ids wajib disertakan' });
+    }
+
+    const master = await Device.findById(target_device_id);
+    if (!master) {
+      return res.status(404).json({ status: 'error', message: 'Target device tidak ditemukan' });
+    }
+
+    // Reassign all price references to target
+    await PriceReference.updateMany(
+      { device_id: { $in: source_device_ids } },
+      { $set: { device_id: master._id } }
+    );
+
+    // Consolidate latest price
+    const allPrices = await PriceReference.find({ device_id: master._id }).sort({ created_at: -1 });
+    if (allPrices.length > 0) {
+      await PriceReference.updateMany(
+        { device_id: master._id },
+        { $set: { is_latest: false } }
+      );
+      await PriceReference.findByIdAndUpdate(allPrices[0]._id, { $set: { is_latest: true } });
+    }
+
+    // Delete source devices
+    const deleteRes = await Device.deleteMany({ _id: { $in: source_device_ids } });
+
+    invalidateCache();
+
+    res.json({
+      status: 'ok',
+      message: `Berhasil menggabungkan ${deleteRes.deletedCount} device ke ${master.brand} ${master.model}`,
+      data: { master, merged_count: deleteRes.deletedCount }
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// Delete single device and its price references
+exports.deleteDevice = async (req, res) => {
+  try {
+    const deviceId = req.params.device_id || req.params.id;
+    const { delete_reason, deleted_by } = req.body || {};
+
+    const device = await Device.findById(deviceId);
+    if (!device) {
+      return res.status(404).json({ status: 'error', message: 'Device tidak ditemukan' });
+    }
+
+    // Delete all price references
+    const priceRes = await PriceReference.deleteMany({ device_id: device._id });
+    
+    // Delete device document
+    await Device.findByIdAndDelete(device._id);
+
+    invalidateCache();
+
+    res.json({
+      status: 'ok',
+      message: `Device ${device.brand} ${device.model} (${device.capacity}) dan ${priceRes.deletedCount} data harga berhasil dihapus`,
+      deleted_device: device,
+      deleted_prices_count: priceRes.deletedCount,
+      reason: delete_reason || 'Pembersihan data duplikat/invalid'
+    });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
@@ -350,3 +636,4 @@ exports.getTimeRange = async (req, res) => {
     res.status(500).json({ status: 'error', message: err.message });
   }
 };
+
