@@ -124,7 +124,7 @@ app.use("/api", async (req, res, next) => {
   }
   try {
     const payload = verifyJwt(header.slice(7));
-    const user = await User.findById(payload.id).select("_id email role is_active").lean();
+    const user = await User.findById(payload.id).select("_id email full_name nip unit_kerja role is_active").lean();
     if (!user) {
       return res.status(401).json({ status: "error", message: "Token tidak valid atau sudah kadaluarsa. Silakan login ulang." });
     }

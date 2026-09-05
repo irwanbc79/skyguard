@@ -234,4 +234,42 @@ router.get("/me", async (req, res) => {
   }
 });
 
+// ─── POST /api/auth/logout — Log session termination ─────────────────────────
+router.post("/logout", async (req, res) => {
+  try {
+    const { verifyJwt } = require("../services/authService");
+    const header = req.headers.authorization;
+    if (header?.startsWith("Bearer ")) {
+      try {
+        const payload = verifyJwt(header.slice(7));
+        const user = await User.findById(payload.id).select("email full_name nip unit_kerja role");
+        if (user) {
+          logActivity({
+            user_id: user._id,
+            email: user.email,
+            full_name: user.full_name,
+            nip: user.nip || "",
+            unit_kerja: user.unit_kerja || "",
+            role: user.role,
+            action: "logout",
+            category: "AUTH",
+            resource: "auth",
+            method: "POST",
+            path: "/api/auth/logout",
+            status_code: 200,
+            detail: "Pengguna melakukan logout sesi secara resmi",
+            ip: getIp(req),
+            user_agent: req.headers["user-agent"] || "",
+            status: "success",
+          });
+        }
+      } catch {}
+    }
+    res.json({ status: "ok", message: "Logout berhasil" });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 module.exports = router;
+

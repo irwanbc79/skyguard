@@ -193,26 +193,191 @@ router.get("/online-users", requireAdmin, async (req, res) => {
   }
 });
 
-// ─── GET /api/admin/activity-log — paginated audit log ───────────────────────
+// ─── GET /api/admin/activity-log — comprehensive audit log with filters ───────
 router.get("/activity-log", requireAdmin, async (req, res) => {
   try {
-    const { user_id, action, status, q, page = 1, limit = 50 } = req.query;
+    const {
+      user_id,
+      category,
+      resource,
+      action,
+      status,
+      start_date,
+      end_date,
+      q,
+      page = 1,
+      limit = 50,
+    } = req.query;
+
     const filter = {};
     if (user_id) filter.user_id = user_id;
+    if (category) filter.category = category;
+    if (resource) filter.resource = resource;
     if (action) filter.action = action;
     if (status) filter.status = status;
-    if (q) {
-      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      filter.$or = [{ email: re }, { full_name: re }, { detail: re }, { ip: re }];
+
+    // Filter rentang tanggal (WIB / UTC)
+    if (start_date || end_date) {
+      filter.created_at = {};
+      if (start_date) {
+        filter.created_at.$gte = start_date.includes("T") ? new Date(start_date) : new Date(start_date + "T00:00:00.000Z");
+      }
+      if (end_date) {
+        filter.created_at.$lte = end_date.includes("T") ? new Date(end_date) : new Date(end_date + "T23:59:59.999Z");
+      }
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [
+        { email: re },
+        { full_name: re },
+        { nip: re },
+        { detail: re },
+        { resource_name: re },
+        { path: re },
+        { ip: re },
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
     const [logs, total] = await Promise.all([
-      ActivityLog.find(filter).sort({ created_at: -1 }).skip(skip).limit(parseInt(limit)).lean(),
+      ActivityLog.find(filter)
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
       ActivityLog.countDocuments(filter),
     ]);
 
-    res.json({ status: "ok", data: logs, total, page: parseInt(page), limit: parseInt(limit) });
+    res.json({
+      status: "ok",
+      data: logs,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      total_pages: Math.ceil(total / limitNum),
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// ─── GET /api/admin/activity-log/export — Export logs to CSV for audit investigation
+router.get("/activity-log/export", requireAdmin, async (req, res) => {
+  try {
+    const {
+      user_id,
+      category,
+      resource,
+      action,
+      status,
+      start_date,
+      end_date,
+      q,
+    } = req.query;
+
+    const filter = {};
+    if (user_id) filter.user_id = user_id;
+    if (category) filter.category = category;
+    if (resource) filter.resource = resource;
+    if (action) filter.action = action;
+    if (status) filter.status = status;
+
+    if (start_date || end_date) {
+      filter.created_at = {};
+      if (start_date) filter.created_at.$gte = start_date.includes("T") ? new Date(start_date) : new Date(start_date + "T00:00:00.000Z");
+      if (end_date) filter.created_at.$lte = end_date.includes("T") ? new Date(end_date) : new Date(end_date + "T23:59:59.999Z");
+    }
+
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [
+        { email: re },
+        { full_name: re },
+        { nip: re },
+        { detail: re },
+        { resource_name: re },
+        { path: re },
+        { ip: re },
+      ];
+    }
+
+    // Limit to 5000 records to prevent memory pressure
+    const logs = await ActivityLog.find(filter)
+      .sort({ created_at: -1 })
+      .limit(5000)
+      .lean();
+
+    const escapeCsv = (str) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const header = [
+      "Waktu (WIB)",
+      "NIP",
+      "Nama Petugas",
+      "Email",
+      "Role",
+      "Unit Kerja",
+      "Kategori",
+      "Aksi",
+      "Modul / Entitas",
+      "ID Target",
+      "Nama Target / Objek",
+      "Keterangan Detail",
+      "Method & Path",
+      "HTTP Status",
+      "Status Log",
+      "IP Address",
+      "User Agent",
+    ].join(",");
+
+    const rows = logs.map((l) => {
+      const waktuWib = l.created_at
+        ? new Date(l.created_at).toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })
+        : "-";
+
+      return [
+        escapeCsv(waktuWib),
+        escapeCsv(l.nip || "-"),
+        escapeCsv(l.full_name || "-"),
+        escapeCsv(l.email || "-"),
+        escapeCsv(l.role || "-"),
+        escapeCsv(l.unit_kerja || "-"),
+        escapeCsv(l.category || "CRUD"),
+        escapeCsv(l.action || "-"),
+        escapeCsv(l.resource || "-"),
+        escapeCsv(l.resource_id || "-"),
+        escapeCsv(l.resource_name || "-"),
+        escapeCsv(l.detail || "-"),
+        escapeCsv(`${l.method || ""} ${l.path || ""}`.trim() || "-"),
+        escapeCsv(l.status_code || "-"),
+        escapeCsv(l.status || "success"),
+        escapeCsv(l.ip || "-"),
+        escapeCsv(l.user_agent || "-"),
+      ].join(",");
+    });
+
+    const csvContent = "\uFEFF" + [header, ...rows].join("\r\n"); // UTF-8 BOM for Excel
+    const filename = `SkyGuard_Audit_Trail_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csvContent);
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
   }
@@ -225,27 +390,77 @@ router.get("/users/:id/activity", requireAdmin, async (req, res) => {
       .sort({ created_at: -1 })
       .limit(100)
       .lean();
-    const loginCount = logs.filter(l => l.action === "login").length;
-    const failedCount = logs.filter(l => l.action === "login_failed").length;
-    const lastLogin = logs.find(l => l.action === "login");
-    res.json({ status: "ok", data: logs, summary: { login_count: loginCount, failed_count: failedCount, last_login: lastLogin?.created_at } });
+    const loginCount = logs.filter((l) => l.action === "login").length;
+    const failedCount = logs.filter((l) => l.action === "login_failed").length;
+    const crudCount = logs.filter((l) => l.category === "CRUD").length;
+    const lastLogin = logs.find((l) => l.action === "login");
+    res.json({
+      status: "ok",
+      data: logs,
+      summary: {
+        login_count: loginCount,
+        failed_count: failedCount,
+        crud_count: crudCount,
+        last_login: lastLogin?.created_at,
+      },
+    });
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
   }
 });
 
-// ─── GET /api/admin/activity-stats — summary stats for dashboard ──────────────
+// ─── GET /api/admin/activity-stats — comprehensive summary for audit investigation
 router.get("/activity-stats", requireAdmin, async (req, res) => {
   try {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const since30m = new Date(Date.now() - 30 * 60 * 1000);
-    const [logins24h, failed24h, online, totalLogs] = await Promise.all([
+
+    const [
+      totalLogs,
+      total24h,
+      logins24h,
+      failed24h,
+      crud24h,
+      deletes24h,
+      onlineNow,
+      resourceAgg,
+    ] = await Promise.all([
+      ActivityLog.countDocuments(),
+      ActivityLog.countDocuments({ created_at: { $gte: since24h } }),
       ActivityLog.countDocuments({ action: "login", created_at: { $gte: since24h } }),
       ActivityLog.countDocuments({ action: "login_failed", created_at: { $gte: since24h } }),
+      ActivityLog.countDocuments({ category: "CRUD", created_at: { $gte: since24h } }),
+      ActivityLog.countDocuments({
+        action: { $in: ["delete", "bulk_delete", "user_deleted"] },
+        created_at: { $gte: since24h },
+      }),
       User.countDocuments({ last_seen: { $gte: since30m }, is_active: true }),
-      ActivityLog.countDocuments(),
+      ActivityLog.aggregate([
+        { $match: { created_at: { $gte: since24h }, resource: { $exists: true, $ne: null } } },
+        { $group: { _id: "$resource", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
     ]);
-    res.json({ status: "ok", data: { logins_24h: logins24h, failed_24h: failed24h, online_now: online, total_logs: totalLogs } });
+
+    const byResource = {};
+    resourceAgg.forEach((r) => {
+      byResource[r._id] = r.count;
+    });
+
+    res.json({
+      status: "ok",
+      data: {
+        total_logs: totalLogs,
+        total_24h: total24h,
+        logins_24h: logins24h,
+        failed_24h: failed24h,
+        crud_24h: crud24h,
+        deletes_24h: deletes24h,
+        online_now: onlineNow,
+        by_resource: byResource,
+      },
+    });
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
   }

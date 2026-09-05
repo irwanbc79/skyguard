@@ -26148,50 +26148,153 @@
   </div>
 </div>
 
-<!-- TAB: LOG AKTIVITAS -->
+<!-- TAB: LOG AKTIVITAS (AUDIT INVESTIGATION) -->
 <div id="admin-panel-log" style="display:none">
-  <div class="glass-card rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
-    <div class="flex-1 min-w-[140px]">
-      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Cari</label>
-      <input type="text" id="log-search-q" placeholder="Nama / Email / IP / Detail..."
-        onkeydown="if(event.key==='Enter')loadActivityLog()"
-        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none">
+  <!-- 24h Executive KPI Summary Cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+    <div class="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <span>Total Log 24j</span>
+        <i class="fas fa-history text-blue-400"></i>
+      </div>
+      <div class="text-xl font-bold text-white" id="audit-kpi-total">-</div>
+      <div class="text-[10px] text-gray-400 mt-0.5" id="audit-kpi-all-total">Semua: -</div>
     </div>
-    <div>
-      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Aksi</label>
-      <select id="log-filter-action" class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
-        <option value="">Semua</option>
-        <option value="login">Login</option>
-        <option value="login_failed">Login Gagal</option>
-        <option value="logout">Logout</option>
-        <option value="role_changed">Ubah Role</option>
-        <option value="user_toggled">Toggle Akun</option>
-        <option value="user_deleted">Hapus Akun</option>
-        <option value="profile_update">Update Profil</option>
-      </select>
+    <div class="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <span>Sesi Login 24j</span>
+        <i class="fas fa-sign-in-alt text-emerald-400"></i>
+      </div>
+      <div class="text-xl font-bold text-emerald-400" id="audit-kpi-logins">-</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">Autentikasi resmi</div>
     </div>
-    <div>
-      <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wider">Status</label>
-      <select id="log-filter-status" class="bg-[#1a3a5c] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
-        <option value="">Semua</option>
-        <option value="success">Berhasil</option>
-        <option value="failed">Gagal</option>
-        <option value="warning">Peringatan</option>
-      </select>
+    <div class="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <span>Login Gagal</span>
+        <i class="fas fa-shield-alt text-red-400"></i>
+      </div>
+      <div class="text-xl font-bold text-red-400" id="audit-kpi-failed">-</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">Potensi anomali / ancaman</div>
     </div>
-    <button onclick="loadActivityLog()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition">
-      <i class="fas fa-search mr-1"></i> Cari
-    </button>
-    <button onclick="loadActivityLog(1)" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm transition">
-      <i class="fas fa-sync-alt mr-1"></i> Refresh
-    </button>
+    <div class="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <span>Mutasi Data (CRUD)</span>
+        <i class="fas fa-database text-amber-400"></i>
+      </div>
+      <div class="text-xl font-bold text-amber-400" id="audit-kpi-crud">-</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">Tambah / Ubah / Hapus</div>
+    </div>
+    <div class="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <span>Penghapusan Kritis</span>
+        <i class="fas fa-trash-alt text-rose-500"></i>
+      </div>
+      <div class="text-xl font-bold text-rose-400" id="audit-kpi-deletes">-</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">Operasi DELETE 24j</div>
+    </div>
+    <div class="glass-card rounded-xl p-3.5 border border-white/10 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+        <span>Petugas Online</span>
+        <i class="fas fa-satellite-dish text-cyan-400"></i>
+      </div>
+      <div class="text-xl font-bold text-cyan-400" id="audit-kpi-online">-</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">Aktif 30 mnt terakhir</div>
+    </div>
   </div>
-  <div class="glass-card rounded-xl overflow-hidden">
+
+  <!-- Filter & Forensic Search Toolbar -->
+  <div class="glass-card rounded-xl p-4 mb-4 border border-white/10">
+    <div class="flex items-center justify-between flex-wrap gap-2 pb-3 mb-3 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+        <span class="text-sm font-semibold text-white tracking-wide">Audit & Investigasi Forensik DJBC</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">INTERNAL INVESTIGATION</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="exportAuditLogs()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+          <i class="fas fa-file-csv text-sm"></i> Ekspor CSV Investigasi
+        </button>
+        <button onclick="loadActivityLog(1)" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs transition flex items-center gap-1.5">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+      <!-- Search Q -->
+      <div class="lg:col-span-2">
+        <label class="block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Cari Kata Kunci</label>
+        <div class="relative">
+          <input type="text" id="log-search-q" placeholder="Nama, NIP, IP, Path, IMEI, Paspor, Detail..."
+            onkeydown="if(event.key==='Enter')loadActivityLog(1)"
+            class="w-full bg-[#12263f]/80 border border-white/15 rounded-lg pl-8 pr-3 py-2 text-xs text-white placeholder-gray-500 outline-none focus:border-blue-400 transition">
+          <i class="fas fa-search absolute left-2.5 top-2.5 text-xs text-gray-400"></i>
+        </div>
+      </div>
+
+      <!-- Kategori -->
+      <div>
+        <label class="block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Kategori</label>
+        <select id="log-filter-category" onchange="loadActivityLog(1)" class="w-full bg-[#1a3a5c] border border-white/15 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-blue-400">
+          <option value="">Semua Kategori</option>
+          <option value="AUTH">AUTH (Autentikasi)</option>
+          <option value="CRUD">CRUD (Mutasi Data)</option>
+          <option value="EXPORT">EXPORT (Unduh Data)</option>
+          <option value="SECURITY">SECURITY (Keamanan)</option>
+          <option value="SYSTEM">SYSTEM (Sistem)</option>
+        </select>
+      </div>
+
+      <!-- Modul Resource -->
+      <div>
+        <label class="block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Modul Intelijen</label>
+        <select id="log-filter-resource" onchange="loadActivityLog(1)" class="w-full bg-[#1a3a5c] border border-white/15 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-blue-400">
+          <option value="">Semua Modul</option>
+          <option value="suspects">Suspect Watchlist</option>
+          <option value="imei">Registrasi IMEI</option>
+          <option value="devices">Detail Perangkat HKT</option>
+          <option value="passengers">Manifes & Penumpang</option>
+          <option value="prices">Intelijen Harga HKT</option>
+          <option value="users">Manajemen Petugas</option>
+          <option value="pmi">PMI (Pekerja Migran)</option>
+          <option value="pbc">Penindakan / PBC</option>
+          <option value="qsvm">Quick Scan / QSVM</option>
+          <option value="hscodes">HS Code Explorer</option>
+        </select>
+      </div>
+
+      <!-- Status -->
+      <div>
+        <label class="block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Status Akses</label>
+        <select id="log-filter-status" onchange="loadActivityLog(1)" class="w-full bg-[#1a3a5c] border border-white/15 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-blue-400">
+          <option value="">Semua Status</option>
+          <option value="success">Berhasil (Success)</option>
+          <option value="failed">Gagal (Failed)</option>
+          <option value="warning">Peringatan (Warning)</option>
+          <option value="blocked">Dicekal (Blocked 401/403)</option>
+        </select>
+      </div>
+
+      <!-- Rentang Waktu -->
+      <div>
+        <label class="block text-[11px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Periode</label>
+        <select id="log-filter-period" onchange="loadActivityLog(1)" class="w-full bg-[#1a3a5c] border border-white/15 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-blue-400">
+          <option value="all">Semua Waktu</option>
+          <option value="today" selected>24 Jam Terakhir</option>
+          <option value="7d">7 Hari Terakhir</option>
+          <option value="30d">30 Hari Terakhir</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="glass-card rounded-xl overflow-hidden border border-white/10 shadow-lg">
     <div id="admin-log-table">
       <div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
     </div>
   </div>
-  <div id="admin-log-pagination" class="mt-3 flex justify-center gap-2"></div>
+  <div id="admin-log-pagination" class="mt-3 flex justify-center gap-2 items-center"></div>
 </div>
 
 <!-- MODAL: Edit User -->
@@ -26202,6 +26305,25 @@
       <button onclick="closeAdminModal()" class="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">&times;</button>
     </div>
     <div id="admin-modal-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Detail Forensik Audit Log -->
+<div id="admin-log-detail-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);align-items:center;justify-content:center">
+  <div class="glass-card-solid rounded-2xl p-6 w-full max-w-2xl mx-4 border border-white/20 shadow-2xl" style="max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+          <i class="fas fa-fingerprint"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white tracking-wide">Detail Forensik Akses Petugas</h3>
+          <p class="text-xs text-gray-400">Verifikasi Integritas & Jejak Audit Internal SkyGuard</p>
+        </div>
+      </div>
+      <button onclick="closeLogDetailModal()" class="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition">&times;</button>
+    </div>
+    <div id="admin-log-detail-body"></div>
   </div>
 </div>`;
       }
@@ -26219,7 +26341,10 @@
           }
         });
         if (tab === "online") loadOnlineUsers();
-        if (tab === "log") loadActivityLog();
+        if (tab === "log") {
+          adminLoadStats();
+          loadActivityLog(1);
+        }
       }
 
       async function loadAdminPanel() {
@@ -26255,7 +26380,28 @@
               <span class="text-base font-bold" style="color:${x.color}">${x.val}</span>
               <span class="text-xs text-gray-400">${x.label}</span>
             </div>`).join("");
+
+          updateAuditLogKPIs(a);
         } catch (e) { /* silent */ }
+      }
+
+      function updateAuditLogKPIs(a) {
+        if (!a) return;
+        const totalEl = document.getElementById("audit-kpi-total");
+        const allTotalEl = document.getElementById("audit-kpi-all-total");
+        const loginsEl = document.getElementById("audit-kpi-logins");
+        const failedEl = document.getElementById("audit-kpi-failed");
+        const crudEl = document.getElementById("audit-kpi-crud");
+        const deletesEl = document.getElementById("audit-kpi-deletes");
+        const onlineEl = document.getElementById("audit-kpi-online");
+
+        if (totalEl) totalEl.textContent = (a.total_24h || 0).toLocaleString("id-ID");
+        if (allTotalEl) allTotalEl.textContent = "Semua: " + (a.total_logs || 0).toLocaleString("id-ID");
+        if (loginsEl) loginsEl.textContent = (a.logins_24h || 0).toLocaleString("id-ID");
+        if (failedEl) failedEl.textContent = (a.failed_24h || 0).toLocaleString("id-ID");
+        if (crudEl) crudEl.textContent = (a.crud_24h || 0).toLocaleString("id-ID");
+        if (deletesEl) deletesEl.textContent = (a.deletes_24h || 0).toLocaleString("id-ID");
+        if (onlineEl) onlineEl.textContent = (a.online_now || 0).toLocaleString("id-ID");
       }
 
       async function adminSearch(reset) {
@@ -26341,59 +26487,201 @@ ${d.data.map(u => {
       }
 
       let _logPage = 1;
+      let _currentActivityLogs = [];
+
       async function loadActivityLog(page) {
         if (page) _logPage = page;
         const el = document.getElementById("admin-log-table");
         const pgEl = document.getElementById("admin-log-pagination");
         if (!el) return;
-        el.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        el.innerHTML = '<div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i><div class="mt-2 text-xs">Memuat jejak audit forensik...</div></div>';
+
         const q = document.getElementById("log-search-q")?.value.trim() || "";
-        const action = document.getElementById("log-filter-action")?.value || "";
+        const category = document.getElementById("log-filter-category")?.value || "";
+        const resource = document.getElementById("log-filter-resource")?.value || "";
         const status = document.getElementById("log-filter-status")?.value || "";
+        const period = document.getElementById("log-filter-period")?.value || "today";
+
         const params = new URLSearchParams({ page: _logPage, limit: 50 });
         if (q) params.set("q", q);
-        if (action) params.set("action", action);
+        if (category) params.set("category", category);
+        if (resource) params.set("resource", resource);
         if (status) params.set("status", status);
+
+        const now = new Date();
+        if (period === "today") {
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+          params.set("start_date", todayStart);
+        } else if (period === "7d") {
+          const d7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          params.set("start_date", d7);
+        } else if (period === "30d") {
+          const d30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          params.set("start_date", d30);
+        }
+
         try {
           const r = await fetch("/api/admin/activity-log?" + params);
           const d = await r.json();
-          if (!d.data?.length) {
-            el.innerHTML = '<div class="py-12 text-center text-gray-500"><i class="fas fa-clipboard-list fa-2x mb-3 block"></i>Tidak ada log aktivitas.</div>';
+          _currentActivityLogs = d.data || [];
+
+          if (!_currentActivityLogs.length) {
+            el.innerHTML = '<div class="py-16 text-center text-gray-500"><i class="fas fa-fingerprint fa-3x mb-3 text-gray-600 block"></i><div class="text-sm font-semibold text-gray-400">Tidak ada log aktivitas forensik yang cocok.</div><div class="text-xs text-gray-500 mt-1">Coba sesuaikan kata kunci pencarian atau filter kategori/periode.</div></div>';
             if (pgEl) pgEl.innerHTML = "";
             return;
           }
-          const actionIcons = { login:"fa-sign-in-alt text-green-400", login_failed:"fa-times-circle text-red-400", logout:"fa-sign-out-alt text-gray-400", role_changed:"fa-user-shield text-purple-400", user_toggled:"fa-toggle-on text-yellow-400", user_deleted:"fa-user-minus text-red-500", profile_update:"fa-user-edit text-blue-400", user_verified:"fa-check-circle text-green-400", password_reset:"fa-key text-orange-400" };
-          const statusColors = { success:"text-green-400", failed:"text-red-400", warning:"text-yellow-400" };
-          const statusLabels = { success:"Berhasil", failed:"Gagal", warning:"Peringatan" };
+
+          const actionIcons = {
+            login: "fa-sign-in-alt text-emerald-400",
+            login_failed: "fa-shield-alt text-red-400",
+            logout: "fa-sign-out-alt text-gray-400",
+            create: "fa-plus-circle text-green-400",
+            update: "fa-edit text-amber-400",
+            delete: "fa-trash-alt text-red-400",
+            bulk_delete: "fa-dumpster-fire text-rose-500",
+            export: "fa-file-export text-purple-400",
+            role_changed: "fa-user-shield text-purple-400",
+            user_toggled: "fa-toggle-on text-yellow-400",
+            user_deleted: "fa-user-minus text-red-500",
+            profile_update: "fa-user-edit text-blue-400",
+            user_verified: "fa-check-circle text-green-400",
+            password_reset: "fa-key text-orange-400",
+          };
+
+          const methodColors = {
+            POST: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            PUT: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            PATCH: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
+            DELETE: "text-rose-400 bg-rose-500/10 border-rose-500/30",
+            GET: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+          };
+
+          const categoryColors = {
+            AUTH: "text-indigo-300 bg-indigo-500/15 border-indigo-500/30",
+            CRUD: "text-emerald-300 bg-emerald-500/15 border-emerald-500/30",
+            EXPORT: "text-purple-300 bg-purple-500/15 border-purple-500/30",
+            SECURITY: "text-rose-300 bg-rose-500/20 border-rose-500/40",
+            SYSTEM: "text-gray-300 bg-gray-500/15 border-gray-500/30",
+          };
+
+          const resourceLabels = {
+            suspects: '<span class="text-rose-300 font-semibold"><i class="fas fa-user-secret mr-1"></i>Suspect Watchlist</span>',
+            imei: '<span class="text-cyan-300 font-semibold"><i class="fas fa-mobile-alt mr-1"></i>Registrasi IMEI</span>',
+            devices: '<span class="text-cyan-300 font-semibold"><i class="fas fa-laptop mr-1"></i>Detail HKT</span>',
+            passengers: '<span class="text-sky-300 font-semibold"><i class="fas fa-plane-arrival mr-1"></i>Penumpang</span>',
+            manifests: '<span class="text-sky-300 font-semibold"><i class="fas fa-clipboard-list mr-1"></i>Manifes</span>',
+            prices: '<span class="text-amber-300 font-semibold"><i class="fas fa-tag mr-1"></i>Intel Harga HKT</span>',
+            users: '<span class="text-indigo-300 font-semibold"><i class="fas fa-users-cog mr-1"></i>Manajemen User</span>',
+            pmi: '<span class="text-emerald-300 font-semibold"><i class="fas fa-user-tie mr-1"></i>PMI Migran</span>',
+            pbc: '<span class="text-red-300 font-semibold"><i class="fas fa-gavel mr-1"></i>Penindakan PBC</span>',
+            qsvm: '<span class="text-blue-300 font-semibold"><i class="fas fa-barcode mr-1"></i>Quick Scan</span>',
+            hscodes: '<span class="text-violet-300 font-semibold"><i class="fas fa-book mr-1"></i>HS Explorer</span>',
+          };
+
+          const roleColors = {
+            superadmin: "text-rose-300 bg-rose-500/20 border-rose-500/40",
+            admin: "text-amber-300 bg-amber-500/20 border-amber-500/40",
+            petugas: "text-blue-300 bg-blue-500/20 border-blue-500/40",
+          };
+
+          const statusBadges = {
+            success: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fas fa-check-circle mr-1"></i>Sukses</span>',
+            failed: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30"><i class="fas fa-times-circle mr-1"></i>Gagal</span>',
+            blocked: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/30 text-rose-200 border border-rose-500/50"><i class="fas fa-ban mr-1"></i>Dicekal</span>',
+            warning: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30"><i class="fas fa-exclamation-triangle mr-1"></i>Warning</span>',
+          };
+
           el.innerHTML = `
-<div class="p-3 border-b border-white/10 text-xs text-gray-400">${d.total} log total · Halaman ${_logPage} dari ${Math.ceil(d.total/50)}</div>
+<div class="px-4 py-2.5 border-b border-white/10 bg-white/3 flex items-center justify-between text-xs text-gray-400">
+  <div>Ditemukan <span class="font-bold text-white">${d.total.toLocaleString("id-ID")}</span> jejak audit · Menampilkan Halaman <span class="font-bold text-white">${_logPage}</span> dari <span class="font-bold text-white">${Math.max(1, Math.ceil(d.total/50))}</span></div>
+  <div class="text-[11px] text-gray-400"><i class="fas fa-shield-alt text-blue-400 mr-1"></i>Attributed by JWT & Client IP</div>
+</div>
 <div class="overflow-x-auto">
 <table class="w-full text-sm">
-<thead><tr class="border-b border-white/10 text-xs text-gray-400 uppercase tracking-wider">
-  <th class="text-left px-4 py-3">Waktu</th>
-  <th class="text-left px-4 py-3">Pengguna</th>
-  <th class="text-left px-4 py-3">Aksi</th>
-  <th class="text-left px-4 py-3">Detail</th>
-  <th class="text-left px-4 py-3">IP</th>
-  <th class="text-left px-4 py-3">Status</th>
+<thead><tr class="border-b border-white/10 text-[11px] text-gray-400 uppercase tracking-wider bg-[#0d1f33]/60">
+  <th class="text-left px-3.5 py-3">Waktu (WIB)</th>
+  <th class="text-left px-3.5 py-3">Petugas / NIP</th>
+  <th class="text-left px-3.5 py-3">Kategori & Aksi</th>
+  <th class="text-left px-3.5 py-3">Modul & Target</th>
+  <th class="text-left px-3.5 py-3">Ringkasan Aktivitas</th>
+  <th class="text-left px-3.5 py-3">Status & IP</th>
+  <th class="text-center px-3.5 py-3">Forensik</th>
 </tr></thead>
 <tbody>
-${d.data.map(l => {
-  const dt = new Date(l.created_at).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+${_currentActivityLogs.map((l, idx) => {
+  const dObj = new Date(l.created_at);
+  const dtStr = dObj.toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }) + " WIB";
+
+  const diffSec = Math.round((Date.now() - dObj.getTime()) / 1000);
+  const timeAgo = diffSec < 60 ? diffSec + "d lalu" : diffSec < 3600 ? Math.round(diffSec/60) + "m lalu" : Math.round(diffSec/3600) + "j lalu";
+
   const icon = actionIcons[l.action] || "fa-circle text-gray-400";
-  const sc = statusColors[l.status] || "text-gray-400";
-  const sl = statusLabels[l.status] || l.status;
-  const ua = (l.user_agent||"").substring(0,60);
-  return `<tr class="border-b border-white/5 hover:bg-white/3">
-    <td class="px-4 py-2.5 text-gray-400 text-xs whitespace-nowrap">${dt}</td>
-    <td class="px-4 py-2.5">
-      <div class="text-white text-xs font-semibold">${l.full_name||l.email||"-"}</div>
-      <div class="text-gray-500 text-xs">${l.email||""}</div>
+  const catColor = categoryColors[l.category] || "text-gray-300 bg-gray-500/10 border-gray-500/20";
+  const methodColor = methodColors[l.method] || "text-gray-400 bg-white/5 border-white/10";
+  const roleBadgeColor = roleColors[l.role] || "text-gray-300 bg-gray-500/10 border-gray-500/20";
+  const resHtml = resourceLabels[l.resource] || `<span class="text-gray-300 font-mono text-xs">${esc(l.resource||"General")}</span>`;
+  const statBadge = statusBadges[l.status] || `<span class="px-2 py-0.5 rounded text-[10px] font-bold text-gray-400">${l.status}</span>`;
+
+  let payloadPreview = "";
+  if (l.payload_summary && typeof l.payload_summary === "object") {
+    const keys = Object.keys(l.payload_summary).filter(k => !['_id','__v'].includes(k));
+    if (keys.length > 0) {
+      payloadPreview = `<div class="mt-1 flex flex-wrap gap-1">${keys.slice(0,3).map(k => `<span class="text-[9px] px-1 py-0.2 rounded bg-white/5 text-gray-400 border border-white/5 font-mono">${esc(k)}: ${esc(String(l.payload_summary[k]).substring(0,25))}</span>`).join("")}${keys.length > 3 ? '<span class="text-[9px] text-gray-500">+'+(keys.length-3)+' lainnya</span>' : ''}</div>`;
+    }
+  }
+
+  return `<tr class="border-b border-white/5 hover:bg-white/[0.04] transition">
+    <td class="px-3.5 py-2.5 whitespace-nowrap">
+      <div class="text-xs text-white font-mono">${dtStr}</div>
+      <div class="text-[10px] text-gray-500 mt-0.5">${timeAgo}</div>
     </td>
-    <td class="px-4 py-2.5 whitespace-nowrap"><i class="fas ${icon} mr-1"></i><span class="text-xs">${l.action}</span></td>
-    <td class="px-4 py-2.5 text-gray-300 text-xs max-w-xs">${l.detail||"-"}</td>
-    <td class="px-4 py-2.5 text-gray-500 text-xs font-mono">${l.ip||"-"}</td>
-    <td class="px-4 py-2.5"><span class="text-xs font-semibold ${sc}">${sl}</span></td>
+    <td class="px-3.5 py-2.5">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-xs font-semibold text-white">${esc(l.full_name || l.email || "Sistem")}</span>
+        <span class="px-1.5 py-0.2 rounded text-[10px] font-bold border ${roleBadgeColor}">${esc(l.role||"petugas")}</span>
+      </div>
+      ${l.nip ? `<div class="text-[10px] font-mono text-cyan-300/80 mt-0.5"><i class="fas fa-id-badge text-[9px] mr-1"></i>NIP: ${esc(l.nip)}</div>` : ''}
+      ${l.unit_kerja ? `<div class="text-[10px] text-gray-400 truncate max-w-[130px]">${esc(l.unit_kerja)}</div>` : ''}
+    </td>
+    <td class="px-3.5 py-2.5 whitespace-nowrap">
+      <div class="flex items-center gap-1.5 mb-1">
+        <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${catColor}">${l.category || "GENERAL"}</span>
+        ${l.method ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${methodColor}">${l.method}</span>` : ''}
+      </div>
+      <div class="text-xs text-gray-300 flex items-center gap-1.5">
+        <i class="fas ${icon} text-xs"></i>
+        <span class="font-mono text-[11px]">${esc(l.action)}</span>
+      </div>
+    </td>
+    <td class="px-3.5 py-2.5">
+      <div class="text-xs">${resHtml}</div>
+      ${l.resource_name ? `<div class="text-[11px] text-white font-medium truncate max-w-[170px] mt-0.5" title="${esc(l.resource_name)}">${esc(l.resource_name)}</div>` : ''}
+      ${l.resource_id ? `<div class="text-[9px] font-mono text-gray-500 truncate max-w-[150px]">${esc(l.resource_id)}</div>` : ''}
+    </td>
+    <td class="px-3.5 py-2.5 text-xs text-gray-300 max-w-xs">
+      <div class="line-clamp-2 leading-relaxed">${esc(l.detail || "-")}</div>
+      ${payloadPreview}
+    </td>
+    <td class="px-3.5 py-2.5 whitespace-nowrap">
+      <div>${statBadge} ${l.status_code ? `<span class="text-[10px] font-mono text-gray-400 ml-1">(${l.status_code})</span>` : ''}</div>
+      <div class="text-[10px] font-mono text-gray-400 mt-1">
+        <i class="fas fa-network-wired text-[9px] mr-1 text-gray-500"></i>${esc(l.ip || "-")}
+        ${l.latency_ms !== null && l.latency_ms !== undefined ? `<span class="text-gray-500 ml-1">· ${l.latency_ms}ms</span>` : ''}
+      </div>
+    </td>
+    <td class="px-3.5 py-2.5 text-center whitespace-nowrap">
+      <button onclick="showLogDetail(${idx})" class="px-2.5 py-1 rounded bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/30 text-xs font-semibold inline-flex items-center gap-1 transition">
+        <i class="fas fa-fingerprint text-xs"></i> Detail
+      </button>
+    </td>
   </tr>`;
 }).join("")}
 </tbody></table></div>`;
@@ -26402,14 +26690,260 @@ ${d.data.map(l => {
           if (pgEl) {
             const totalPages = Math.ceil(d.total / 50);
             let pgHtml = "";
-            if (_logPage > 1) pgHtml += `<button onclick="loadActivityLog(${_logPage-1})" class="px-3 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs">‹ Prev</button>`;
-            pgHtml += `<span class="px-3 py-1 text-gray-400 text-xs">${_logPage} / ${totalPages}</span>`;
-            if (_logPage < totalPages) pgHtml += `<button onclick="loadActivityLog(${_logPage+1})" class="px-3 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs">Next ›</button>`;
+            if (_logPage > 1) {
+              pgHtml += `<button onclick="loadActivityLog(1)" class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs transition">« Awal</button>`;
+              pgHtml += `<button onclick="loadActivityLog(${_logPage-1})" class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs transition">‹ Prev</button>`;
+            }
+            pgHtml += `<span class="px-3 py-1 text-xs text-gray-300 font-semibold bg-blue-500/20 rounded border border-blue-500/30">Halaman ${_logPage} dari ${totalPages || 1}</span>`;
+            if (_logPage < totalPages) {
+              pgHtml += `<button onclick="loadActivityLog(${_logPage+1})" class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs transition">Next ›</button>`;
+              pgHtml += `<button onclick="loadActivityLog(${totalPages})" class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-xs transition">Akhir »</button>`;
+            }
             pgEl.innerHTML = pgHtml;
           }
-        } catch {
-          el.innerHTML = '<div class="p-6 text-red-400">Gagal memuat log.</div>';
+        } catch (e) {
+          console.error("Gagal memuat log forensik:", e);
+          el.innerHTML = '<div class="p-8 text-center text-red-400"><i class="fas fa-exclamation-triangle fa-2x mb-2 block"></i>Gagal memuat log aktivitas. Pastikan Anda memiliki hak akses Administrator.</div>';
         }
+      }
+
+      function showLogDetail(idx) {
+        const l = _currentActivityLogs[idx];
+        if (!l) return;
+        const modal = document.getElementById("admin-log-detail-modal");
+        const body = document.getElementById("admin-log-detail-body");
+        if (!modal || !body) return;
+
+        const dObj = new Date(l.created_at);
+        const dtWib = dObj.toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " WIB";
+
+        let payloadJson = "-";
+        if (l.payload_summary) {
+          try {
+            payloadJson = typeof l.payload_summary === "string" ? l.payload_summary : JSON.stringify(l.payload_summary, null, 2);
+          } catch(e) {
+            payloadJson = String(l.payload_summary);
+          }
+        }
+
+        body.innerHTML = `
+<div class="space-y-4 text-xs">
+  <!-- Top Bar / Summary -->
+  <div class="p-3 rounded-xl bg-[#0d1f33] border border-white/10 flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <span class="text-[10px] text-gray-400 uppercase tracking-wider block">ID Jejak Forensik</span>
+      <span class="font-mono text-cyan-300 font-bold">${esc(l._id || "-")}</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40">${esc(l.category || "GENERAL")}</span>
+      <span class="px-2 py-0.5 rounded text-[11px] font-bold ${l.status === 'success' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'}">${esc(l.status)} (${l.status_code || "-"})</span>
+    </div>
+  </div>
+
+  <!-- Grid Profile & Network -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <!-- Identitas Petugas -->
+    <div class="p-3.5 rounded-xl bg-white/3 border border-white/10 space-y-2">
+      <div class="text-[11px] font-bold text-yellow-400 flex items-center gap-1.5 uppercase tracking-wider">
+        <i class="fas fa-user-shield"></i> Identitas Petugas DJBC
+      </div>
+      <div>
+        <div class="text-gray-400 text-[10px]">Nama Lengkap</div>
+        <div class="text-white font-semibold text-sm">${esc(l.full_name || l.email || "-")}</div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <div>
+          <div class="text-gray-400 text-[10px]">NIP Petugas</div>
+          <div class="font-mono text-cyan-300">${esc(l.nip || "-")}</div>
+        </div>
+        <div>
+          <div class="text-gray-400 text-[10px]">Role / Hak Akses</div>
+          <div class="font-semibold text-amber-300 capitalize">${esc(l.role || "-")}</div>
+        </div>
+      </div>
+      <div>
+        <div class="text-gray-400 text-[10px]">Unit Kerja / Lokasi</div>
+        <div class="text-gray-200">${esc(l.unit_kerja || "-")}</div>
+      </div>
+      <div>
+        <div class="text-gray-400 text-[10px]">Email Akun</div>
+        <div class="text-gray-300 font-mono">${esc(l.email || "-")}</div>
+      </div>
+    </div>
+
+    <!-- Forensik Jaringan & Permintaan -->
+    <div class="p-3.5 rounded-xl bg-white/3 border border-white/10 space-y-2">
+      <div class="text-[11px] font-bold text-cyan-400 flex items-center gap-1.5 uppercase tracking-wider">
+        <i class="fas fa-network-wired"></i> Jejak Jaringan & Permintaan
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <div class="text-gray-400 text-[10px]">Waktu Eksekusi (WIB)</div>
+          <div class="text-white font-mono text-[11px]">${dtWib}</div>
+        </div>
+        <div>
+          <div class="text-gray-400 text-[10px]">Latensi Server</div>
+          <div class="text-white font-mono">${l.latency_ms !== null && l.latency_ms !== undefined ? l.latency_ms + ' ms' : '-'}</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <div>
+          <div class="text-gray-400 text-[10px]">HTTP Method</div>
+          <div class="font-mono font-bold text-emerald-400">${esc(l.method || "-")}</div>
+        </div>
+        <div>
+          <div class="text-gray-400 text-[10px]">IP Address Klien</div>
+          <div class="font-mono text-white">${esc(l.ip || "-")}</div>
+        </div>
+      </div>
+      <div>
+        <div class="text-gray-400 text-[10px]">Endpoint Path URL</div>
+        <div class="font-mono text-[11px] text-gray-200 break-all bg-black/30 px-2 py-1 rounded border border-white/5">${esc(l.path || "-")}</div>
+      </div>
+      <div>
+        <div class="text-gray-400 text-[10px]">User-Agent Klien</div>
+        <div class="text-gray-400 text-[10px] break-all line-clamp-2" title="${esc(l.user_agent||'')}">${esc(l.user_agent || "-")}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Modul & Objek -->
+  <div class="p-3.5 rounded-xl bg-white/3 border border-white/10 space-y-1.5">
+    <div class="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
+      <i class="fas fa-crosshairs"></i> Modul & Target Intelijen
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
+      <div>
+        <span class="text-gray-400 text-[10px] block">Modul Intelijen</span>
+        <span class="text-white font-semibold">${esc(l.resource || "General")}</span>
+      </div>
+      <div>
+        <span class="text-gray-400 text-[10px] block">Nama / Identitas Target</span>
+        <span class="text-white font-medium">${esc(l.resource_name || "-")}</span>
+      </div>
+      <div>
+        <span class="text-gray-400 text-[10px] block">ID Dokumen / Resource</span>
+        <span class="font-mono text-gray-300 text-[11px]">${esc(l.resource_id || "-")}</span>
+      </div>
+    </div>
+    <div class="pt-1.5 border-t border-white/5">
+      <span class="text-gray-400 text-[10px] block">Deskripsi Audit</span>
+      <span class="text-white text-xs leading-relaxed">${esc(l.detail || "-")}</span>
+    </div>
+  </div>
+
+  <!-- Snapshot Payload / Mutasi Data -->
+  <div class="p-3.5 rounded-xl bg-[#0b1523] border border-white/15 space-y-2">
+    <div class="flex items-center justify-between">
+      <div class="text-[11px] font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+        <i class="fas fa-code"></i> Snapshot Mutasi Data / Parameter (Sanitized)
+      </div>
+      <button onclick="copyForensicText(${idx})" class="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-gray-300 transition flex items-center gap-1">
+        <i class="fas fa-copy"></i> Salin JSON
+      </button>
+    </div>
+    <pre class="font-mono text-[11px] text-green-300 bg-black/40 p-3 rounded-lg border border-white/5 overflow-x-auto max-h-48 scrollbar-thin">${esc(payloadJson)}</pre>
+  </div>
+
+  <!-- Footer Actions -->
+  <div class="flex items-center justify-between pt-2">
+    <button onclick="copyFullForensicEvidence(${idx})" class="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+      <i class="fas fa-clipboard-check"></i> Salin Ringkasan Laporan Investigasi
+    </button>
+    <button onclick="closeLogDetailModal()" class="px-4 py-1.5 bg-white/10 hover:bg-white/15 text-white rounded-lg text-xs font-semibold transition">
+      Tutup
+    </button>
+  </div>
+</div>`;
+        modal.style.display = "flex";
+      }
+
+      function closeLogDetailModal() {
+        const modal = document.getElementById("admin-log-detail-modal");
+        if (modal) modal.style.display = "none";
+      }
+
+      async function exportAuditLogs() {
+        const q = document.getElementById("log-search-q")?.value.trim() || "";
+        const category = document.getElementById("log-filter-category")?.value || "";
+        const resource = document.getElementById("log-filter-resource")?.value || "";
+        const status = document.getElementById("log-filter-status")?.value || "";
+        const period = document.getElementById("log-filter-period")?.value || "today";
+
+        const params = new URLSearchParams();
+        if (q) params.set("q", q);
+        if (category) params.set("category", category);
+        if (resource) params.set("resource", resource);
+        if (status) params.set("status", status);
+
+        const now = new Date();
+        if (period === "today") {
+          params.set("start_date", new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString());
+        } else if (period === "7d") {
+          params.set("start_date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+        } else if (period === "30d") {
+          params.set("start_date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        }
+
+        try {
+          const btn = event?.currentTarget;
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyiapkan CSV...';
+          }
+          const res = await fetch("/api/admin/activity-log/export?" + params.toString());
+          if (!res.ok) throw new Error("Gagal mengekspor data (" + res.status + ")");
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          a.href = url;
+          a.download = "audit_log_skyguard_" + timestamp + ".csv";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-csv text-sm mr-1"></i> Ekspor CSV Investigasi';
+          }
+        } catch (err) {
+          alert("Gagal mengunduh log audit: " + err.message);
+        }
+      }
+
+      function copyForensicText(idx) {
+        const l = _currentActivityLogs[idx];
+        if (!l || !l.payload_summary) return;
+        const text = typeof l.payload_summary === "string" ? l.payload_summary : JSON.stringify(l.payload_summary, null, 2);
+        navigator.clipboard.writeText(text).then(() => alert("Snapshot payload berhasil disalin ke clipboard.")).catch(() => {});
+      }
+
+      function copyFullForensicEvidence(idx) {
+        const l = _currentActivityLogs[idx];
+        if (!l) return;
+        const dObj = new Date(l.created_at);
+        const dtWib = dObj.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) + " WIB";
+        const evidence = [
+          "=== BUKTI FORENSIK AUDIT INTERNAL SKYGUARD ===",
+          "ID Log: " + (l._id || "-"),
+          "Waktu: " + dtWib,
+          "Petugas: " + (l.full_name || l.email || "-") + " (" + (l.role || "-") + ")",
+          "NIP: " + (l.nip || "-"),
+          "Unit Kerja: " + (l.unit_kerja || "-"),
+          "Kategori: " + (l.category || "GENERAL"),
+          "Aksi: " + (l.action || "-"),
+          "Modul: " + (l.resource || "General") + (l.resource_name ? " - " + l.resource_name : ""),
+          "Target ID: " + (l.resource_id || "-"),
+          "Detail: " + (l.detail || "-"),
+          "HTTP Request: " + (l.method || "-") + " " + (l.path || "-"),
+          "Status: " + (l.status || "-") + " (" + (l.status_code || "-") + ")",
+          "Latensi: " + (l.latency_ms !== null && l.latency_ms !== undefined ? l.latency_ms + " ms" : "-"),
+          "IP Klien: " + (l.ip || "-"),
+          "User-Agent: " + (l.user_agent || "-"),
+          "================================================"
+        ].join("\n");
+        navigator.clipboard.writeText(evidence).then(() => alert("Ringkasan bukti forensik berhasil disalin ke clipboard.")).catch(() => {});
       }
 
       function renderAdminTable(users, total) {
@@ -26647,8 +27181,19 @@ ${!isMe ? `
       }
 
       // ==================== AUTH: LOGOUT + USER DISPLAY ====================
-      function doLogout() {
+      async function doLogout() {
         if (!confirm("Yakin ingin keluar dari SkyGuard Intelligence?")) return;
+        try {
+          const token = localStorage.getItem("sg_token");
+          if (token) {
+            await fetch("/api/auth/logout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" }
+            });
+          }
+        } catch (e) {
+          console.warn("Audit logout failed:", e);
+        }
         localStorage.removeItem("sg_token");
         localStorage.removeItem("sg_user");
         window.location.replace("/login");
