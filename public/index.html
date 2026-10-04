@@ -539,10 +539,14 @@
                 <div id="headerUserRole" class="text-[10px] text-blue-300/70 uppercase tracking-wider"></div>
               </div>
               <div
-                class="w-9 h-9 rounded-full bg-blue-500/30 flex items-center justify-center"
-                title="Profil"
+                id="headerProfileBtn"
+                class="w-9 h-9 rounded-full bg-blue-500/30 flex items-center justify-center cursor-pointer hover:bg-blue-500/50 transition relative"
+                title="Profil & Ganti Password"
+                onclick="openChangePasswordModal()"
               >
                 <i class="fas fa-user text-sm"></i>
+                <span id="headerPwBadgePing" class="hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping"></span>
+                <span id="headerPwBadgeDot" class="hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full border border-slate-900" title="Password default aktif - Segera ganti password"></span>
               </div>
               <button
                 type="button"
@@ -682,6 +686,32 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6">
+      <!-- Alert Banner: Disarankan Ganti Password Default -->
+      <div id="must-change-pw-banner" style="display:none" class="bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 rounded-xl p-3.5 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-200 shadow-lg">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center flex-shrink-0 text-base">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-amber-300 flex items-center gap-2">
+              <span>Saran Keamanan Akun</span>
+              <span class="px-2 py-0.5 rounded text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/30 font-semibold uppercase tracking-wider">Disarankan</span>
+            </div>
+            <div class="text-xs text-amber-200/90 mt-0.5 leading-relaxed">
+              Akun Anda saat ini menggunakan password bawaan/reset dari Administrator. Disarankan untuk segera mengganti password baru demi keamanan akses.
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+          <button onclick="openChangePasswordModal(true)" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+            <i class="fas fa-key"></i> Ganti Password Sekarang
+          </button>
+          <button onclick="document.getElementById('must-change-pw-banner').style.display='none'" class="p-1.5 text-amber-300/70 hover:text-amber-100 text-sm" title="Tutup pemberitahuan">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- HOME Content -->
       <div
         id="content-home"
@@ -26309,6 +26339,44 @@
   </div>
 </div>
 
+<!-- MODAL: Beri / Reset Password Petugas (Admin & Superadmin) -->
+<div id="admin-reset-pw-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);align-items:center;justify-content:center">
+  <div class="glass-card-solid rounded-2xl p-6 w-full max-w-md mx-4 border border-amber-500/30 shadow-2xl" style="max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+          <i class="fas fa-key"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white tracking-wide">Beri / Reset Password Petugas</h3>
+          <p class="text-xs text-gray-400">Atur password akses untuk pengguna</p>
+        </div>
+      </div>
+      <button onclick="closeResetPasswordModal()" class="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition">&times;</button>
+    </div>
+    <div id="admin-reset-pw-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Ganti Password Mandiri (Petugas & Pengguna) -->
+<div id="user-change-pw-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);align-items:center;justify-content:center">
+  <div class="glass-card-solid rounded-2xl p-6 w-full max-w-md mx-4 border border-blue-500/30 shadow-2xl" style="max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+          <i class="fas fa-user-shield"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white tracking-wide">Ganti Password Akun</h3>
+          <p class="text-xs text-gray-400">Tingkatkan keamanan akses SkyGuard Anda</p>
+        </div>
+      </div>
+      <button onclick="closeChangePasswordModal()" class="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition">&times;</button>
+    </div>
+    <div id="user-change-pw-body"></div>
+  </div>
+</div>
+
 <!-- MODAL: Detail Forensik Audit Log -->
 <div id="admin-log-detail-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);align-items:center;justify-content:center">
   <div class="glass-card-solid rounded-2xl p-6 w-full max-w-2xl mx-4 border border-white/20 shadow-2xl" style="max-height:90vh;overflow-y:auto">
@@ -27003,12 +27071,14 @@ ${users.map(u => {
     <td class="px-4 py-3">
       <div>${verBadge}</div>
       <div class="mt-1">${activeBadge}</div>
+      ${u.must_change_password ? '<div class="mt-1"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1" title="Password default aktif (disarankan ganti)"><i class="fas fa-key text-[9px]"></i>Pw Default</span></div>' : ''}
       ${isOnline ? '<div class="mt-1"><span class="text-green-400 text-xs font-semibold"><i class="fas fa-wifi mr-1"></i>Online</span></div>' : (lastSeenStr ? `<div class="mt-1 text-gray-500 text-xs">${lastSeenStr}</div>` : '')}
     </td>
     <td class="px-4 py-3 text-gray-400 text-xs">${lastLogin}<br><span class="text-gray-500">${u.login_count||0}x login</span></td>
     <td class="px-4 py-3">
       <div class="flex gap-2 flex-wrap">
-        <button onclick="openAdminModal('${u._id}')" class="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded text-xs transition" title="Edit"><i class="fas fa-edit"></i></button>
+        <button onclick="openAdminModal('${u._id}')" class="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded text-xs transition" title="Edit Profil"><i class="fas fa-edit"></i></button>
+        <button onclick="openResetPasswordModal('${u._id}','${esc(u.email||'')}','${esc(u.full_name||'')}','${u.role}')" class="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 rounded text-xs transition" title="Beri / Reset Password"><i class="fas fa-key"></i></button>
         <button onclick="adminViewActivity('${u._id}','${u.full_name}')" class="px-2 py-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 rounded text-xs transition" title="Riwayat Aktivitas"><i class="fas fa-history"></i></button>
         ${!u.is_verified ? `<button onclick="adminVerify('${u._id}','${u.email}')" class="px-2 py-1 bg-green-500/20 hover:bg-green-500/40 text-green-300 rounded text-xs transition" title="Verifikasi Manual"><i class="fas fa-check"></i></button>` : ''}
         ${!isMe ? `<button onclick="adminToggleActive('${u._id}','${u.email}',${u.is_active})" class="px-2 py-1 ${u.is_active ? 'bg-orange-500/20 hover:bg-orange-500/40 text-orange-300' : 'bg-green-500/20 hover:bg-green-500/40 text-green-300'} rounded text-xs transition" title="${u.is_active ? 'Nonaktifkan' : 'Aktifkan'}"><i class="fas ${u.is_active ? 'fa-ban' : 'fa-user-check'}"></i></button>` : ''}
@@ -27097,6 +27167,11 @@ ${!isMe ? `
     ${isSuperAdmin ? `<option value="superadmin" ${user.role==='superadmin'?'selected':''}>Superadmin</option>` : ''}
   </select>
 </div>` : ''}
+<div style="margin-bottom:14px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)">
+  <button type="button" onclick="closeAdminModal(); openResetPasswordModal('${userId}', '${esc(user.email||'')}', '${esc(user.full_name||'')}', '${user.role}')" style="width:100%;padding:9px 12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;color:#fcd34d;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+    <i class="fas fa-key"></i> Beri / Reset Password Petugas
+  </button>
+</div>
 <div id="admin-modal-alert" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px"></div>
 <div class="flex gap-2">
   <button onclick="adminSaveUser('${userId}')" style="flex:1;padding:11px;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">
@@ -27181,6 +27256,369 @@ ${!isMe ? `
         } catch { alert("Gagal terhubung ke server."); }
       }
 
+      // ==================== ADMIN: BERI / RESET PASSWORD ====================
+      function openResetPasswordModal(userId, email, fullName, role) {
+        const modal = document.getElementById("admin-reset-pw-modal");
+        const body = document.getElementById("admin-reset-pw-body");
+        if (!modal || !body) return;
+
+        const roleLabels = { petugas: "Petugas", admin: "Admin", superadmin: "Superadmin" };
+        const roleColors = { petugas: "#60a5fa", admin: "#f59e0b", superadmin: "#ef4444" };
+        const rLabel = roleLabels[role] || role || "Petugas";
+        const rColor = roleColors[role] || "#60a5fa";
+
+        body.innerHTML = `
+<div class="p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="text-white font-semibold text-sm">${esc(fullName || email)}</div>
+      <div class="text-gray-400 text-xs">${esc(email)}</div>
+    </div>
+    <span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:${rColor}20;color:${rColor}">${rLabel}</span>
+  </div>
+</div>
+
+<div class="mb-3">
+  <div class="flex items-center justify-between mb-1.5">
+    <label class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Password Baru Petugas</label>
+    <div class="flex items-center gap-1.5">
+      <button type="button" onclick="document.getElementById('admin-input-pw').value='123456'" class="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">
+        <i class="fas fa-magic mr-1"></i> Default 123456
+      </button>
+      <button type="button" onclick="adminGenRandomPw()" class="text-[11px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition">
+        <i class="fas fa-random mr-1"></i> Acak Sandi
+      </button>
+    </div>
+  </div>
+  <div class="relative">
+    <input type="text" id="admin-input-pw" value="123456" placeholder="Masukkan password (min. 6 karakter)"
+      class="w-full px-3.5 py-2.5 rounded-lg bg-black/40 border border-white/15 text-white font-mono text-sm focus:border-amber-400 outline-none pr-10">
+    <button type="button" onclick="toggleInputType('admin-input-pw', this)" class="absolute right-3 top-2.5 text-gray-400 hover:text-white" title="Lihat/Sembunyikan">
+      <i class="fas fa-eye"></i>
+    </button>
+  </div>
+  <div class="text-[11px] text-gray-400 mt-1">Default diisi: <code>123456</code> (Bisa diubah bebas oleh admin).</div>
+</div>
+
+<div class="space-y-2 mb-4 p-3 rounded-lg bg-white/3 border border-white/5 text-xs text-gray-300">
+  <label class="flex items-center gap-2 cursor-pointer select-none">
+    <input type="checkbox" id="admin-check-must-change" checked class="rounded border-gray-600 text-amber-500 focus:ring-0">
+    <span>Sarankan / minta petugas mengganti password saat login</span>
+  </label>
+  <label class="flex items-center gap-2 cursor-pointer select-none">
+    <input type="checkbox" id="admin-check-auto-verify" checked class="rounded border-gray-600 text-amber-500 focus:ring-0">
+    <span>Otomatis verifikasi akun (bypass email aktivasi jika belum aktif)</span>
+  </label>
+</div>
+
+<div id="admin-reset-pw-alert" style="display:none" class="mb-4 p-3 rounded-lg text-xs leading-relaxed"></div>
+
+<div class="flex gap-2">
+  <button type="button" id="admin-btn-save-pw" onclick="adminSubmitResetPassword('${userId}','${esc(email)}','${esc(fullName||email)}')"
+    class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition">
+    <i class="fas fa-save"></i> Terapkan Password
+  </button>
+  <button type="button" onclick="closeResetPasswordModal()" class="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 font-semibold text-sm transition">
+    Batal
+  </button>
+</div>`;
+
+        modal.style.display = "flex";
+      }
+
+      function closeResetPasswordModal() {
+        const modal = document.getElementById("admin-reset-pw-modal");
+        if (modal) modal.style.display = "none";
+      }
+
+      function adminGenRandomPw() {
+        const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$";
+        let pw = "";
+        for (let i = 0; i < 8; i++) {
+          pw += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const el = document.getElementById("admin-input-pw");
+        if (el) el.value = pw;
+      }
+
+      async function adminSubmitResetPassword(userId, email, fullName) {
+        const pwInput = document.getElementById("admin-input-pw");
+        const mustChange = document.getElementById("admin-check-must-change")?.checked;
+        const autoVerify = document.getElementById("admin-check-auto-verify")?.checked;
+        const alertEl = document.getElementById("admin-reset-pw-alert");
+        const btnSave = document.getElementById("admin-btn-save-pw");
+
+        const password = (pwInput ? pwInput.value : "").trim();
+        if (!password || password.length < 6) {
+          if (alertEl) {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>Password minimal 6 karakter.';
+          }
+          return;
+        }
+
+        if (btnSave) {
+          btnSave.disabled = true;
+          btnSave.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+        }
+
+        try {
+          const res = await fetch("/api/admin/users/" + userId + "/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password: password,
+              must_change_password: mustChange,
+              auto_verify: autoVerify
+            })
+          });
+          const d = await res.json();
+          if (d.status === "ok") {
+            const loginUrl = window.location.origin + "/login";
+            const memoText = "=== AKSES AKUN SKYGUARD INTELLIGENCE ===\\nNama: " + fullName + "\\nEmail: " + email + "\\nPassword Baru: " + password + "\\nLogin: " + loginUrl + "\\n\\n*Catatan: Password di atas disiapkan oleh Administrator. Disarankan untuk segera mengganti password baru setelah login.*";
+
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3.5 rounded-xl bg-green-500/15 border border-green-500/30 text-green-200 text-xs";
+            alertEl.innerHTML = `
+<div class="font-bold text-green-300 text-sm mb-1 flex items-center gap-1.5">
+  <i class="fas fa-check-circle"></i> Password Berhasil Diterapkan!
+</div>
+<div class="mb-2 text-green-200/90">
+  Password baru: <strong class="font-mono bg-black/40 px-2 py-0.5 rounded text-amber-300">${esc(password)}</strong>
+</div>
+<button type="button" id="btn-copy-memo" class="w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition">
+  <i class="fas fa-copy"></i> Salin Format Akses Petugas (WhatsApp / Memo)
+</button>`;
+
+            const copyBtn = document.getElementById("btn-copy-memo");
+            if (copyBtn) {
+              copyBtn.onclick = function () {
+                navigator.clipboard.writeText(memoText.replace(/\\n/g, "\n")).then(() => {
+                  alert("Format akses petugas berhasil disalin ke clipboard! Siap dikirimkan ke petugas terkait.");
+                }).catch(() => {});
+              };
+            }
+
+            if (btnSave) {
+              btnSave.disabled = true;
+              btnSave.innerHTML = '<i class="fas fa-check mr-1"></i> Selesai';
+            }
+
+            if (typeof adminSearch === "function") adminSearch();
+            if (typeof adminLoadStats === "function") adminLoadStats();
+          } else {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>' + (d.message || "Gagal mereset password.");
+            if (btnSave) {
+              btnSave.disabled = false;
+              btnSave.innerHTML = '<i class="fas fa-save mr-1"></i> Terapkan Password';
+            }
+          }
+        } catch (err) {
+          if (alertEl) {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>Gagal terhubung ke server.';
+          }
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="fas fa-save mr-1"></i> Terapkan Password';
+          }
+        }
+      }
+
+      // ==================== USER: GANTI PASSWORD MANDIRI ====================
+      function openChangePasswordModal(isForced = false) {
+        const modal = document.getElementById("user-change-pw-modal");
+        const body = document.getElementById("user-change-pw-body");
+        if (!modal || !body) return;
+
+        const u = window._sgUser || {};
+        const isDefaultPw = isForced || Boolean(u.must_change_password);
+
+        body.innerHTML = `
+${isDefaultPw ? `
+<div class="mb-4 p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+  <i class="fas fa-shield-alt text-amber-400 mt-0.5 text-base flex-shrink-0"></i>
+  <div>
+    <div class="font-bold text-amber-300 mb-0.5">Saran Keamanan Administrator</div>
+    <div>Akun Anda saat ini menggunakan password default/reset. Demi keamanan akses data intelijen dan kepabeanan, silakan perbarui password Anda.</div>
+  </div>
+</div>` : ''}
+
+<div class="mb-3">
+  <label class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold block mb-1.5">Password Saat Ini</label>
+  <div class="relative">
+    <input type="password" id="chg-curr-pw" value="${isDefaultPw ? '123456' : ''}" placeholder="${isDefaultPw ? 'Password default (misal: 123456)' : 'Masukkan password lama Anda'}"
+      class="w-full px-3.5 py-2.5 rounded-lg bg-black/40 border border-white/15 text-white text-sm focus:border-blue-400 outline-none pr-10">
+    <button type="button" onclick="toggleInputType('chg-curr-pw', this)" class="absolute right-3 top-2.5 text-gray-400 hover:text-white" title="Lihat/Sembunyikan">
+      <i class="fas fa-eye"></i>
+    </button>
+  </div>
+  ${isDefaultPw ? '<div class="text-[11px] text-amber-300/80 mt-1">Jika belum pernah diubah, password awal adalah <code>123456</code></div>' : ''}
+</div>
+
+<div class="mb-3">
+  <label class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold block mb-1.5">Password Baru</label>
+  <div class="relative">
+    <input type="password" id="chg-new-pw" placeholder="Minimal 6 karakter"
+      class="w-full px-3.5 py-2.5 rounded-lg bg-black/40 border border-white/15 text-white text-sm focus:border-blue-400 outline-none pr-10">
+    <button type="button" onclick="toggleInputType('chg-new-pw', this)" class="absolute right-3 top-2.5 text-gray-400 hover:text-white" title="Lihat/Sembunyikan">
+      <i class="fas fa-eye"></i>
+    </button>
+  </div>
+</div>
+
+<div class="mb-4">
+  <label class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold block mb-1.5">Konfirmasi Password Baru</label>
+  <div class="relative">
+    <input type="password" id="chg-confirm-pw" placeholder="Ketik ulang password baru"
+      class="w-full px-3.5 py-2.5 rounded-lg bg-black/40 border border-white/15 text-white text-sm focus:border-blue-400 outline-none pr-10">
+    <button type="button" onclick="toggleInputType('chg-confirm-pw', this)" class="absolute right-3 top-2.5 text-gray-400 hover:text-white" title="Lihat/Sembunyikan">
+      <i class="fas fa-eye"></i>
+    </button>
+  </div>
+</div>
+
+<div id="user-change-pw-alert" style="display:none" class="mb-4 p-3 rounded-lg text-xs leading-relaxed"></div>
+
+<div class="flex gap-2">
+  <button type="button" id="user-btn-save-pw" onclick="submitUserChangePassword()"
+    class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition">
+    <i class="fas fa-check-circle"></i> Simpan Password Baru
+  </button>
+  <button type="button" onclick="closeChangePasswordModal()" class="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 font-semibold text-sm transition">
+    ${isDefaultPw ? 'Nanti Saja' : 'Batal'}
+  </button>
+</div>`;
+
+        modal.style.display = "flex";
+      }
+
+      function closeChangePasswordModal() {
+        const modal = document.getElementById("user-change-pw-modal");
+        if (modal) modal.style.display = "none";
+      }
+
+      async function submitUserChangePassword() {
+        const currPw = document.getElementById("chg-curr-pw")?.value || "";
+        const newPw = (document.getElementById("chg-new-pw")?.value || "").trim();
+        const confirmPw = (document.getElementById("chg-confirm-pw")?.value || "").trim();
+        const alertEl = document.getElementById("user-change-pw-alert");
+        const btn = document.getElementById("user-btn-save-pw");
+
+        if (!newPw || newPw.length < 6) {
+          if (alertEl) {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>Password baru minimal 6 karakter.';
+          }
+          return;
+        }
+
+        if (newPw !== confirmPw) {
+          if (alertEl) {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>Konfirmasi password baru tidak cocok.';
+          }
+          return;
+        }
+
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+        }
+
+        try {
+          const token = localStorage.getItem("sg_token");
+          const res = await fetch("/api/auth/change-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({
+              current_password: currPw,
+              new_password: newPw
+            })
+          });
+          const d = await res.json();
+          if (d.status === "ok") {
+            const u = JSON.parse(localStorage.getItem("sg_user") || "{}");
+            u.must_change_password = false;
+            localStorage.setItem("sg_user", JSON.stringify(u));
+            window._sgUser = u;
+
+            const banner = document.getElementById("must-change-pw-banner");
+            if (banner) banner.style.display = "none";
+            const badgePing = document.getElementById("headerPwBadgePing");
+            if (badgePing) badgePing.classList.add("hidden");
+            const badgeDot = document.getElementById("headerPwBadgeDot");
+            if (badgeDot) badgeDot.classList.add("hidden");
+
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3.5 rounded-xl bg-green-500/15 border border-green-500/30 text-green-300 text-xs";
+            alertEl.innerHTML = '<i class="fas fa-check-circle mr-1.5"></i>' + d.message;
+
+            setTimeout(() => {
+              closeChangePasswordModal();
+            }, 1500);
+          } else {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>' + (d.message || "Gagal memperbarui password.");
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Simpan Password Baru';
+            }
+          }
+        } catch (err) {
+          if (alertEl) {
+            alertEl.style.display = "block";
+            alertEl.className = "mb-4 p-3 rounded-lg text-xs bg-red-500/15 border border-red-500/30 text-red-300";
+            alertEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>Gagal terhubung ke server.';
+          }
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Simpan Password Baru';
+          }
+        }
+      }
+
+      function toggleInputType(inputId, btn) {
+        const el = document.getElementById(inputId);
+        if (!el) return;
+        const isPw = el.type === "password";
+        el.type = isPw ? "text" : "password";
+        const icon = btn.querySelector("i");
+        if (icon) {
+          icon.className = isPw ? "fas fa-eye-slash" : "fas fa-eye";
+        }
+      }
+
+      function checkMustChangePasswordPrompt() {
+        const u = window._sgUser || {};
+        if (u && u.must_change_password) {
+          const banner = document.getElementById("must-change-pw-banner");
+          if (banner) banner.style.display = "flex";
+          const badgePing = document.getElementById("headerPwBadgePing");
+          if (badgePing) badgePing.classList.remove("hidden");
+          const badgeDot = document.getElementById("headerPwBadgeDot");
+          if (badgeDot) badgeDot.classList.remove("hidden");
+
+          const hasPrompted = sessionStorage.getItem("sg_pw_prompted");
+          if (!hasPrompted) {
+            sessionStorage.setItem("sg_pw_prompted", "1");
+            setTimeout(() => {
+              openChangePasswordModal(true);
+            }, 800);
+          }
+        }
+      }
+
       // ==================== AUTH: LOGOUT + USER DISPLAY ====================
       async function doLogout() {
         if (!confirm("Yakin ingin keluar dari SkyGuard Intelligence?")) return;
@@ -27200,7 +27638,7 @@ ${!isMe ? `
         window.location.replace("/login");
       }
 
-      // Populate user info in header
+      // Populate user info in header & check password status
       (function () {
         const u = window._sgUser || {};
         const nameEl = document.getElementById("headerUserName");
@@ -27210,6 +27648,24 @@ ${!isMe ? `
         }
         if (roleEl && u.role) {
           roleEl.textContent = u.role;
+        }
+
+        // Trigger password change advice check
+        checkMustChangePasswordPrompt();
+
+        // Sync with /api/auth/me in background
+        const token = localStorage.getItem("sg_token");
+        if (token) {
+          fetch("/api/auth/me", { headers: { "Authorization": "Bearer " + token } })
+            .then(r => r.json())
+            .then(d => {
+              if (d.status === "ok" && d.user) {
+                window._sgUser = Object.assign({}, window._sgUser, d.user);
+                localStorage.setItem("sg_user", JSON.stringify(window._sgUser));
+                checkMustChangePasswordPrompt();
+              }
+            })
+            .catch(() => {});
         }
       })();
     </script>

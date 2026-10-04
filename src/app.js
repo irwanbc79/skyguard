@@ -70,7 +70,7 @@ app.use("/api/qsvm/scan", heavyLimiter);
 app.use("/api/imei-registrations/analytics", heavyLimiter);
 app.use("/api/manifests/parse", heavyLimiter);
 app.use(
-  ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password"],
+  ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/change-password"],
   authLimiter,
 );
 

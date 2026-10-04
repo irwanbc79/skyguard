@@ -157,6 +157,7 @@ router.post("/login", async (req, res) => {
         nip: user.nip,
         unit_kerja: user.unit_kerja,
         role: user.role,
+        must_change_password: Boolean(user.must_change_password),
       },
     });
   } catch (err) {
@@ -271,5 +272,64 @@ router.post("/logout", async (req, res) => {
   }
 });
 
+// ─── POST /api/auth/change-password — User updates own password ───────────────
+router.post("/change-password", async (req, res) => {
+  try {
+    const { verifyJwt } = require("../services/authService");
+    const header = req.headers.authorization;
+    if (!header?.startsWith("Bearer ")) {
+      return res.status(401).json({ status: "error", message: "Token tidak ditemukan. Silakan login." });
+    }
+    const payload = verifyJwt(header.slice(7));
+    const { current_password, new_password } = req.body || {};
+
+    if (!new_password || String(new_password).trim().length < 6) {
+      return res.status(400).json({ status: "error", message: "Password baru minimal 6 karakter." });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user || !user.is_active) {
+      return res.status(401).json({ status: "error", message: "Pengguna tidak valid atau akun dinonaktifkan." });
+    }
+
+    // If current_password is provided, check it
+    if (current_password) {
+      const match = await user.comparePassword(current_password);
+      if (!match) {
+        return res.status(400).json({ status: "error", message: "Password lama tidak sesuai." });
+      }
+    } else if (!user.must_change_password) {
+      // Must provide current password if not forced/reset
+      return res.status(400).json({ status: "error", message: "Password lama wajib diisi." });
+    }
+
+    user.password = String(new_password).trim();
+    user.must_change_password = false;
+    await user.save();
+
+    logActivity({
+      user_id: user._id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      action: "password_changed",
+      category: "AUTH",
+      resource: "auth",
+      detail: `Pengguna ${user.email} (${user.full_name}) berhasil memperbarui password pribadi`,
+      ip: getIp(req),
+      user_agent: req.headers["user-agent"] || "",
+      status: "success",
+    });
+
+    res.json({
+      status: "ok",
+      message: "Password berhasil diperbarui! Silakan gunakan password baru ini untuk login selanjutnya.",
+    });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 module.exports = router;
+
 

@@ -16,10 +16,11 @@ const userSchema = new mongoose.Schema(
         message: `Hanya email @${ALLOWED_DOMAIN} yang diizinkan`,
       },
     },
-    password: { type: String, required: true, minlength: 8 },
+    password: { type: String, required: true, minlength: 6 },
     full_name: { type: String, required: true, trim: true },
     nip: { type: String, trim: true },
     unit_kerja: { type: String, trim: true },
+    must_change_password: { type: Boolean, default: false },
 
     role: {
       type: String,

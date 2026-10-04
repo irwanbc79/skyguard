@@ -142,18 +142,72 @@ router.post("/users/:id/verify", requireAdmin, async (req, res) => {
   }
 });
 
-// ─── POST /api/admin/users/:id/reset-password — admin set new password ────────
-router.post("/users/:id/reset-password", requireSuperAdmin, async (req, res) => {
+// ─── POST /api/admin/users/:id/reset-password — admin & superadmin set password ─
+router.post("/users/:id/reset-password", requireAdmin, async (req, res) => {
   try {
-    const { password } = req.body;
-    if (!password || password.length < 8) {
-      return res.status(400).json({ status: "error", message: "Password minimal 8 karakter." });
+    let { password, must_change_password = true, auto_verify = true } = req.body || {};
+
+    // Default to '123456' if empty or not provided
+    if (!password || !String(password).trim()) {
+      password = "123456";
+    } else {
+      password = String(password).trim();
     }
+
+    if (password.length < 6) {
+      return res.status(400).json({ status: "error", message: "Password minimal 6 karakter." });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ status: "error", message: "User tidak ditemukan" });
+
+    // Admin cannot reset password of superadmin unless they are superadmin
+    if (user.role === "superadmin" && req.user.role !== "superadmin") {
+      return res.status(403).json({ status: "error", message: "Hanya superadmin yang dapat mengatur password akun superadmin." });
+    }
+
     user.password = password;
+    user.must_change_password = Boolean(must_change_password);
+
+    if (auto_verify) {
+      user.is_verified = true;
+      user.verification_token = undefined;
+      user.verification_expires = undefined;
+    }
+    user.reset_token = undefined;
+    user.reset_expires = undefined;
+
     await user.save();
-    res.json({ status: "ok", message: `Password ${user.email} berhasil direset.` });
+
+    logActivity({
+      user_id: req.user._id,
+      email: req.user.email,
+      full_name: req.user.full_name || req.user.email,
+      role: req.user.role,
+      action: "password_reset",
+      category: "AUTH",
+      resource: "users",
+      resource_id: String(user._id),
+      resource_name: user.email,
+      detail: `Reset/beri password untuk ${user.email} (${user.full_name}) oleh ${req.user.role} (${req.user.email}). Wajib ganti password: ${user.must_change_password ? "Ya" : "Tidak"}`,
+      ip: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown",
+      user_agent: req.headers["user-agent"] || "",
+      status: "success",
+    });
+
+    res.json({
+      status: "ok",
+      message: `Password untuk akun ${user.email} berhasil diatur ke "${password}". ${user.must_change_password ? "Petugas akan disarankan mengganti password saat login." : ""}`,
+      data: {
+        id: user._id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+        temporary_password: password,
+        must_change_password: user.must_change_password,
+        is_verified: user.is_verified,
+      },
+    });
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
   }
