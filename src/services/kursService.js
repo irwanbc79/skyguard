@@ -403,7 +403,7 @@ async function hitungPajak(fobUsd, jumlahUnit = 1, currency = "USD") {
 
   const BEBAS_BEA = 500,
     TARIF_BM = 0.1,
-    TARIF_PPN = 0.11;
+    TARIF_PPN = 0.12;
   const kursData = kursCache?.find((c) => c.code === currency);
   const kurs = kursData?.rate || 16777;
 
@@ -424,7 +424,7 @@ async function hitungPajak(fobUsd, jumlahUnit = 1, currency = "USD") {
       nilai_pabean_idr: Math.round(nilaiPabean),
       bm_persen: "10%",
       bm_idr,
-      ppn_persen: "11%",
+      ppn_persen: "12%",
       ppn_idr,
       total_pajak_idr: bm_idr + ppn_idr,
     },

@@ -60,7 +60,7 @@ const imeiDetailSchema = new mongoose.Schema(
     // Tax breakdown
     tarif_bm: String, // e.g. "10%"
     pungutan_bm: { type: Number, default: 0 },
-    tarif_ppn: String, // e.g. "11%"
+    tarif_ppn: String, // e.g. "12%"
     pungutan_ppn: { type: Number, default: 0 },
     tarif_pph: String, // e.g. "0%"
     pungutan_pph: { type: Number, default: 0 },
