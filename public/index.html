@@ -2570,7 +2570,7 @@
             class="bg-gradient-to-br from-purple-900/40 to-purple-800/20 rounded-xl p-4 text-center border border-purple-500/30"
           >
             <i class="fas fa-receipt text-purple-400 text-2xl mb-2"></i>
-            <p class="text-2xl font-bold text-white">12%</p>
+            <p class="text-2xl font-bold text-white">11%</p>
             <p class="text-gray-400 text-xs">PPN</p>
           </div>
           <div
@@ -2595,8 +2595,9 @@
           </p>
           <p class="text-yellow-400 text-xs mb-4 bg-yellow-900/30 p-2 rounded">
             <i class="fas fa-info-circle mr-1"></i><strong>Catatan:</strong> PPN
-            menggunakan tarif 12% sesuai PMK 34/2025. Berlaku untuk penetapan
-            yang dilakukan sejak saat ini dan seterusnya.
+            masih menggunakan tarif 11% sesuai implementasi CEISA saat ini.
+            Tarif PPN 12% sesuai PMK 34/2025 akan diterapkan setelah sistem
+            CEISA diperbarui.
           </p>
 
           <!-- Rumus Perhitungan -->
@@ -2607,7 +2608,7 @@
             <div class="text-gray-300 space-y-1 font-mono text-sm">
               <p>Nilai Pabean = (FOB - USD 500) x Kurs</p>
               <p>Bea Masuk = 10% x Nilai Pabean</p>
-              <p>PPN = 12% x (Nilai Pabean + Bea Masuk)</p>
+              <p>PPN = 11% x (Nilai Pabean + Bea Masuk)</p>
               <p class="text-yellow-400 font-bold">
                 Total Pajak = Bea Masuk + PPN
               </p>
@@ -2633,11 +2634,11 @@
                 <strong class="text-white">Rp 480.000</strong>
               </p>
               <p>
-                PPN = 12% x (4.800.000 + 480.000) =
-                <strong class="text-white">Rp 633.600</strong>
+                PPN = 11% x (4.800.000 + 480.000) =
+                <strong class="text-white">Rp 580.800</strong>
               </p>
               <p class="text-yellow-400 font-bold mt-2">
-                Total Pajak = Rp 480.000 + Rp 633.600 = Rp 1.113.600
+                Total Pajak = Rp 480.000 + Rp 580.800 = Rp 1.060.800
               </p>
             </div>
           </div>
@@ -2701,7 +2702,7 @@
                 >
               </div>
               <p class="text-gray-400 text-xs">
-                Kelebihan di atas USD 500 dikenakan BM 10% dan PPN 12%. Petugas
+                Kelebihan di atas USD 500 dikenakan BM 10% dan PPN 11%. Petugas
                 wajib menghitung dengan kurs pajak yang berlaku.
               </p>
             </div>
@@ -8923,7 +8924,7 @@
               <div class='grid grid-cols-4 gap-2 text-center text-xs mt-2 bg-slate-800/50 rounded-lg p-2'>
                 <div><span class='text-yellow-400 font-bold'>${d.estimasiPajak.totalFormatted}</span><br><span class='text-gray-500'>Total Pajak</span></div>
                 <div><span class='text-red-400 font-bold'>Rp ${(d.estimasiPajak.bm || 0).toLocaleString("id-ID")}</span><br><span class='text-gray-500'>BM 10%</span></div>
-                <div><span class='text-purple-400 font-bold'>Rp ${(d.estimasiPajak.ppn || 0).toLocaleString("id-ID")}</span><br><span class='text-gray-500'>PPN 12%</span></div>
+                <div><span class='text-purple-400 font-bold'>Rp ${(d.estimasiPajak.ppn || 0).toLocaleString("id-ID")}</span><br><span class='text-gray-500'>PPN 11%</span></div>
                 <div><span class='text-blue-400 font-bold'>Rp ${(d.estimasiPajak.pph || 0).toLocaleString("id-ID")}</span><br><span class='text-gray-500'>PPh</span></div>
               </div>
             </div>`;
@@ -9374,7 +9375,7 @@
       function calculateTax(priceUsd) {
         const BEBAS_BEA = 500;
         const TARIF_BM = 0.1;
-        const TARIF_PPN = 0.12;
+        const TARIF_PPN = 0.11;
         const kenaFob = Math.max(0, priceUsd - BEBAS_BEA);
         const nilaiPabean = kenaFob * currentKursUSD;
         const bm_exact = nilaiPabean * TARIF_BM;
@@ -9744,7 +9745,7 @@
                         <div class="border-t border-white/10 my-2"></div>
                         <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Nilai Pabean</span><span class="font-semibold">Rp ${p.nilai_pabean_idr.toLocaleString("id-ID")}</span></div>
                         <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">Bea Masuk (10%)</span><span class="font-semibold text-yellow-400">Rp ${p.bm_idr.toLocaleString("id-ID")}</span></div>
-                        <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">PPN (12%)</span><span class="font-semibold text-orange-400">Rp ${p.ppn_idr.toLocaleString("id-ID")}</span></div>
+                        <div class="result-row flex justify-between py-3 px-4 rounded-lg"><span class="text-gray-400">PPN (11%)</span><span class="font-semibold text-orange-400">Rp ${p.ppn_idr.toLocaleString("id-ID")}</span></div>
                         <div class="border-t border-white/10 my-2"></div>
                         <div class="bg-gradient-to-r from-green-500/20 to-green-600/10 border border-green-500/30 rounded-xl p-4 flex justify-between items-center">
                             <span class="text-lg">Total Pajak</span><span class="text-2xl font-bold text-green-400">Rp ${p.total_pajak_idr.toLocaleString("id-ID")}</span>
@@ -9799,7 +9800,7 @@
         const rowBM = isInd ? "Bea Masuk (BM)" : "Import Duty (BM)";
         const rowPPN = "PPN";
         const calcBM = isInd ? "10% × Nilai Pabean, bulat ke 1.000" : "10% × Customs Value, rounded to 1,000";
-        const calcPPN = isInd ? "12% × (Nilai Pabean + BM eksak)" : "12% × (Customs Value + Exact BM)";
+        const calcPPN = isInd ? "11% × (Nilai Pabean + BM eksak)" : "11% × (Customs Value + Exact BM)";
         
         const totalLabel = isInd ? "JUMLAH PUNGUTAN" : "TOTAL LEVIES";
         const noteText = isInd 
@@ -10019,8 +10020,8 @@
                   <div>
                     <label class="kbm-label">Tarif PPN (%)</label>
                     <select id="kbmTarifPPN" class="kbm-select" onchange="kbmAutoCalc()">
-                      <option value="12" selected>12%</option>
-                      <option value="11">11%</option>
+                      <option value="11" selected>11%</option>
+                      <option value="12">12%</option>
                     </select>
                   </div>
                   <div>
@@ -10272,7 +10273,7 @@
         const tarifBMTP =
           parseFloat(document.getElementById("kbmTarifBMTP")?.value) || 0;
         const tarifPPN =
-          parseFloat(document.getElementById("kbmTarifPPN")?.value) || 12;
+          parseFloat(document.getElementById("kbmTarifPPN")?.value) || 11;
         const tarifPPnBM =
           parseFloat(document.getElementById("kbmTarifPPnBM")?.value) || 0;
         const tarifPPh =
@@ -10642,7 +10643,7 @@
         document.getElementById("kbmJumlahOrang").value = "1";
         document.getElementById("kbmTarifBM").value = "10";
         document.getElementById("kbmTarifBMTP").value = "0";
-        document.getElementById("kbmTarifPPN").value = "12";
+        document.getElementById("kbmTarifPPN").value = "11";
         document.getElementById("kbmTarifPPnBM").value = "0";
         document.getElementById("kbmTarifPPh").value = "0";
         document.getElementById("kbmTarifDenda").value = "0";

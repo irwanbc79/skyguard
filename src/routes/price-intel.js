@@ -875,8 +875,8 @@ function calculateTax(fobUsd, ndpbm = 16300, qty = 1, bekas = true) {
   const tarifBm = 0.1;
   const bm = Math.round(nilaiPabean * tarifBm);
 
-  // PPN 12% (PMK 34/2025)
-  const tarifPpn = 0.12;
+  // PPN 11%
+  const tarifPpn = 0.11;
   const ppn = Math.round((nilaiPabean + bm) * tarifPpn);
 
   // PPh 0% (for foreign passport) or 10% (local without NPWP) or 0.5% (local with NPWP)
@@ -902,7 +902,7 @@ function calculateTax(fobUsd, ndpbm = 16300, qty = 1, bekas = true) {
       "FOB Kena Pajak": `$${kenaFob}`,
       "Nilai Pabean": `Rp ${nilaiPabean.toLocaleString("id-ID")}`,
       "BM (10%)": `Rp ${bm.toLocaleString("id-ID")}`,
-      "PPN (12%)": `Rp ${ppn.toLocaleString("id-ID")}`,
+      "PPN (11%)": `Rp ${ppn.toLocaleString("id-ID")}`,
       PPh: `Rp ${pph.toLocaleString("id-ID")}`,
       TOTAL: `Rp ${totalPungutan.toLocaleString("id-ID")}`,
     },
